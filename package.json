@@ -1,0 +1,13 @@
+{
+  "name": "line-meal-order-bot",
+  "version": "1.0.0",
+  "description": "LINE Bot meal ordering service for chat rooms powered by Google Apps Script and Google Sheets (Free Tier)",
+  "main": "src/Code.js",
+  "scripts": {
+    "test": "node tests/test_order_flow.js",
+    "bundle": "node scripts/bundle.js"
+  },
+  "keywords": ["linebot", "google-apps-script", "meal-ordering", "google-sheets"],
+  "author": "",
+  "license": "AGPL-3.0-or-later"
+}
