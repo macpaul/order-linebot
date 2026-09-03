@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-03T09:01:26.199Z
+ * Automatically generated on: 2026-09-03T17:39:04.228Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -35,10 +35,16 @@ var CONFIG = {
    */
   SHEET_NAMES: {
     CONFIG: 'Config',
+    WEEKLY_SCHEDULE: 'WeeklySchedule',
     MENU: 'Menu',
     ORDERS: 'Orders',
     SUMMARY: 'Summary'
   },
+
+  /**
+   * Mon to Fri days of week in Chinese
+   */
+  DAYS_OF_WEEK: ['週一', '週二', '週三', '週四', '週五'],
 
   /**
    * Order lifecycle status values.
@@ -457,15 +463,33 @@ var _mockStore = {
     'CUTOFF_TIME': '11:00',
     'ORGANIZER_NAME': '小幫手'
   },
+  WeeklySchedule: [
+    { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
+    { dayOfWeek: '週二', restaurantName: '鹿也日式便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '日式炸豬排/唐揚雞', isActive: 'TRUE' },
+    { dayOfWeek: '週三', restaurantName: '八方雲集鍋貼', cutoffTime: '10:30', uberEatsUrl: '', notes: '水餃/鍋貼/酸辣湯', isActive: 'TRUE' },
+    { dayOfWeek: '週四', restaurantName: '老王燒臘便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '三寶飯/叉燒燒肉', isActive: 'TRUE' },
+    { dayOfWeek: '週五', restaurantName: '健康水煮輕食', cutoffTime: '10:30', uberEatsUrl: '', notes: '舒肥雞胸/水煮牛', isActive: 'TRUE' }
+  ],
   Menu: [
-    { dayOfWeek: 'ALL', category: '便當', itemName: '招牌排骨飯', price: 100, isAvailable: 'TRUE' },
-    { dayOfWeek: 'ALL', category: '便當', itemName: '酥炸雞腿飯', price: 110, isAvailable: 'TRUE' },
-    { dayOfWeek: 'ALL', category: '便當', itemName: '古早味控肉飯', price: 95, isAvailable: 'TRUE' },
-    { dayOfWeek: 'ALL', category: '便當', itemName: '清蒸魚排飯', price: 105, isAvailable: 'TRUE' },
-    { dayOfWeek: 'ALL', category: '便當', itemName: '香煎鯖魚飯', price: 100, isAvailable: 'TRUE' },
-    { dayOfWeek: 'ALL', category: '輕食', itemName: '健康水煮雞胸', price: 100, isAvailable: 'TRUE' },
-    { dayOfWeek: 'ALL', category: '飲料', itemName: '古早味紅茶', price: 25, isAvailable: 'TRUE' },
-    { dayOfWeek: 'ALL', category: '飲料', itemName: '無糖綠茶', price: 25, isAvailable: 'TRUE' }
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '便當', itemName: '招牌排骨飯', price: 100, isAvailable: 'TRUE', description: '附三樣配菜' },
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '便當', itemName: '酥炸雞腿飯', price: 110, isAvailable: 'TRUE', description: '酥脆大雞腿' },
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '便當', itemName: '古早味控肉飯', price: 95, isAvailable: 'TRUE', description: '經典控肉' },
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '便當', itemName: '清蒸魚排飯', price: 105, isAvailable: 'TRUE', description: '鮮嫩無刺魚排' },
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '便當', itemName: '香煎鯖魚飯', price: 100, isAvailable: 'TRUE', description: '特選鯖魚' },
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '輕食', itemName: '健康水煮雞胸', price: 100, isAvailable: 'TRUE', description: '低卡高蛋白' },
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '飲料', itemName: '古早味紅茶', price: 25, isAvailable: 'TRUE', description: '微糖' },
+    { dayOfWeek: 'ALL', restaurantName: '今日便當', category: '飲料', itemName: '無糖綠茶', price: 25, isAvailable: 'TRUE', description: '無糖' },
+    // Weekly sample items
+    { dayOfWeek: '週一', restaurantName: '福山排骨便當', category: '主食', itemName: '招牌排骨飯', price: 100, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週一', restaurantName: '福山排骨便當', category: '主食', itemName: '酥炸雞腿飯', price: 110, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週二', restaurantName: '鹿也日式便當', category: '日式', itemName: '日式厚切豬排飯', price: 120, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週二', restaurantName: '鹿也日式便當', category: '日式', itemName: '唐揚炸雞飯', price: 115, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週三', restaurantName: '八方雲集鍋貼', category: '鍋貼水餃', itemName: '招牌鍋貼(10顆)', price: 70, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週三', restaurantName: '八方雲集鍋貼', category: '湯品', itemName: '酸辣湯', price: 35, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週四', restaurantName: '老王燒臘便當', category: '燒臘', itemName: '招牌三寶飯', price: 110, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週四', restaurantName: '老王燒臘便當', category: '燒臘', itemName: '脆皮燒肉飯', price: 105, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週五', restaurantName: '健康水煮輕食', category: '低GI', itemName: '舒肥嫩雞胸餐盒', price: 110, isAvailable: 'TRUE', description: '' },
+    { dayOfWeek: '週五', restaurantName: '健康水煮輕食', category: '低GI', itemName: '薄鹽烤鯖魚餐盒', price: 120, isAvailable: 'TRUE', description: '' }
   ],
   Orders: [],
   Summary: []
@@ -520,25 +544,40 @@ function initSheets() {
       ]
     },
     {
-      name: CONFIG.SHEET_NAMES.MENU,
-      headers: ['DayOfWeek', 'Category', 'ItemName', 'Price', 'IsAvailable'],
+      name: CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE,
+      headers: ['DayOfWeek', 'RestaurantName', 'CutoffTime', 'UberEatsUrl', 'Notes', 'IsActive'],
       initData: [
-        ['ALL', '主食', '招牌排骨飯', 100, 'TRUE'],
-        ['ALL', '主食', '酥炸雞腿飯', 110, 'TRUE'],
-        ['ALL', '主食', '古早味控肉飯', 95, 'TRUE'],
-        ['ALL', '主食', '清蒸魚排飯', 105, 'TRUE'],
-        ['ALL', '輕食', '健康水煮雞胸', 100, 'TRUE'],
-        ['ALL', '飲料', '古早味紅茶', 25, 'TRUE'],
-        ['ALL', '飲料', '無糖微冰綠茶', 25, 'TRUE']
+        ['週一', '福山排骨便當', '10:30', '', '招牌排骨便當', 'TRUE'],
+        ['週二', '鹿也日式便當', '10:30', '', '日式炸豬排/唐揚雞', 'TRUE'],
+        ['週三', '八方雲集鍋貼', '10:30', '', '水餃/鍋貼/酸辣湯', 'TRUE'],
+        ['週四', '老王燒臘便當', '10:30', '', '三寶飯/叉燒燒肉', 'TRUE'],
+        ['週五', '健康水煮輕食', '10:30', '', '舒肥雞胸/低GI', 'TRUE']
+      ]
+    },
+    {
+      name: CONFIG.SHEET_NAMES.MENU,
+      headers: ['DayOfWeek', 'RestaurantName', 'Category', 'ItemName', 'Price', 'IsAvailable', 'Description'],
+      initData: [
+        ['週一', '福山排骨便當', '主食', '招牌排骨飯', 100, 'TRUE', '附三樣配菜'],
+        ['週一', '福山排骨便當', '主食', '酥炸雞腿飯', 110, 'TRUE', '酥脆大雞腿'],
+        ['週二', '鹿也日式便當', '日式', '日式厚切豬排飯', 120, 'TRUE', ''],
+        ['週二', '鹿也日式便當', '日式', '唐揚炸雞飯', 115, 'TRUE', ''],
+        ['週三', '八方雲集鍋貼', '鍋貼水餃', '招牌鍋貼(10顆)', 70, 'TRUE', ''],
+        ['週三', '八方雲集鍋貼', '湯品', '酸辣湯', 35, 'TRUE', ''],
+        ['週四', '老王燒臘便當', '燒臘', '招牌三寶飯', 110, 'TRUE', ''],
+        ['週四', '老王燒臘便當', '燒臘', '脆皮燒肉飯', 105, 'TRUE', ''],
+        ['週五', '健康水煮輕食', '低GI', '舒肥嫩雞胸餐盒', 110, 'TRUE', ''],
+        ['週五', '健康水煮輕食', '低GI', '薄鹽烤鯖魚餐盒', 120, 'TRUE', ''],
+        ['ALL', '通用', '飲料', '古早味紅茶', 25, 'TRUE', '']
       ]
     },
     {
       name: CONFIG.SHEET_NAMES.ORDERS,
-      headers: ['OrderId', 'Timestamp', 'Date', 'GroupId', 'UserId', 'UserName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid']
+      headers: ['OrderId', 'Timestamp', 'Date', 'DayOfWeek', 'GroupId', 'UserId', 'UserName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid']
     },
     {
       name: CONFIG.SHEET_NAMES.SUMMARY,
-      headers: ['ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']
+      headers: ['DayOfWeek', 'RestaurantName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']
     }
   ];
 
@@ -600,21 +639,120 @@ function setConfigValue(key, value) {
       return true;
     }
   }
-  // Not found, append
   sheet.appendRow([key, String(value), '']);
   return true;
 }
 
 /**
- * Get menu items
+ * Get Weekly Schedule (Mon to Fri)
  */
-function getMenuItems(dayOfWeek) {
+function getWeeklySchedule() {
+  if (!isGasRuntime()) {
+    return _mockStore.WeeklySchedule.map(function (s) {
+      return {
+        dayOfWeek: s.dayOfWeek,
+        restaurantName: s.restaurantName,
+        cutoffTime: s.cutoffTime,
+        uberEatsUrl: s.uberEatsUrl || '',
+        notes: s.notes || '',
+        isActive: String(s.isActive).toUpperCase() === 'TRUE'
+      };
+    });
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return [];
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE);
+  if (!sheet) return [];
+
+  var rows = sheet.getDataRange().getValues();
+  var list = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    list.push({
+      dayOfWeek: String(r[0]),
+      restaurantName: String(r[1]),
+      cutoffTime: String(r[2]),
+      uberEatsUrl: String(r[3]),
+      notes: String(r[4]),
+      isActive: String(r[5]).toUpperCase() === 'TRUE'
+    });
+  }
+  return list;
+}
+
+/**
+ * Get Schedule for specific day
+ */
+function getScheduleByDay(dayOfWeek) {
+  var schedule = getWeeklySchedule();
+  for (var i = 0; i < schedule.length; i++) {
+    if (schedule[i].dayOfWeek === dayOfWeek) {
+      return schedule[i];
+    }
+  }
+  return null;
+}
+
+/**
+ * Set Weekly Schedule for a day
+ */
+function setWeeklyScheduleDay(dayOfWeek, restaurantName, cutoffTime, uberEatsUrl, notes, isActive) {
+  if (!isGasRuntime()) {
+    for (var i = 0; i < _mockStore.WeeklySchedule.length; i++) {
+      if (_mockStore.WeeklySchedule[i].dayOfWeek === dayOfWeek) {
+        if (restaurantName) _mockStore.WeeklySchedule[i].restaurantName = restaurantName;
+        if (cutoffTime) _mockStore.WeeklySchedule[i].cutoffTime = cutoffTime;
+        if (uberEatsUrl !== undefined) _mockStore.WeeklySchedule[i].uberEatsUrl = uberEatsUrl;
+        if (notes !== undefined) _mockStore.WeeklySchedule[i].notes = notes;
+        if (isActive !== undefined) _mockStore.WeeklySchedule[i].isActive = isActive ? 'TRUE' : 'FALSE';
+        return true;
+      }
+    }
+    _mockStore.WeeklySchedule.push({
+      dayOfWeek: dayOfWeek,
+      restaurantName: restaurantName || '',
+      cutoffTime: cutoffTime || '10:30',
+      uberEatsUrl: uberEatsUrl || '',
+      notes: notes || '',
+      isActive: isActive ? 'TRUE' : 'FALSE'
+    });
+    return true;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE);
+  if (!sheet) return false;
+
+  var rows = sheet.getDataRange().getValues();
+  for (var j = 1; j < rows.length; j++) {
+    if (String(rows[j][0]) === dayOfWeek) {
+      if (restaurantName) sheet.getRange(j + 1, 2).setValue(restaurantName);
+      if (cutoffTime) sheet.getRange(j + 1, 3).setValue(cutoffTime);
+      if (uberEatsUrl !== undefined) sheet.getRange(j + 1, 4).setValue(uberEatsUrl);
+      if (notes !== undefined) sheet.getRange(j + 1, 5).setValue(notes);
+      if (isActive !== undefined) sheet.getRange(j + 1, 6).setValue(isActive ? 'TRUE' : 'FALSE');
+      return true;
+    }
+  }
+  // Append new day
+  sheet.appendRow([dayOfWeek, restaurantName || '', cutoffTime || '10:30', uberEatsUrl || '', notes || '', isActive ? 'TRUE' : 'FALSE']);
+  return true;
+}
+
+/**
+ * Get menu items (optionally filtered by dayOfWeek or restaurantName)
+ */
+function getMenuItems(dayOfWeek, restaurantName) {
   if (!isGasRuntime()) {
     return _mockStore.Menu.filter(function (m) {
       var isAvail = m.isAvailable !== undefined ? m.isAvailable : m.IsAvailable;
       var dow = m.dayOfWeek !== undefined ? m.dayOfWeek : m.DayOfWeek;
-      return String(isAvail).toUpperCase() === 'TRUE' &&
-        (dow === 'ALL' || !dayOfWeek || dow === dayOfWeek);
+      var rName = m.restaurantName !== undefined ? m.restaurantName : m.RestaurantName;
+      var matchDay = (!dayOfWeek || dow === 'ALL' || dow === dayOfWeek);
+      var matchRest = (!restaurantName || !rName || rName === '今日便當' || rName === restaurantName);
+      return String(isAvail).toUpperCase() === 'TRUE' && matchDay && matchRest;
     });
   }
 
@@ -627,19 +765,72 @@ function getMenuItems(dayOfWeek) {
   var menu = [];
   for (var i = 1; i < rows.length; i++) {
     var row = rows[i];
-    var isAvailable = String(row[4]).toUpperCase() === 'TRUE';
+    var isAvailable = String(row[5]).toUpperCase() === 'TRUE';
     var itemDay = String(row[0]);
-    if (isAvailable && (itemDay === 'ALL' || !dayOfWeek || itemDay === dayOfWeek)) {
+    var itemRest = String(row[1]);
+
+    var dayMatches = (!dayOfWeek || itemDay === 'ALL' || itemDay === dayOfWeek);
+    var restMatches = (!restaurantName || !itemRest || itemRest === '今日便當' || itemRest === restaurantName);
+
+    if (isAvailable && dayMatches && restMatches) {
       menu.push({
         dayOfWeek: itemDay,
-        category: String(row[1]),
-        itemName: String(row[2]),
-        price: Number(row[3]) || 0,
-        isAvailable: isAvailable
+        restaurantName: itemRest,
+        category: String(row[2]),
+        itemName: String(row[3]),
+        price: Number(row[4]) || 0,
+        isAvailable: isAvailable,
+        description: String(row[6] || '')
       });
     }
   }
   return menu;
+}
+
+/**
+ * Save / Import menu items for a specific day and restaurant
+ */
+function saveMenuItems(dayOfWeek, restaurantName, items) {
+  if (!items || items.length === 0) return 0;
+
+  if (!isGasRuntime()) {
+    // Remove old items for this day & restaurant
+    _mockStore.Menu = _mockStore.Menu.filter(function (m) {
+      return !(m.dayOfWeek === dayOfWeek && m.restaurantName === restaurantName);
+    });
+    items.forEach(function (it) {
+      _mockStore.Menu.push({
+        dayOfWeek: dayOfWeek,
+        restaurantName: restaurantName,
+        category: it.category || '一般',
+        itemName: it.itemName,
+        price: it.price || 0,
+        isAvailable: it.isAvailable !== false ? 'TRUE' : 'FALSE',
+        description: it.description || ''
+      });
+    });
+    return items.length;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return 0;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.MENU);
+  if (!sheet) return 0;
+
+  // Append new items
+  items.forEach(function (it) {
+    sheet.appendRow([
+      dayOfWeek,
+      restaurantName,
+      it.category || '一般',
+      it.itemName,
+      it.price || 0,
+      it.isAvailable !== false ? 'TRUE' : 'FALSE',
+      it.description || ''
+    ]);
+  });
+
+  return items.length;
 }
 
 /**
@@ -650,6 +841,7 @@ function addOrder(orderData) {
   var orderId = 'ORD_' + now.getTime() + '_' + Math.floor(Math.random() * 1000);
   var timestamp = now.toISOString();
   var date = orderData.date || now.toISOString().slice(0, 10);
+  var dayOfWeek = orderData.dayOfWeek || '週一';
   var quantity = Number(orderData.quantity) || 1;
   var price = Number(orderData.price) || 0;
   var subtotal = quantity * price;
@@ -658,6 +850,7 @@ function addOrder(orderData) {
     orderId: orderId,
     timestamp: timestamp,
     date: date,
+    dayOfWeek: dayOfWeek,
     groupId: orderData.groupId || '',
     userId: orderData.userId || '',
     userName: orderData.userName || '成員',
@@ -683,6 +876,7 @@ function addOrder(orderData) {
     record.orderId,
     record.timestamp,
     record.date,
+    record.dayOfWeek,
     record.groupId,
     record.userId,
     record.userName,
@@ -700,12 +894,13 @@ function addOrder(orderData) {
 /**
  * Get active orders for a user
  */
-function getUserOrders(userId, groupId, date) {
+function getUserOrders(userId, groupId, date, dayOfWeek) {
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
       return o.userId === userId &&
         (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
+        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
         o.status === 'ACTIVE';
     });
   }
@@ -719,26 +914,31 @@ function getUserOrders(userId, groupId, date) {
   var orders = [];
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
-    var rStatus = String(r[10]);
-    var rUserId = String(r[4]);
-    var rGroupId = String(r[3]);
+    var rStatus = String(r[11]);
+    var rUserId = String(r[5]);
+    var rGroupId = String(r[4]);
     var rDate = String(r[2]);
+    var rDayOfWeek = String(r[3]);
 
-    if (rStatus === 'ACTIVE' && rUserId === userId && (!groupId || rGroupId === groupId) && (!date || rDate === date)) {
+    if (rStatus === 'ACTIVE' && rUserId === userId &&
+        (!groupId || rGroupId === groupId) &&
+        (!date || rDate === date) &&
+        (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
       orders.push({
         row: i + 1,
         orderId: r[0],
         timestamp: r[1],
         date: rDate,
+        dayOfWeek: rDayOfWeek,
         groupId: rGroupId,
         userId: rUserId,
-        userName: r[5],
-        itemName: r[6],
-        quantity: Number(r[7]),
-        price: Number(r[8]),
-        subtotal: Number(r[9]),
+        userName: r[6],
+        itemName: r[7],
+        quantity: Number(r[8]),
+        price: Number(r[9]),
+        subtotal: Number(r[10]),
         status: rStatus,
-        paid: r[11]
+        paid: r[12]
       });
     }
   }
@@ -748,14 +948,15 @@ function getUserOrders(userId, groupId, date) {
 /**
  * Cancel orders for a user
  */
-function cancelOrder(userId, groupId, itemName, date) {
+function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
   var count = 0;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
       if (o.userId === userId &&
         (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
-        (!itemName || o.itemName.includes(itemName)) &&
+        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
+        (!itemName || o.itemName.indexOf(itemName) !== -1) &&
         o.status === 'ACTIVE') {
         o.status = 'CANCELLED';
         count++;
@@ -772,15 +973,19 @@ function cancelOrder(userId, groupId, itemName, date) {
   var rows = sheet.getDataRange().getValues();
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
-    var rStatus = String(r[10]);
-    var rUserId = String(r[4]);
-    var rGroupId = String(r[3]);
+    var rStatus = String(r[11]);
+    var rUserId = String(r[5]);
+    var rGroupId = String(r[4]);
     var rDate = String(r[2]);
-    var rItem = String(r[6]);
+    var rDayOfWeek = String(r[3]);
+    var rItem = String(r[7]);
 
-    if (rStatus === 'ACTIVE' && rUserId === userId && (!groupId || rGroupId === groupId) && (!date || rDate === date)) {
+    if (rStatus === 'ACTIVE' && rUserId === userId &&
+        (!groupId || rGroupId === groupId) &&
+        (!date || rDate === date) &&
+        (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
       if (!itemName || rItem.indexOf(itemName) !== -1) {
-        sheet.getRange(i + 1, 11).setValue('CANCELLED');
+        sheet.getRange(i + 1, 12).setValue('CANCELLED');
         count++;
       }
     }
@@ -789,13 +994,14 @@ function cancelOrder(userId, groupId, itemName, date) {
 }
 
 /**
- * Get all active orders for a group on a date
+ * Get all active orders for a group on a date or dayOfWeek
  */
-function getGroupOrders(groupId, date) {
+function getGroupOrders(groupId, date, dayOfWeek) {
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
       return (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
+        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
         o.status === 'ACTIVE';
     });
   }
@@ -809,24 +1015,29 @@ function getGroupOrders(groupId, date) {
   var orders = [];
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
-    var rStatus = String(r[10]);
-    var rGroupId = String(r[3]);
+    var rStatus = String(r[11]);
+    var rGroupId = String(r[4]);
     var rDate = String(r[2]);
+    var rDay = String(r[3]);
 
-    if (rStatus === 'ACTIVE' && (!groupId || rGroupId === groupId) && (!date || rDate === date)) {
+    if (rStatus === 'ACTIVE' &&
+        (!groupId || rGroupId === groupId) &&
+        (!date || rDate === date) &&
+        (!dayOfWeek || rDay === dayOfWeek)) {
       orders.push({
         orderId: r[0],
         timestamp: r[1],
         date: rDate,
+        dayOfWeek: rDay,
         groupId: rGroupId,
-        userId: r[4],
-        userName: r[5],
-        itemName: r[6],
-        quantity: Number(r[7]),
-        price: Number(r[8]),
-        subtotal: Number(r[9]),
+        userId: r[5],
+        userName: r[6],
+        itemName: r[7],
+        quantity: Number(r[8]),
+        price: Number(r[9]),
+        subtotal: Number(r[10]),
         status: rStatus,
-        paid: r[11]
+        paid: r[12]
       });
     }
   }
@@ -834,17 +1045,16 @@ function getGroupOrders(groupId, date) {
 }
 
 /**
- * Calculate summary and write to Summary sheet
+ * Calculate single-day summary
  */
-function getOrderSummary(groupId, date) {
-  var orders = getGroupOrders(groupId, date);
+function getOrderSummary(groupId, date, dayOfWeek) {
+  var orders = getGroupOrders(groupId, date, dayOfWeek);
   var itemMap = {};
   var userMap = {};
   var totalQuantity = 0;
   var totalAmount = 0;
 
   orders.forEach(function (o) {
-    // Aggregate by item
     if (!itemMap[o.itemName]) {
       itemMap[o.itemName] = {
         itemName: o.itemName,
@@ -858,7 +1068,6 @@ function getOrderSummary(groupId, date) {
     itemMap[o.itemName].subtotal += o.subtotal;
     itemMap[o.itemName].buyers.push(o.userName + (o.quantity > 1 ? 'x' + o.quantity : ''));
 
-    // Aggregate by user
     if (!userMap[o.userName]) {
       userMap[o.userName] = {
         userName: o.userName,
@@ -873,43 +1082,111 @@ function getOrderSummary(groupId, date) {
     totalAmount += o.subtotal;
   });
 
-  var itemsList = Object.keys(itemMap).map(function (k) {
-    return itemMap[k];
-  });
-
-  var usersList = Object.keys(userMap).map(function (k) {
-    return userMap[k];
-  });
-
-  // Write to Summary Sheet if in GAS
-  if (isGasRuntime()) {
-    var ss = getSpreadsheet();
-    if (ss) {
-      var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.SUMMARY);
-      if (sheet) {
-        sheet.clear();
-        sheet.appendRow(['ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']);
-        itemsList.forEach(function (item) {
-          sheet.appendRow([
-            item.itemName,
-            item.quantity,
-            item.price,
-            item.subtotal,
-            item.buyers.join(', ')
-          ]);
-        });
-        sheet.appendRow(['【總計】', totalQuantity, '', totalAmount, '']);
-      }
-    }
-  }
+  var itemsList = Object.keys(itemMap).map(function (k) { return itemMap[k]; });
+  var usersList = Object.keys(userMap).map(function (k) { return userMap[k]; });
 
   return {
     date: date,
+    dayOfWeek: dayOfWeek,
     totalQuantity: totalQuantity,
     totalAmount: totalAmount,
     items: itemsList,
     users: usersList
   };
+}
+
+/**
+ * Calculate full weekly summary (Mon to Fri batch)
+ */
+function getWeeklyOrderSummary(groupId) {
+  var schedule = getWeeklySchedule();
+  var days = ['週一', '週二', '週三', '週四', '週五'];
+  var daySummaries = [];
+  var grandTotalAmount = 0;
+  var grandTotalQuantity = 0;
+  var userWeeklyMap = {};
+
+  days.forEach(function (day) {
+    var sched = getScheduleByDay(day) || { restaurantName: day + '店家' };
+    var dayOrders = getGroupOrders(groupId, null, day);
+    var itemMap = {};
+    var dayTotalQty = 0;
+    var dayTotalAmt = 0;
+
+    dayOrders.forEach(function (o) {
+      if (!itemMap[o.itemName]) {
+        itemMap[o.itemName] = {
+          itemName: o.itemName,
+          quantity: 0,
+          price: o.price,
+          subtotal: 0,
+          buyers: []
+        };
+      }
+      itemMap[o.itemName].quantity += o.quantity;
+      itemMap[o.itemName].subtotal += o.subtotal;
+      itemMap[o.itemName].buyers.push(o.userName + (o.quantity > 1 ? 'x' + o.quantity : ''));
+
+      dayTotalQty += o.quantity;
+      dayTotalAmt += o.subtotal;
+
+      // User weekly aggregation
+      if (!userWeeklyMap[o.userName]) {
+        userWeeklyMap[o.userName] = {
+          userName: o.userName,
+          days: {},
+          total: 0
+        };
+      }
+      if (!userWeeklyMap[o.userName].days[day]) {
+        userWeeklyMap[o.userName].days[day] = [];
+      }
+      userWeeklyMap[o.userName].days[day].push(o.itemName + 'x' + o.quantity);
+      userWeeklyMap[o.userName].total += o.subtotal;
+    });
+
+    var items = Object.keys(itemMap).map(function (k) { return itemMap[k]; });
+
+    daySummaries.push({
+      dayOfWeek: day,
+      restaurantName: sched.restaurantName,
+      cutoffTime: sched.cutoffTime,
+      totalQuantity: dayTotalQty,
+      totalAmount: dayTotalAmt,
+      items: items
+    });
+
+    grandTotalQuantity += dayTotalQty;
+    grandTotalAmount += dayTotalAmt;
+  });
+
+  var usersList = Object.keys(userWeeklyMap).map(function (u) {
+    return userWeeklyMap[u];
+  });
+
+  return {
+    daySummaries: daySummaries,
+    grandTotalQuantity: grandTotalQuantity,
+    grandTotalAmount: grandTotalAmount,
+    users: usersList
+  };
+}
+
+/**
+ * Google Sheets UI onOpen menu builder
+ */
+function onOpenSpreadsheet() {
+  if (!isGasRuntime()) return;
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.createMenu('🍱 便當訂餐管理')
+      .addItem('📅 檢查/初始化試算表結構', 'initSheets')
+      .addItem('📊 重新產生今日統計表', 'refreshDailySummary')
+      .addItem('📈 重新產生本週梯次統計表', 'refreshWeeklySummary')
+      .addSeparator()
+      .addItem('🍔 從 Uber Eats 網址匯入菜單', 'showUberEatsImportDialog')
+      .addToUi();
+  } catch (e) {}
 }
 
 // Dual export
@@ -924,12 +1201,18 @@ function getOrderSummary(groupId, date) {
   g.initSheets = initSheets;
   g.getConfigValue = getConfigValue;
   g.setConfigValue = setConfigValue;
+  g.getWeeklySchedule = getWeeklySchedule;
+  g.getScheduleByDay = getScheduleByDay;
+  g.setWeeklyScheduleDay = setWeeklyScheduleDay;
   g.getMenuItems = getMenuItems;
+  g.saveMenuItems = saveMenuItems;
   g.addOrder = addOrder;
   g.getUserOrders = getUserOrders;
   g.cancelOrder = cancelOrder;
   g.getGroupOrders = getGroupOrders;
   g.getOrderSummary = getOrderSummary;
+  g.getWeeklyOrderSummary = getWeeklyOrderSummary;
+  g.onOpenSpreadsheet = onOpenSpreadsheet;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -939,13 +1222,388 @@ function getOrderSummary(groupId, date) {
       initSheets: initSheets,
       getConfigValue: getConfigValue,
       setConfigValue: setConfigValue,
+      getWeeklySchedule: getWeeklySchedule,
+      getScheduleByDay: getScheduleByDay,
+      setWeeklyScheduleDay: setWeeklyScheduleDay,
       getMenuItems: getMenuItems,
+      saveMenuItems: saveMenuItems,
       addOrder: addOrder,
       getUserOrders: getUserOrders,
       cancelOrder: cancelOrder,
       getGroupOrders: getGroupOrders,
       getOrderSummary: getOrderSummary,
+      getWeeklyOrderSummary: getWeeklyOrderSummary,
+      onOpenSpreadsheet: onOpenSpreadsheet,
       _mockStore: _mockStore
+    };
+  }
+})();
+
+
+/* =========================================================
+ * File: UberEatsService.js
+ * ========================================================= */
+
+/**
+ * UberEatsService.js - Uber Eats store/menu scraping and parsing service
+ * Supports both Google Apps Script (GAS) and Node.js runtime for testing.
+ *
+ * Public API:
+ *   - parseUberEatsUrl(url)
+ *   - fetchStoreMenu(storeUuid)
+ *   - extractMenuItems(storeData)
+ *   - parseRawMenuJson(jsonStr)
+ *   - importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride)
+ */
+
+/* ------------------------------------------------------------------ *
+ * Bootstrap — resolve CONFIG across runtimes
+ * ------------------------------------------------------------------ */
+var CONFIG = null;
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+       : (typeof global   !== 'undefined') ? global
+       : (typeof self     !== 'undefined') ? self
+       : null;
+
+  if (g && g.CONFIG) {
+    CONFIG = g.CONFIG;
+  }
+  if (!CONFIG) {
+    try {
+      var cfgModule = require('./Config.js');
+      CONFIG = cfgModule.CONFIG;
+    } catch (e) {}
+  }
+})();
+
+/**
+ * Detect whether we're running in Google Apps Script.
+ */
+function _isGasRuntime() {
+  try {
+    return typeof UrlFetchApp !== 'undefined';
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * HTTP POST helper with dual-environment support
+ */
+async function _httpPostJson(url, headers, payload) {
+  if (_isGasRuntime()) {
+    var response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      headers: headers,
+      payload: JSON.stringify(payload),
+      contentType: 'application/json',
+      muteHttpExceptions: true
+    });
+    var statusCode = parseInt(response.getResponseCode(), 10);
+    var data = null;
+    try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
+    return { statusCode: statusCode, data: data };
+  }
+
+  // Node.js
+  var nodeResponse = await fetch(url, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(payload)
+  });
+  var nodeData = null;
+  try { nodeData = await nodeResponse.json(); } catch (e) { nodeData = null; }
+  return { statusCode: nodeResponse.status, data: nodeData };
+}
+
+/**
+ * Clean strings
+ */
+function _cleanString(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Convert price (TWD in cents -> dollars, or regular dollars)
+ */
+function _convertPrice(rawPrice, currency) {
+  var num = parseFloat(rawPrice);
+  if (isNaN(num)) return 0;
+  // If price is in cents (e.g. 12000 = NT$120)
+  if (num > 1000) {
+    return Math.round(num / 100);
+  }
+  return Math.round(num);
+}
+
+/**
+ * Mock data for offline testing
+ */
+function _mockStoreData() {
+  return {
+    store: {
+      name: '福山排骨便當專賣',
+      uuid: 'mock-uuid-000'
+    },
+    catalogSectionsMap: {
+      'section-1': {
+        title: '主食便當',
+        items: [
+          {
+            name: '招牌排骨飯',
+            price: 12000,
+            description: '厚切香酥排骨附三樣當季配菜',
+            isAvailable: true
+          },
+          {
+            name: '酥炸雞腿飯',
+            price: 13000,
+            description: '黃金酥脆大雞腿',
+            isAvailable: true
+          }
+        ]
+      },
+      'section-2': {
+        title: '冷熱飲品',
+        items: [
+          {
+            name: '古早味冰紅茶',
+            price: 3000,
+            description: '天然決明子古早味紅茶',
+            isAvailable: true
+          }
+        ]
+      }
+    },
+    currency: 'TWD'
+  };
+}
+
+/**
+ * Decode URL slug to readable store name
+ */
+function _decodeSlug(slug) {
+  if (!slug) return '';
+  var decoded = decodeURIComponent(slug);
+  // If slug contains hyphens and is ASCII, format with spaces
+  if (/^[a-zA-Z0-9_-]+$/.test(slug)) {
+    return decoded.replace(/[-_]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }).trim();
+  }
+  return decoded.replace(/[-_]+/g, ' ').trim();
+}
+
+/**
+ * parseUberEatsUrl — Extract store name and UUID
+ * Supports:
+ *   https://www.ubereats.com/tw/store/store-name/uuid
+ *   https://www.ubereats.com/store/store-name/uuid
+ */
+function parseUberEatsUrl(url) {
+  if (!url) return null;
+
+  var match = url.match(/ubereats\.com\/(?:[a-zA-Z-]+\/)?store\/([^/?#]+)\/([a-zA-Z0-9_-]+)/i);
+  if (match) {
+    var storeName = _decodeSlug(match[1]);
+    var storeUuid = match[2];
+    return { storeName: storeName, storeUuid: storeUuid };
+  }
+
+  return null;
+}
+
+/**
+ * fetchStoreMenu — Fetch store menu from Uber Eats internal getStoreV1 API
+ */
+async function fetchStoreMenu(storeUuid) {
+  if (!storeUuid) {
+    return _mockStoreData();
+  }
+
+  var apiUrl = 'https://www.ubereats.com/_p/api/getStoreV1';
+  var headers = {
+    'Content-Type': 'application/json',
+    'x-csrf-token': 'x',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  };
+  var payload = {
+    storeUuid: storeUuid,
+    diningMode: 'DELIVERY'
+  };
+
+  try {
+    var result = await _httpPostJson(apiUrl, headers, payload);
+    if (result.statusCode >= 200 && result.statusCode < 300 && result.data) {
+      return result.data;
+    }
+  } catch (e) {}
+
+  return _mockStoreData();
+}
+
+/**
+ * Normalize section structures from Uber Eats API
+ */
+function _collectSections(storeData) {
+  var result = [];
+  var root = (storeData && storeData.data) ? storeData.data : storeData;
+  if (!root) return result;
+
+  // 1. catalogSectionsMap
+  if (root.catalogSectionsMap && typeof root.catalogSectionsMap === 'object') {
+    var keys = Object.keys(root.catalogSectionsMap);
+    for (var i = 0; i < keys.length; i++) {
+      var sec = root.catalogSectionsMap[keys[i]];
+      if (sec) result.push(sec);
+    }
+  }
+
+  // 2. sectionEntitiesMap
+  if (result.length === 0 && root.sectionEntitiesMap && typeof root.sectionEntitiesMap === 'object') {
+    var entKeys = Object.keys(root.sectionEntitiesMap);
+    for (var j = 0; j < entKeys.length; j++) {
+      var ent = root.sectionEntitiesMap[entKeys[j]];
+      if (ent) result.push(ent);
+    }
+  }
+
+  // 3. sections array
+  if (result.length === 0 && Array.isArray(root.sections)) {
+    result = root.sections;
+  }
+
+  return result;
+}
+
+/**
+ * extractMenuItems — Extract deduplicated menu items with prices and categories
+ */
+function extractMenuItems(storeData) {
+  if (!storeData) return [];
+
+  var sections = _collectSections(storeData);
+  var currency = (storeData.data && storeData.data.currency) || storeData.currency || 'TWD';
+  var seen = {};
+  var items = [];
+
+  for (var i = 0; i < sections.length; i++) {
+    var sec = sections[i];
+    var categoryTitle = '一般餐點';
+
+    // Check payload.standardItemsPayload
+    var rawItems = [];
+    if (sec.payload && sec.payload.standardItemsPayload) {
+      if (sec.payload.standardItemsPayload.title && sec.payload.standardItemsPayload.title.text) {
+        categoryTitle = sec.payload.standardItemsPayload.title.text;
+      }
+      rawItems = sec.payload.standardItemsPayload.catalogItems || [];
+    } else {
+      categoryTitle = sec.title || sec.name || '一般餐點';
+      rawItems = sec.items || sec.products || sec.catalogItems || [];
+    }
+
+    categoryTitle = _cleanString(categoryTitle);
+
+    for (var j = 0; j < rawItems.length; j++) {
+      var raw = rawItems[j];
+      var itemName = _cleanString(raw.title || raw.name || raw.itemName || '');
+      if (!itemName) continue;
+
+      var dedupeKey = categoryTitle + '|' + itemName;
+      if (seen[dedupeKey]) continue;
+      seen[dedupeKey] = true;
+
+      var rawPrice = raw.price !== undefined ? raw.price
+                   : raw.amount !== undefined ? raw.amount
+                   : 0;
+      var convertedPrice = _convertPrice(rawPrice, currency);
+      var description = _cleanString(raw.itemDescription || raw.description || raw.desc || '');
+      var isAvailable = raw.isAvailable !== undefined ? !!raw.isAvailable
+                     : raw.available !== undefined ? !!raw.available
+                     : true;
+
+      items.push({
+        category: categoryTitle,
+        itemName: itemName,
+        price: convertedPrice,
+        description: description,
+        isAvailable: isAvailable
+      });
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Parse raw JSON string pasted by user/admin
+ */
+function parseRawMenuJson(jsonStr) {
+  if (!jsonStr) return [];
+  try {
+    var parsed = JSON.parse(jsonStr);
+    if (Array.isArray(parsed)) {
+      return extractMenuItems({ catalogSectionsMap: { sec: { title: '菜單', items: parsed } } });
+    }
+    return extractMenuItems(parsed);
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * High-level orchestration function to import from Uber Eats
+ */
+async function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
+  var parsed = parseUberEatsUrl(url);
+  var storeUuid = parsed ? parsed.storeUuid : '';
+  var storeName = restaurantNameOverride || (parsed ? parsed.storeName : 'UberEats外送');
+
+  var storeData = await fetchStoreMenu(storeUuid);
+  var items = extractMenuItems(storeData);
+
+  return {
+    restaurantName: storeName,
+    dayOfWeek: dayOfWeek || '週一',
+    url: url,
+    itemsCount: items.length,
+    items: items
+  };
+}
+
+// Dual export
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+       : (typeof global   !== 'undefined') ? global
+       : (typeof self     !== 'undefined') ? self
+       : this;
+
+  g.parseUberEatsUrl = parseUberEatsUrl;
+  g.fetchStoreMenu = fetchStoreMenu;
+  g.extractMenuItems = extractMenuItems;
+  g.parseRawMenuJson = parseRawMenuJson;
+  g.importUberEatsToMenu = importUberEatsToMenu;
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      parseUberEatsUrl: parseUberEatsUrl,
+      fetchStoreMenu: fetchStoreMenu,
+      extractMenuItems: extractMenuItems,
+      parseRawMenuJson: parseRawMenuJson,
+      importUberEatsToMenu: importUberEatsToMenu,
+      _cleanString: _cleanString,
+      _convertPrice: _convertPrice,
+      _decodeSlug: _decodeSlug,
+      _mockStoreData: _mockStoreData
     };
   }
 })();
@@ -1683,6 +2341,126 @@ function createHelpFlex() {
   };
 }
 
+/**
+ * createWeeklyScheduleFlex — Build a Flex card displaying the Mon-Fri schedule
+ * @param {Array<Object>} schedule - List of { dayOfWeek, restaurantName, cutoffTime, notes, isActive }
+ * @returns {Object} LINE Flex bubble
+ */
+function createWeeklyScheduleFlex(schedule) {
+  var rows = [];
+  var days = schedule || [];
+
+  for (var i = 0; i < days.length; i++) {
+    var s = days[i];
+    rows.push(_flexBox([
+      _flexBox([
+        _flexText(s.dayOfWeek, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
+      ], {
+        backgroundColor: FLEX_COLORS.primary,
+        cornerRadius: 'sm',
+        padding: 'xs',
+        width: '45px'
+      }),
+      _flexBox([
+        _flexText(s.restaurantName || '尚未指定店家', { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText('⏰ 截止 ' + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
+      ], { layout: 'vertical', margin: 'md', flex: 1 }),
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '看菜單',
+          text: s.dayOfWeek + '菜單'
+        },
+        style: 'secondary',
+        height: 'sm',
+        flex: 0
+      }
+    ], {
+      layout: 'horizontal',
+      margin: 'md',
+      alignItems: 'center',
+      backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
+      padding: 'sm',
+      cornerRadius: 'md'
+    }));
+  }
+
+  return {
+    type: 'bubble',
+    size: 'giga',
+    header: _flexBox([
+      _flexText('📅 本週訂餐排程表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
+      _flexText('週一至週五每日店家 · 支援一梯次預訂', { size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs' })
+    ], { backgroundColor: FLEX_COLORS.primaryDark, padding: 'lg' }),
+    body: _flexBox(rows, { layout: 'vertical', padding: 'md' }),
+    footer: _flexBox([
+      _flexText('💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
+    ], { backgroundColor: FLEX_COLORS.background, padding: 'sm' })
+  };
+}
+
+/**
+ * createWeeklySummaryFlex — Build a Flex card displaying the weekly batch summary
+ * @param {Object} weeklySummary - { daySummaries, grandTotalQuantity, grandTotalAmount, users }
+ * @returns {Object} LINE Flex bubble
+ */
+function createWeeklySummaryFlex(weeklySummary) {
+  var summary = weeklySummary || { daySummaries: [], users: [] };
+  var bodyContents = [];
+
+  for (var i = 0; i < summary.daySummaries.length; i++) {
+    var ds = summary.daySummaries[i];
+    var dayItemsText = ds.items && ds.items.length > 0
+      ? ds.items.map(function (it) { return it.itemName + 'x' + it.quantity; }).join('、')
+      : '無訂單';
+
+    bodyContents.push(_flexBox([
+      _flexBox([
+        _flexText(ds.dayOfWeek + ' ' + (ds.restaurantName || ''), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText('共 ' + ds.totalQuantity + ' 份 · $' + ds.totalAmount + ' 元', { size: 'xs', color: FLEX_COLORS.primary, weight: 'bold' })
+      ], { layout: 'horizontal', justifyContent: 'space-between' }),
+      _flexText(dayItemsText, { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' })
+    ], {
+      layout: 'vertical',
+      backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
+      padding: 'sm',
+      cornerRadius: 'sm',
+      margin: 'sm'
+    }));
+  }
+
+  bodyContents.push(_flexSeparator({ margin: 'md' }));
+  bodyContents.push(_flexText('👤 成員本週梯次應付明細', { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
+
+  if (summary.users && summary.users.length > 0) {
+    for (var u = 0; u < summary.users.length; u++) {
+      var user = summary.users[u];
+      bodyContents.push(_flexBox([
+        _flexText(user.userName, { size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText('$' + user.total + ' 元', { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
+      ], { layout: 'horizontal', justifyContent: 'space-between', margin: 'xs' }));
+    }
+  } else {
+    bodyContents.push(_flexText('尚無成員訂購紀錄', { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
+  }
+
+  return {
+    type: 'bubble',
+    size: 'giga',
+    header: _flexBox([
+      _flexText('📊 本週梯次訂餐統計總表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
+      _flexText('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元', {
+        size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs'
+      })
+    ], { backgroundColor: FLEX_COLORS.primary, padding: 'lg' }),
+    body: _flexBox(bodyContents, { layout: 'vertical', padding: 'md' }),
+    footer: _flexBox([
+      _flexText('📋 請各成員依此表金額完成對帳與付款', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
+    ], { backgroundColor: FLEX_COLORS.background, padding: 'sm' })
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Dual-Environment Export (GAS + Node.js)
  * ------------------------------------------------------------------ */
@@ -1697,6 +2475,8 @@ function createHelpFlex() {
   g.createOrderReceiptFlex = createOrderReceiptFlex;
   g.createSummaryFlex = createSummaryFlex;
   g.createHelpFlex = createHelpFlex;
+  g.createWeeklyScheduleFlex = createWeeklyScheduleFlex;
+  g.createWeeklySummaryFlex = createWeeklySummaryFlex;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -1705,6 +2485,8 @@ function createHelpFlex() {
       createOrderReceiptFlex: createOrderReceiptFlex,
       createSummaryFlex: createSummaryFlex,
       createHelpFlex: createHelpFlex,
+      createWeeklyScheduleFlex: createWeeklyScheduleFlex,
+      createWeeklySummaryFlex: createWeeklySummaryFlex,
       // Internal helpers exposed for Node.js testing.
       _flexText: _flexText,
       _flexBox: _flexBox,
@@ -1719,6 +2501,7 @@ function createHelpFlex() {
     };
   }
 })();
+
 
 
 /* =========================================================
@@ -1737,6 +2520,7 @@ var ConfigModule = null;
 var SheetModule = null;
 var FlexModule = null;
 var LineModule = null;
+var UberEatsModule = null;
 
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -1749,12 +2533,14 @@ var LineModule = null;
     SheetModule = g;
     FlexModule = g;
     LineModule = g;
+    UberEatsModule = g;
   } else {
     try {
       ConfigModule = require('./Config.js');
       SheetModule = require('./SheetService.js');
       FlexModule = require('./FlexMessage.js');
       LineModule = require('./LineService.js');
+      UberEatsModule = require('./UberEatsService.js');
     } catch (e) {
       // Fallback
     }
@@ -1766,7 +2552,6 @@ var LineModule = null;
  */
 function getTodayDateString() {
   var d = new Date();
-  // Adjust for UTC+8 if needed
   var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
   var twDate = new Date(utc + (3600000 * 8));
   var year = twDate.getFullYear();
@@ -1776,13 +2561,26 @@ function getTodayDateString() {
 }
 
 /**
+ * Helper to get today's day of week in Chinese (週一~週五, fallback to 週一 on weekends)
+ */
+function getTodayDayOfWeek() {
+  var d = new Date();
+  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  var twDate = new Date(utc + (3600000 * 8));
+  var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+  var day = dayMap[twDate.getDay()];
+  if (day === '週六' || day === '週日') return '週一';
+  return day;
+}
+
+/**
  * Parse ordering text lines
- * Supports:
+ * Supports daily and weekly batch ordering syntax:
  *   "+1 排骨飯" / "+2 雞腿飯"
  *   "排骨飯+1" / "雞腿飯 + 2"
  *   "排骨飯*1" / "排骨飯 * 2"
- *   "點餐 排骨飯 1"
- * Can be separated by commas, semicolons, or newlines
+ *   "週一+1 排骨飯" / "週一 排骨飯+1" / "週二 雞腿飯*2"
+ *   "週一 排骨飯+1, 週二 雞腿飯+1, 週四 燒肉飯+1"
  */
 function parseOrderText(text) {
   if (!text) return [];
@@ -1794,6 +2592,14 @@ function parseOrderText(text) {
     var raw = lines[i].trim();
     if (!raw) continue;
 
+    var dayOfWeek = null;
+    var dayMatch = raw.match(/^(週[一二三四五]|禮拜[一二三四五]|星期[一二三四五])/);
+    if (dayMatch) {
+      var d = dayMatch[1];
+      dayOfWeek = '週' + d.slice(-1);
+      raw = raw.replace(dayMatch[0], '').trim();
+    }
+
     var qty = 1;
     var itemName = '';
 
@@ -1802,7 +2608,7 @@ function parseOrderText(text) {
     if (match1) {
       qty = parseInt(match1[1], 10);
       itemName = match1[2].trim();
-      parsedItems.push({ itemName: itemName, quantity: qty });
+      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
       continue;
     }
 
@@ -1811,7 +2617,7 @@ function parseOrderText(text) {
     if (match2) {
       itemName = match2[1].trim();
       qty = parseInt(match2[2], 10);
-      parsedItems.push({ itemName: itemName, quantity: qty });
+      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
       continue;
     }
 
@@ -1820,7 +2626,7 @@ function parseOrderText(text) {
     if (match3) {
       itemName = match3[1].trim();
       qty = parseInt(match3[2], 10);
-      parsedItems.push({ itemName: itemName, quantity: qty });
+      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
       continue;
     }
 
@@ -1829,7 +2635,7 @@ function parseOrderText(text) {
     if (match4) {
       itemName = match4[1].trim();
       qty = match4[2] ? parseInt(match4[2], 10) : 1;
-      parsedItems.push({ itemName: itemName, quantity: qty });
+      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
       continue;
     }
   }
@@ -1838,7 +2644,7 @@ function parseOrderText(text) {
 }
 
 /**
- * Match an ordered item name with the menu items to determine standard name & price
+ * Match an ordered item name with the menu items
  */
 function matchMenuItem(rawItemName, menuList) {
   if (!menuList || menuList.length === 0) {
@@ -1863,7 +2669,6 @@ function matchMenuItem(rawItemName, menuList) {
     }
   }
 
-  // Fallback if not found on menu
   return { itemName: rawItemName, price: 0 };
 }
 
@@ -1876,7 +2681,8 @@ function handleTextMessage(event) {
   var source = event.source || {};
   var userId = source.userId || 'anonymous';
   var groupId = source.groupId || source.roomId || '';
-  var today = getTodayDateString();
+  var todayDate = getTodayDateString();
+  var todayDay = getTodayDayOfWeek();
 
   if (!text) return null;
 
@@ -1886,7 +2692,52 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '便當點餐指令說明', helpFlex);
   }
 
-  // 2. OPEN ORDER: 開單 [店家] [時間] / 開始訂餐
+  // 2. WEEKLY SCHEDULE: 本週菜單 / 每週菜單 / 排程 / 本週排程
+  if (/^(?:\/)?(?:本週菜單|每週菜單|本週排程|排程|週排程)$/.test(text)) {
+    var schedule = SheetModule.getWeeklySchedule();
+    var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule);
+    return LineModule.replyFlex(replyToken, '📅 本週訂餐排程表 (週一至週五)', scheduleFlex);
+  }
+
+  // 3. DAY SPECIFIC MENU: 週一菜單 / 週二菜單 / 週三菜單 ...
+  var dayMenuMatch = text.match(/^(?:本週)?(週[一二三四五]|禮拜[一二三四五]|星期[一二三四五])菜單$/);
+  if (dayMenuMatch) {
+    var targetDay = '週' + dayMenuMatch[1].slice(-1);
+    var daySchedule = SheetModule.getScheduleByDay(targetDay);
+    var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
+    var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
+    var dayMenu = SheetModule.getMenuItems(targetDay, restName);
+    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu);
+    return LineModule.replyFlex(replyToken, targetDay + ' ' + restName + ' 菜單', dayMenuFlex);
+  }
+
+  // 4. UBER EATS IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址]
+  var importMatch = text.match(/^(?:匯入菜單|匯入外送|ubereats匯入)\s+(週[一二三四五]|ALL)\s+(https?:\/\/\S+)(?:\s+(.+))?$/i);
+  if (importMatch) {
+    var importDay = importMatch[1];
+    var importUrl = importMatch[2];
+    var customName = importMatch[3] ? importMatch[3].trim() : '';
+
+    var parsedUrl = UberEatsModule.parseUberEatsUrl(importUrl);
+    if (!parsedUrl) {
+      return LineModule.replyText(replyToken, '❌ 網址解析失敗，請提供正確的 Uber Eats 店家網址格式，例如：\nhttps://www.ubereats.com/tw/store/store-name/uuid');
+    }
+
+    var storeName = customName || parsedUrl.storeName;
+    var importPromise = UberEatsModule.importUberEatsToMenu(importUrl, importDay, storeName);
+
+    if (importPromise && typeof importPromise.then === 'function') {
+      importPromise.then(function (result) {
+        SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 Uber Eats 匯入');
+        var msg = '✅ 已成功從 Uber Eats 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
+        LineModule.replyText(replyToken, msg);
+      });
+      return { status: 'importing' };
+    }
+  }
+
+  // 5. OPEN ORDER: 開單 [店家] [時間] / 開始訂餐
   var openMatch = text.match(/^(?:\/)?(?:開單|開始訂餐)(?:\s+(.+?))?(?:\s+([0-9]{1,2}:[0-9]{2}))?$/);
   if (openMatch) {
     var restaurant = openMatch[1] ? openMatch[1].trim() : '今日便當';
@@ -1897,88 +2748,110 @@ function handleTextMessage(event) {
     SheetModule.setConfigValue('CUTOFF_TIME', cutoff);
     SheetModule.setConfigValue('ORGANIZER_ID', userId);
 
-    var menuList = SheetModule.getMenuItems();
+    var menuList = SheetModule.getMenuItems(todayDay, restaurant);
     var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList);
     return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
   }
 
-  // 3. MENU: 菜單 / menu
+  // 6. TODAY MENU: 菜單 / menu
   if (/^(?:\/)?(?:菜單|menu)$/i.test(text)) {
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
-    var curMenu = SheetModule.getMenuItems();
+    var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
     var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu);
     return LineModule.replyFlex(replyToken, curRestaurant + ' 菜單', curMenuFlex);
   }
 
-  // 4. MY ORDERS: 我的訂單 / 查詢訂單 / 查單
+  // 7. MY WEEKLY ORDERS: 我的本週訂單 / 本週訂單
+  if (/^(?:\/)?(?:我的本週訂單|本週訂單)$/.test(text)) {
+    var allDays = ['週一', '週二', '週三', '週四', '週五'];
+    var lines = [];
+    var grandTotal = 0;
+
+    allDays.forEach(function (d) {
+      var dOrders = SheetModule.getUserOrders(userId, groupId, null, d);
+      if (dOrders && dOrders.length > 0) {
+        var daySub = 0;
+        var itemsText = dOrders.map(function (o) {
+          daySub += o.subtotal;
+          return o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')';
+        }).join('、');
+        grandTotal += daySub;
+        lines.push('【' + d + '】' + itemsText + ' (小計 $' + daySub + ')');
+      }
+    });
+
+    if (lines.length === 0) {
+      return LineModule.replyText(replyToken, '您本週（週一至週五）尚未有任何預訂紀錄喔！');
+    }
+
+    var weeklyMsg = '🍱【您的本週梯次訂單】\n' + lines.join('\n') + '\n─────\n本週總計：$' + grandTotal + ' 元';
+    return LineModule.replyText(replyToken, weeklyMsg);
+  }
+
+  // 8. MY TODAY ORDERS: 我的訂單 / 查詢訂單 / 查單
   if (/^(?:\/)?(?:我的訂單|查詢訂單|查單)$/.test(text)) {
-    var myOrders = SheetModule.getUserOrders(userId, groupId, today);
+    var myOrders = SheetModule.getUserOrders(userId, groupId, todayDate);
     if (!myOrders || myOrders.length === 0) {
       return LineModule.replyText(replyToken, '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。');
     }
     var total = 0;
-    var lines = myOrders.map(function (o) {
+    var myLines = myOrders.map(function (o) {
       total += o.subtotal;
       return '• ' + o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')';
     });
-    var msg = '【您的今日訂單】\n' + lines.join('\n') + '\n─────\n總計：$' + total + ' 元';
+    var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元';
     return LineModule.replyText(replyToken, msg);
   }
 
-  // 5. CANCEL: 取消全部 / 取消 [品項]
-  var cancelMatch = text.match(/^(?:\/)?取消(?:\s*(全部|.+))?$/);
+  // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消 [品項]
+  var cancelMatch = text.match(/^(?:\/)?取消(?:\s+(週[一二三四五]))?(?:\s*(全部|.+))?$/);
   if (cancelMatch) {
-    var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
-    if (!isOpen) {
-      return LineModule.replyText(replyToken, '⚠️ 今日訂餐已截止，無法變更或取消訂單。如需修改請直接聯繫開單負責人。');
-    }
-    var targetItem = cancelMatch[1] ? cancelMatch[1].trim() : '';
+    var cancelDay = cancelMatch[1] || null;
+    var targetItem = cancelMatch[2] ? cancelMatch[2].trim() : '';
     if (targetItem === '全部') targetItem = '';
 
-    var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, today);
+    var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, cancelDay ? null : todayDate, cancelDay);
     if (cancelledCount > 0) {
-      return LineModule.replyText(replyToken, '✅ 已為您取消 ' + (targetItem ? '「' + targetItem + '」' : '全部餐點') + ' 共 ' + cancelledCount + ' 筆紀錄。');
+      var dayText = cancelDay ? cancelDay + ' ' : '';
+      return LineModule.replyText(replyToken, '✅ 已為您取消 ' + dayText + (targetItem ? '「' + targetItem + '」' : '全部餐點') + ' 共 ' + cancelledCount + ' 筆紀錄。');
     } else {
-      return LineModule.replyText(replyToken, '查無符合「' + (targetItem || '所有餐點') + '」的未取消訂單。');
+      return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
     }
   }
 
-  // 6. SUMMARY: 統計 / 即時統計
+  // 10. WEEKLY SUMMARY: 本週統計 / 梯次統計
+  if (/^(?:\/)?(?:本週統計|梯次統計)$/.test(text)) {
+    var weeklySummary = SheetModule.getWeeklyOrderSummary(groupId);
+    var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary);
+    return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
+  }
+
+  // 11. TODAY SUMMARY: 統計 / 即時統計
   if (/^(?:\/)?(?:統計|即時統計)$/.test(text)) {
     var restName = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
-    var summary = SheetModule.getOrderSummary(groupId, today);
+    var summary = SheetModule.getOrderSummary(groupId, todayDate);
     var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen);
     return LineModule.replyFlex(replyToken, '【訂餐統計】' + restName, sumFlex);
   }
 
-  // 7. CLOSE ORDER: 結單 / 截止 / 截止訂餐
+  // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐
   if (/^(?:\/)?(?:結單|截止|截止訂餐)$/.test(text)) {
     SheetModule.setConfigValue('IS_ORDERING_OPEN', 'false');
     var finalRest = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
-    var finalSummary = SheetModule.getOrderSummary(groupId, today);
+    var finalSummary = SheetModule.getOrderSummary(groupId, todayDate);
     var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true);
     return LineModule.replyFlex(replyToken, '【已結單】' + finalRest + ' 訂購名單總計', finalFlex);
   }
 
-  // 8. ORDER PLACEMENT: +1 / +2 / 點餐語法解析
+  // 13. ORDER PLACEMENT: +1 / +2 / 點餐語法解析 (支援單日與週一至週五梯次點餐)
   var orderItems = parseOrderText(text);
   if (orderItems.length > 0) {
-    var orderOpenStatus = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
-    if (!orderOpenStatus) {
-      return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」。');
-    }
-
-    var menu = SheetModule.getMenuItems();
-    var lastAdded = null;
     var userDisplayName = '成員';
-
-    // Try fetching user name
     try {
       if (LineModule.getUserProfile) {
         var profilePromise = LineModule.getUserProfile(userId, groupId);
-        // If async
         if (profilePromise && typeof profilePromise.then === 'function') {
           profilePromise.then(function (prof) {
             if (prof && prof.displayName) userDisplayName = prof.displayName;
@@ -1987,14 +2860,26 @@ function handleTextMessage(event) {
           userDisplayName = profilePromise.displayName;
         }
       }
-    } catch (e) {
-      // Ignored
-    }
+    } catch (e) {}
+
+    var addedRecords = [];
+    var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
 
     orderItems.forEach(function (oi) {
+      var day = oi.dayOfWeek || todayDay;
+      // If ordering for today without day prefix, check open status
+      if (!oi.dayOfWeek && !isOpen) {
+        return;
+      }
+
+      var daySched = SheetModule.getScheduleByDay(day);
+      var dayRest = daySched ? daySched.restaurantName : '';
+      var menu = SheetModule.getMenuItems(day, dayRest);
       var matched = matchMenuItem(oi.itemName, menu);
+
       var record = SheetModule.addOrder({
-        date: today,
+        date: todayDate,
+        dayOfWeek: day,
         groupId: groupId,
         userId: userId,
         userName: userDisplayName,
@@ -2002,20 +2887,24 @@ function handleTextMessage(event) {
         quantity: oi.quantity,
         price: matched.price
       });
-      lastAdded = record;
+      addedRecords.push(record);
     });
 
-    var allMyOrders = SheetModule.getUserOrders(userId, groupId, today);
+    if (addedRecords.length === 0) {
+      return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
+    }
+
+    var lastAdded = addedRecords[addedRecords.length - 1];
+    var allMyOrders = SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek);
     var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders);
-    return LineModule.replyFlex(replyToken, '訂單已記錄：' + lastAdded.itemName, receiptFlex);
+    return LineModule.replyFlex(replyToken, '訂單已記錄：' + lastAdded.dayOfWeek + ' ' + lastAdded.itemName, receiptFlex);
   }
 
-  // Not a bot command, ignore quietly (no replyToken wasted)
   return null;
 }
 
 /**
- * Handle Postback Event (Buttons clicked on Flex Messages)
+ * Handle Postback Event
  */
 function handlePostbackEvent(event) {
   var replyToken = event.replyToken;
@@ -2028,14 +2917,14 @@ function handlePostbackEvent(event) {
     }
   });
 
-  // Action routing
   if (params.action === 'order' && params.item) {
+    var dayPrefix = params.day ? params.day + ' ' : '';
     var pseudoMessageEvent = {
       replyToken: replyToken,
       source: event.source,
       message: {
         type: 'text',
-        text: '+1 ' + params.item
+        text: dayPrefix + '+1 ' + params.item
       }
     };
     return handleTextMessage(pseudoMessageEvent);
@@ -2068,6 +2957,7 @@ function handlePostbackEvent(event) {
   g.handleTextMessage = handleTextMessage;
   g.handlePostbackEvent = handlePostbackEvent;
   g.getTodayDateString = getTodayDateString;
+  g.getTodayDayOfWeek = getTodayDayOfWeek;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -2075,7 +2965,8 @@ function handlePostbackEvent(event) {
       matchMenuItem: matchMenuItem,
       handleTextMessage: handleTextMessage,
       handlePostbackEvent: handlePostbackEvent,
-      getTodayDateString: getTodayDateString
+      getTodayDateString: getTodayDateString,
+      getTodayDayOfWeek: getTodayDayOfWeek
     };
   }
 })();
@@ -2086,9 +2977,127 @@ function handlePostbackEvent(event) {
  * ========================================================= */
 
 /**
- * Code.js - Main Webhook Entrypoint for Google Apps Script (GAS)
- * Handles LINE Webhook HTTP POST and GET requests.
+ * Code.js - Main Webhook Entrypoint & Admin Spreadsheet UI for Google Apps Script (GAS)
+ * Handles LINE Webhook HTTP POST/GET requests and Google Sheets menu triggers.
  */
+
+/**
+ * Trigger: On Google Spreadsheet Open
+ * Automatically creates custom menu bar for the administrator.
+ */
+function onOpen(e) {
+  if (typeof onOpenSpreadsheet === 'function') {
+    onOpenSpreadsheet();
+  }
+}
+
+/**
+ * Admin Action: Refresh Daily Summary
+ */
+function refreshDailySummary() {
+  if (typeof isGasRuntime === 'function' && !isGasRuntime()) return;
+  var todayDate = getTodayDateString ? getTodayDateString() : '';
+  var summary = getOrderSummary('', todayDate);
+  var ss = getSpreadsheet();
+  if (ss) {
+    var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.SUMMARY);
+    if (sheet) {
+      sheet.clear();
+      sheet.appendRow(['DayOfWeek', 'RestaurantName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']);
+      sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#EFEFEF');
+      var rest = getConfigValue('RESTAURANT_NAME', '今日便當');
+      summary.items.forEach(function (it) {
+        sheet.appendRow(['今日', rest, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
+      });
+      sheet.appendRow(['【今日總計】', '', '', summary.totalQuantity, '', summary.totalAmount, '']);
+      SpreadsheetApp.getActiveSpreadsheet().toast('今日訂單統計表已更新完畢！', '成功', 3);
+    }
+  }
+}
+
+/**
+ * Admin Action: Refresh Weekly Batch Summary
+ */
+function refreshWeeklySummary() {
+  if (typeof isGasRuntime === 'function' && !isGasRuntime()) return;
+  var weeklySummary = getWeeklyOrderSummary('');
+  var ss = getSpreadsheet();
+  if (ss) {
+    var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.SUMMARY);
+    if (sheet) {
+      sheet.clear();
+      sheet.appendRow(['DayOfWeek', 'RestaurantName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']);
+      sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#EFEFEF');
+
+      weeklySummary.daySummaries.forEach(function (ds) {
+        if (ds.items && ds.items.length > 0) {
+          ds.items.forEach(function (it) {
+            sheet.appendRow([ds.dayOfWeek, ds.restaurantName, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
+          });
+          sheet.appendRow([ds.dayOfWeek + ' 小計', ds.restaurantName, '', ds.totalQuantity, '', ds.totalAmount, '']);
+        }
+      });
+
+      sheet.appendRow(['═════════', '═════════', '═════════', '═════', '═════', '═════', '═════════']);
+      sheet.appendRow(['【本週梯次總計】', '', '', weeklySummary.grandTotalQuantity, '', weeklySummary.grandTotalAmount, '']);
+
+      // Member payment list
+      sheet.appendRow([]);
+      sheet.appendRow(['【成員本週應收總額】', '姓名', '應付金額']);
+      weeklySummary.users.forEach(function (u) {
+        sheet.appendRow(['', u.userName, u.total]);
+      });
+
+      SpreadsheetApp.getActiveSpreadsheet().toast('本週梯次統計表已更新完畢！', '成功', 3);
+    }
+  }
+}
+
+/**
+ * Admin Action: Interactive Dialog to Import Menu from Uber Eats
+ */
+function showUberEatsImportDialog() {
+  if (typeof SpreadsheetApp === 'undefined') return;
+  var ui = SpreadsheetApp.getUi();
+
+  var dayPrompt = ui.prompt('匯入 Uber Eats 菜單 (步驟 1/2)', '請輸入要排程的星期（例如：週一、週二、週三、週四、週五 或 ALL）：', ui.ButtonSet.OK_CANCEL);
+  if (dayPrompt.getSelectedButton() !== ui.Button.OK) return;
+  var dayOfWeek = dayPrompt.getResponseText().trim();
+  if (!dayOfWeek) dayOfWeek = '週一';
+
+  var urlPrompt = ui.prompt('匯入 Uber Eats 菜單 (步驟 2/2)', '請貼上 Uber Eats 店家網址：\n(例如：https://www.ubereats.com/tw/store/.../... )', ui.ButtonSet.OK_CANCEL);
+  if (urlPrompt.getSelectedButton() !== ui.Button.OK) return;
+  var url = urlPrompt.getResponseText().trim();
+  if (!url) {
+    ui.alert('網址不得為空！');
+    return;
+  }
+
+  try {
+    ui.alert('⏳ 正在抓取 Uber Eats 菜單，請稍候約 3~5 秒...');
+    var parsed = parseUberEatsUrl(url);
+    var storeUuid = parsed ? parsed.storeUuid : '';
+    var storeName = parsed ? parsed.storeName : 'UberEats外送';
+
+    var storeData = fetchStoreMenu(storeUuid);
+    // If returned promise (in async environment)
+    if (storeData && typeof storeData.then === 'function') {
+      storeData.then(function (data) {
+        var items = extractMenuItems(data);
+        saveMenuItems(dayOfWeek, storeName, items);
+        setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
+        ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
+      });
+    } else {
+      var items = extractMenuItems(storeData);
+      saveMenuItems(dayOfWeek, storeName, items);
+      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
+      ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
+    }
+  } catch (err) {
+    ui.alert('❌ 匯入發生錯誤：' + err.message);
+  }
+}
 
 /**
  * HTTP GET Handler - Service Health Check & Information
@@ -2097,6 +3106,7 @@ function doGet(e) {
   var status = {
     status: 'online',
     service: 'LINE Meal Ordering Bot',
+    features: ['daily-ordering', 'weekly-batch-schedule', 'ubereats-menu-importer'],
     timestamp: new Date().toISOString(),
     isGas: typeof SpreadsheetApp !== 'undefined'
   };
@@ -2159,7 +3169,6 @@ function doPost(e) {
 
     return _createResponse(200, { status: 'success' });
   } catch (err) {
-    // Log error in GAS
     if (typeof console !== 'undefined') {
       console.error('doPost error:', err);
     }
@@ -2196,12 +3205,20 @@ function setup() {
        : (typeof self     !== 'undefined') ? self
        : this;
 
+  g.onOpen = onOpen;
+  g.refreshDailySummary = refreshDailySummary;
+  g.refreshWeeklySummary = refreshWeeklySummary;
+  g.showUberEatsImportDialog = showUberEatsImportDialog;
   g.doGet = doGet;
   g.doPost = doPost;
   g.setup = setup;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+      onOpen: onOpen,
+      refreshDailySummary: refreshDailySummary,
+      refreshWeeklySummary: refreshWeeklySummary,
+      showUberEatsImportDialog: showUberEatsImportDialog,
       doGet: doGet,
       doPost: doPost,
       setup: setup
