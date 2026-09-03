@@ -299,7 +299,7 @@ function getMenuItems(dayOfWeek, restaurantName) {
       var dow = m.dayOfWeek !== undefined ? m.dayOfWeek : m.DayOfWeek;
       var rName = m.restaurantName !== undefined ? m.restaurantName : m.RestaurantName;
       var matchDay = (!dayOfWeek || dow === 'ALL' || dow === dayOfWeek);
-      var matchRest = (!restaurantName || !rName || rName === '今日便當' || rName === restaurantName);
+      var matchRest = restaurantName ? (rName === restaurantName) : true;
       return String(isAvail).toUpperCase() === 'TRUE' && matchDay && matchRest;
     });
   }
@@ -318,7 +318,7 @@ function getMenuItems(dayOfWeek, restaurantName) {
     var itemRest = String(row[1]);
 
     var dayMatches = (!dayOfWeek || itemDay === 'ALL' || itemDay === dayOfWeek);
-    var restMatches = (!restaurantName || !itemRest || itemRest === '今日便當' || itemRest === restaurantName);
+    var restMatches = restaurantName ? (itemRest === restaurantName) : true;
 
     if (isAvailable && dayMatches && restMatches) {
       menu.push({
