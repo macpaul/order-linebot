@@ -336,6 +336,16 @@ function getMenuItems(dayOfWeek, restaurantName) {
 }
 
 /**
+ * Sanitize cell values against Google Sheets formula injection (=, +, -, @)
+ */
+function _sanitizeSheetCell(val) {
+  if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
+    return "'" + val;
+  }
+  return val;
+}
+
+/**
  * Save / Import menu items for a specific day and restaurant
  */
 function saveMenuItems(dayOfWeek, restaurantName, items) {
@@ -369,12 +379,12 @@ function saveMenuItems(dayOfWeek, restaurantName, items) {
   items.forEach(function (it) {
     sheet.appendRow([
       dayOfWeek,
-      restaurantName,
-      it.category || '一般',
-      it.itemName,
+      _sanitizeSheetCell(restaurantName),
+      _sanitizeSheetCell(it.category || '一般'),
+      _sanitizeSheetCell(it.itemName),
       it.price || 0,
       it.isAvailable !== false ? 'TRUE' : 'FALSE',
-      it.description || ''
+      _sanitizeSheetCell(it.description || '')
     ]);
   });
 
@@ -427,8 +437,8 @@ function addOrder(orderData) {
     record.dayOfWeek,
     record.groupId,
     record.userId,
-    record.userName,
-    record.itemName,
+    _sanitizeSheetCell(record.userName),
+    _sanitizeSheetCell(record.itemName),
     record.quantity,
     record.price,
     record.subtotal,
