@@ -19,10 +19,16 @@ var CONFIG = {
    */
   SHEET_NAMES: {
     CONFIG: 'Config',
+    WEEKLY_SCHEDULE: 'WeeklySchedule',
     MENU: 'Menu',
     ORDERS: 'Orders',
     SUMMARY: 'Summary'
   },
+
+  /**
+   * Mon to Fri days of week in Chinese
+   */
+  DAYS_OF_WEEK: ['週一', '週二', '週三', '週四', '週五'],
 
   /**
    * Order lifecycle status values.
