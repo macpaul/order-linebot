@@ -32,7 +32,7 @@ function refreshDailySummary() {
         sheet.appendRow(['今日', rest, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
       });
       sheet.appendRow(['【今日總計】', '', '', summary.totalQuantity, '', summary.totalAmount, '']);
-      SpreadsheetApp.getActiveSpreadsheet().toast('今日訂單統計表已更新完畢！', '成功', 3);
+      ss.toast('今日訂單統計表已更新完畢！', '成功', 3);
     }
   }
 }
@@ -70,7 +70,7 @@ function refreshWeeklySummary() {
         sheet.appendRow(['', u.userName, u.total]);
       });
 
-      SpreadsheetApp.getActiveSpreadsheet().toast('本週梯次統計表已更新完畢！', '成功', 3);
+      ss.toast('本週梯次統計表已更新完畢！', '成功', 3);
     }
   }
 }
