@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-03T09:00:26.152Z
+ * Automatically generated on: 2026-09-03T09:01:26.199Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -458,14 +458,14 @@ var _mockStore = {
     'ORGANIZER_NAME': '小幫手'
   },
   Menu: [
-    { DayOfWeek: 'ALL', Category: '便當', ItemName: '招牌排骨飯', Price: 100, IsAvailable: 'TRUE' },
-    { DayOfWeek: 'ALL', Category: '便當', ItemName: '酥炸雞腿飯', Price: 110, IsAvailable: 'TRUE' },
-    { DayOfWeek: 'ALL', Category: '便當', ItemName: '古早味控肉飯', Price: 95, IsAvailable: 'TRUE' },
-    { DayOfWeek: 'ALL', Category: '便當', ItemName: '清蒸魚排飯', Price: 105, IsAvailable: 'TRUE' },
-    { DayOfWeek: 'ALL', Category: '便當', ItemName: '香煎鯖魚飯', Price: 100, IsAvailable: 'TRUE' },
-    { DayOfWeek: 'ALL', Category: '輕食', ItemName: '健康水煮雞胸', Price: 100, IsAvailable: 'TRUE' },
-    { DayOfWeek: 'ALL', Category: '飲料', ItemName: '古早味紅茶', Price: 25, IsAvailable: 'TRUE' },
-    { DayOfWeek: 'ALL', Category: '飲料', ItemName: '無糖綠茶', Price: 25, IsAvailable: 'TRUE' }
+    { dayOfWeek: 'ALL', category: '便當', itemName: '招牌排骨飯', price: 100, isAvailable: 'TRUE' },
+    { dayOfWeek: 'ALL', category: '便當', itemName: '酥炸雞腿飯', price: 110, isAvailable: 'TRUE' },
+    { dayOfWeek: 'ALL', category: '便當', itemName: '古早味控肉飯', price: 95, isAvailable: 'TRUE' },
+    { dayOfWeek: 'ALL', category: '便當', itemName: '清蒸魚排飯', price: 105, isAvailable: 'TRUE' },
+    { dayOfWeek: 'ALL', category: '便當', itemName: '香煎鯖魚飯', price: 100, isAvailable: 'TRUE' },
+    { dayOfWeek: 'ALL', category: '輕食', itemName: '健康水煮雞胸', price: 100, isAvailable: 'TRUE' },
+    { dayOfWeek: 'ALL', category: '飲料', itemName: '古早味紅茶', price: 25, isAvailable: 'TRUE' },
+    { dayOfWeek: 'ALL', category: '飲料', itemName: '無糖綠茶', price: 25, isAvailable: 'TRUE' }
   ],
   Orders: [],
   Summary: []
@@ -611,8 +611,10 @@ function setConfigValue(key, value) {
 function getMenuItems(dayOfWeek) {
   if (!isGasRuntime()) {
     return _mockStore.Menu.filter(function (m) {
-      return String(m.IsAvailable).toUpperCase() === 'TRUE' &&
-        (m.DayOfWeek === 'ALL' || !dayOfWeek || m.DayOfWeek === dayOfWeek);
+      var isAvail = m.isAvailable !== undefined ? m.isAvailable : m.IsAvailable;
+      var dow = m.dayOfWeek !== undefined ? m.dayOfWeek : m.DayOfWeek;
+      return String(isAvail).toUpperCase() === 'TRUE' &&
+        (dow === 'ALL' || !dayOfWeek || dow === dayOfWeek);
     });
   }
 
@@ -1845,15 +1847,19 @@ function matchMenuItem(rawItemName, menuList) {
 
   // 1. Exact match
   for (var i = 0; i < menuList.length; i++) {
-    if (menuList[i].itemName === rawItemName) {
-      return { itemName: menuList[i].itemName, price: menuList[i].price };
+    var name = menuList[i].itemName || menuList[i].ItemName || '';
+    var price = menuList[i].price !== undefined ? menuList[i].price : menuList[i].Price;
+    if (name && name === rawItemName) {
+      return { itemName: name, price: price || 0 };
     }
   }
 
   // 2. Contains match (e.g. "排骨" matches "招牌排骨飯")
   for (var j = 0; j < menuList.length; j++) {
-    if (menuList[j].itemName.indexOf(rawItemName) !== -1 || rawItemName.indexOf(menuList[j].itemName) !== -1) {
-      return { itemName: menuList[j].itemName, price: menuList[j].price };
+    var itemN = menuList[j].itemName || menuList[j].ItemName || '';
+    var itemP = menuList[j].price !== undefined ? menuList[j].price : menuList[j].Price;
+    if (itemN && (itemN.indexOf(rawItemName) !== -1 || rawItemName.indexOf(itemN) !== -1)) {
+      return { itemName: itemN, price: itemP || 0 };
     }
   }
 
