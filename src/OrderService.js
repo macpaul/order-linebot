@@ -120,15 +120,19 @@ function matchMenuItem(rawItemName, menuList) {
 
   // 1. Exact match
   for (var i = 0; i < menuList.length; i++) {
-    if (menuList[i].itemName === rawItemName) {
-      return { itemName: menuList[i].itemName, price: menuList[i].price };
+    var name = menuList[i].itemName || menuList[i].ItemName || '';
+    var price = menuList[i].price !== undefined ? menuList[i].price : menuList[i].Price;
+    if (name && name === rawItemName) {
+      return { itemName: name, price: price || 0 };
     }
   }
 
   // 2. Contains match (e.g. "排骨" matches "招牌排骨飯")
   for (var j = 0; j < menuList.length; j++) {
-    if (menuList[j].itemName.indexOf(rawItemName) !== -1 || rawItemName.indexOf(menuList[j].itemName) !== -1) {
-      return { itemName: menuList[j].itemName, price: menuList[j].price };
+    var itemN = menuList[j].itemName || menuList[j].ItemName || '';
+    var itemP = menuList[j].price !== undefined ? menuList[j].price : menuList[j].Price;
+    if (itemN && (itemN.indexOf(rawItemName) !== -1 || rawItemName.indexOf(itemN) !== -1)) {
+      return { itemName: itemN, price: itemP || 0 };
     }
   }
 
