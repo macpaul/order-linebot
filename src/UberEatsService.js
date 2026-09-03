@@ -93,8 +93,10 @@ function _cleanString(str) {
 function _convertPrice(rawPrice, currency) {
   var num = parseFloat(rawPrice);
   if (isNaN(num)) return 0;
-  // If price is in cents (e.g. 12000 = NT$120)
-  if (num > 1000) {
+  // If price is in cents (e.g. 12000 = NT$120, 3000 = NT$30)
+  // Check that currency is TWD/default, value is >= 1000 and is an even multiple of 100
+  var isTwd = !currency || currency === 'TWD';
+  if (isTwd && num >= 1000 && num % 100 === 0) {
     return Math.round(num / 100);
   }
   return Math.round(num);
@@ -148,7 +150,12 @@ function _mockStoreData() {
  */
 function _decodeSlug(slug) {
   if (!slug) return '';
-  var decoded = decodeURIComponent(slug);
+  var decoded = '';
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch (e) {
+    decoded = slug;
+  }
   // If slug contains hyphens and is ASCII, format with spaces
   if (/^[a-zA-Z0-9_-]+$/.test(slug)) {
     return decoded.replace(/[-_]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }).trim();
