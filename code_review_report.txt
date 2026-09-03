@@ -1,0 +1,436 @@
+
+
+## Code Review Complete ✅
+
+I performed a thorough review of all 5 target modules (plus supporting `Config.js`, `LineService.js`, tests, and build tooling) — **3,175 LOC** across 7 files. Full report saved to **`code_review_report.txt`** (449 lines).
+
+### Overall Rating: **8/10**
+| Module | Rating |
+|--------|--------|
+| FlexMessage.js | **9/10** (cleanest) |
+| UberEatsService.js | 8/10 |
+| SheetService.js | 8/10 |
+| OrderService.js | 8/10 |
+| Code.js | 8/10 |
+
+**Tests: 100% PASS** (6 groups, 30+ assertions). Bundle (`dist/Code.gs`) verified in sync with `src/`.
+
+### Verified Strengths
+- **Elegant dual-runtime (GAS + Node.js)** architecture — consistent bootstrap + dual-export pattern across all modules
+- **Robust order-text parser** — 4 quantity syntaxes + 3 day-prefix dialects (validated against 20 edge cases)
+- **Correct Mon–Fri weekly batch scheduling** (test: 5 items / $460 grand total ✓)
+- **Solid HMAC-SHA256 webhook signing** — correct algorithm, raw-body input, and **constant-time** compare in Node
+- **Clean Flex builders** with consistent color palette; **good GAS compatibility** (SpreadsheetApp/UrlFetchApp/PropertiesService/Utilities all correctly feature-detected)
+
+### Key Issues (prioritized)
+- **P0 — Price-conversion heuristic misfires** (`UberEatsService._convertPrice`): any legit price > NT$1,000 is silently divided by 100 → **$1,001 becomes $10**, $1,500→$15 (verified empirically). The `currency` param is accepted but never used.
+- **P1 — Google Sheets formula-injection**: user text starting with `=` (e.g. an item named `=SUM(A1:A10)`) is evaluated as a formula on open.
+- **P1 — Async race**: `getUserProfile()` display-name fetch can lose to the synchronous `addOrder()`, so `Orders.UserName` is often the default `'成員'` instead of the real name.
+- **P1 — Date vs DayOfWeek mismatch**: a day-prefixed order stores `date`=placed-on but `dayOfWeek`=meal-for, which can confuse readers/queries.
+- **P1 — Strict restaurant filter** in `getMenuItems()` (exact match) can silently return an empty menu on minor name inconsistencies.
+- **P2 — Minor**: `initSheets()` re-runs on every webhook; inconsistent `getActiveSpreadsheet()` vs `getSpreadsheet()` for toasts; unused `_flexIcon/_flexButton/_flexImage` helpers; deployment guide documents 4 tabs but code creates 5.
+
+**Bottom line:** ship-quality core with a small, well-understood defect list. The **P0 price bug** is the only thing that can silently produce a *wrong number* in normal operation; the rest are robustness/clarity improvements that don't break the happy path. Address P0+P1 and this is a confident **9/10**.
+  (363 LOC)  —  RATING 8/10
+  VERIFIED STRENGTHS:
+   • parseUberEatsUrl() regex correctly handles locale-prefixed
+     (…/tw/store/…), bare (…/store/), and rejects non-UberEats hosts.
+     Confirmed against 7 URL variants incl. hyphenated slugs + null.
+   • _decodeSlug() round-trips URL-encoded CJK store names
+     (encodeURIComponent → decodeURIComponent) and title-cases ASCII
+     hyphen slugs. Verified: 福山排骨便當專賣 round-trips correctly.
+   • extractMenuItems() normalizes THREE distinct UberEats payload
+     shapes (catalogSectionsMap / sectionEntitiesMap / sections[])
+     and dedupes on category|itemName. Verified: 3-item mock extracts
+     cleanly with correct categories.
+   • Dual HTTP path (UrlFetchApp.fetch for GAS, global fetch for Node)
+     is correctly abstracted in _httpPostJson(); graceful fallback to
+     _mockStoreData() on any network/parse failure = good resilience.
+
+  ISSUES:
+   [CRITICAL] _convertPrice() heuristic misfires on high prices.
+     Logic: `if (num > 1000) return Math.round(num/100)`. This assumes any
+     value >1000 is "cents". But a legitimate NT$1,001 premium meal becomes
+     $10; NT$1,500 → $15; NT$50,000 → $500. Verified empirically:
+        1001 → 10   1500 → 15   50000 → 500   (all wrong for TWD)
+     The `currency` param is accepted but NEVER used — the threshold is
+     hardcoded to TWD-cents assumptions.
+     FIX: Make threshold currency-aware. For TWD, real menu prices are ~NT$25–500
+     (i.e. 2,500–50,000 in cents), so raise the "is-cents" threshold to e.g. >1000 AND
+     (num % 100 === 0) [round-cent detection], or simply: if currency==='TWD'
+     and num>1000 → /100, else keep. Better: detect "looks like cents" via
+     `num >= 1000 && num % 100 === 0` (12000, 13000, 3000 all qualify; 1001, 1500 do not).
+
+   [MINOR] _decodeSlug() can throw URIError on malformed %-escapes
+     (e.g. a slug containing a literal "100%-off"). decodeURIComponent
+     is not wrapped in try/catch. Rare in practice (UberEats always
+     percent-encodes) but a one-line try/catch fallback to raw slug
+     would harden it.
+
+   [MINOR] Mock data (_mockStoreData) is hardcoded — fine for offline
+     tests, but means the "offline fallback" always returns the same
+     3 items. Not a bug, just a note.
+
+▸ src/SheetService.js  (788 LOC)  —  RATING 8/10
+  VERIFIED STRENGTHS:
+   • Clean 5-tab schema (Config, WeeklySchedule, Menu, Orders, Summary)
+     with correct headers. initSheets() idempotently creates tabs + bold
+     headers + sample data. Verified: all 5 tabs defined correctly.
+   • Excellent in-memory _mockStore mirror of the sheet schema enables
+     full offline Node testing. Verified: mock Config/WeeklySchedule/Menu
+     all consistent with real schema.
+   • getWeeklySchedule()/getScheduleByDay()/setWeeklyScheduleDay()
+     correctly implement Mon–Fri batch scheduling. Verified: admin
+     update of 週二 to 五星級牛排便當 11:00 round-trips correctly.
+   • addOrder() correctly computes subtotal = quantity × price and
+     generates unique OrderId (timestamp + random). Verified: order
+     records have correct subtotals.
+   • getWeeklyOrderSummary() correctly aggregates Mon–Fri into
+     daySummaries + grand totals + per-user weekly totals. Verified:
+     test scenario (Alice Mon 1×$100 + Wed 2×$70, Bob Fri 2×$110) yields grand
+     total 5 items / $460 — matches expected.
+   • onOpenSpreadsheet() admin menu is well-organized (init, daily
+     summary, weekly summary, UberEats import dialog).
+
+  ISSUES:
+   [MAJOR] Google Sheets formula-injection vector.
+     User-provided text (item names, user names, restaurant names)
+     is written via sheet.appendRow() / getRange().setValue() WITHOUT
+     escaping a leading "=". If an item name is "=SUM(A1:A10)" (or a user
+     named "=HYPERLINK(...)"), Sheets evaluates it as a formula on
+     open — potential data leak / calc load / even external fetch via
+     =IMPORTHTML / =IMPORTDATA.
+     FIX: Prepend a "'" (apostrophe) or escape "=" → "\=" for any string
+     value starting with "=", OR set the column's number format to
+     text ("@"), OR sanitize on write: `val = String(val); if (val[0]==='=')
+     val = "'" + val;`.
+
+   [MAJOR] getMenuItems() restaurant filter is an exact string match
+     that can silently return an empty menu.
+     Logic: `restMatches = restaurantName ? (itemRest === restaurantName)
+     : true`. If the Menu tab's RestaurantName for a day doesn't EXACTLY
+     equal the WeeklySchedule's RestaurantName for that day (case,
+     trailing space, traditional/simplified variant, abbreviation),
+     the menu comes back empty and the user sees "（尚無項目）" with no
+     explanation. Verified: mock data uses consistent names so tests
+     pass, but real admin-entered data is far less consistent.
+     FIX: Normalize both sides before compare:
+     `const norm = s => String(s||'').trim().toLowerCase();`
+     then `norm(itemRest) === norm(restaurantName)`. Also consider
+     falling back to day-only match (ignore restaurant) when the
+     strict match yields zero, so the user at least sees the menu.
+
+   [MINOR] getMenuItems() / getConfigValue() / etc. re-read the ENTIRE
+     sheet via getDataRange().getValues() on every call. Fine for the
+     small sheets this bot uses (dozens of rows), but it's O(rows) per
+     call and there's no caching. If the Orders tab grows to thousands
+     of rows, repeated full reads in a loop (e.g. getWeeklyOrderSummary
+     calls getGroupOrders 5×, each re-reading the whole Orders tab)
+     become wasteful. Not a correctness bug; a perf note.
+
+   [MINOR] setConfigValue() appends a new row if the key isn't found,
+     but doesn't dedupe — calling it twice for a new key creates two
+     rows with the same key. getConfigValue() then returns the FIRST
+     match, which may be stale. Low impact (config keys are mostly
+     pre-seeded by initSheets) but worth a guard.
+
+▸ src/OrderService.js  (462 LOC)  —  RATING 8/10
+  VERIFIED STRENGTHS:
+   • parseOrderText() is the crown jewel — handles 4 quantity syntaxes
+     (+N prefix, name+N suffix, name*N / name xN multiply, 點餐 name N)
+     AND 3 day-prefix dialects (週X, 禮拜X, 星期X) normalized to 週X, AND
+     comma/newline multi-line batch splitting. Verified against 20
+     edge-case strings; all standard forms parse correctly, and
+     genuinely-ambiguous garbage ("你好 +1 排骨飯", bare "排骨飯", bare
+     "+1") are correctly rejected (empty result) rather than
+     mis-parsed. This is well-engineered.
+   • getTodayDateString() / getTodayDayOfWeek() correctly convert to
+     Taiwan time (UTC+8) via getTimezoneOffset math. Verified: the
+     UTC→TW conversion is algebraically correct.
+   • handleTextMessage() is a clean, well-ordered sequential
+     dispatcher (help → weekly schedule → day menu → UberEats import
+     → open order → today menu → my weekly orders → my today orders
+     → cancel → weekly summary → today summary → close → order
+     placement). Exact-match command patterns are properly anchored
+     (^…$) so they don't false-trigger. Order placement is correctly
+     the fall-through default.
+   • Mon–Fri weekly batch ordering is correctly implemented: a single
+     command can place orders across multiple days ("週一 排骨飯+1, 週二
+     雞腿飯+2, 週四 水煮雞胸*1"), each routed to the correct day's menu via
+     getScheduleByDay(day) + getMenuItems(day, dayRest). Verified: the
+     3-day batch test (Step C) records all three days correctly.
+   • matchMenuItem() two-tier matching (exact → bidirectional contains)
+     is reasonable and verified: "排骨" → "招牌排骨飯" ($100), "古早味紅茶" →
+     exact ($25).
+
+  ISSUES:
+   [MAJOR] Async race: getUserProfile() display-name fetch can lose
+     to the synchronous order insert.
+     In the order-placement block, the code does:
+        var userDisplayName = '成員';
+        profilePromise.then(prof => { userDisplayName = prof.displayName; });
+        // ... then SYNCHRONOUSLY, a few lines later:
+        orderItems.forEach(oi => {
+           ...
+           var record = SheetModule.addOrder({ ..., userName: userDisplayName, ... });
+        });
+     The .then() callback is async — it has NOT necessarily run by the
+     time addOrder() executes a few lines later. So userDisplayName is
+     very likely still the default '成員' when the order row is written.
+     Net effect: Orders.UserName is populated with '成員' instead of the
+     user's real LINE display name. The receipt Flex (created after the
+     loop) MAY show the correct name if the .then() landed by then, creating
+     an inconsistency between the stored row and the displayed receipt.
+     FIX: Await the profile before the insert loop (make the enclosing
+     function async and `const prof = await LineModule.getUserProfile(...)`),
+     OR at minimum fetch the profile synchronously-ish by resolving it
+     before building records. Given GAS's single-threaded event loop, the
+     cleanest fix is to restructure so the displayName is resolved before
+     addOrder is called.
+
+   [MAJOR] Semantic date / day-of-week mismatch in the Orders record.
+     When a user places a day-prefixed order (e.g. on a Wednesday they type
+     "週一 排骨飯+1"), the record is written with:
+        date:      todayDate   (the Wednesday the order was PLACED)
+        dayOfWeek: '週一'        (the Monday the meal is FOR)
+     So Date and DayOfWeek disagree (Wednesday vs 週一). This is a defensible
+     design (Date = when placed, DayOfWeek = which meal day), and the weekly
+     summary correctly keys off DayOfWeek, so aggregation is right. BUT it's a
+     trap for anyone reading the Orders tab expecting Date to correspond
+     to DayOfWeek, and it means "get my orders for date X" (getUserOrders with a
+     date filter) won't find day-prefixed orders placed on other days.
+     FIX (design call): Either (a) document clearly that Date=placed-on,
+     DayOfWeek=meal-for, and make all user-facing "my orders" queries key
+     off DayOfWeek (not Date) for weekly items — which the code mostly does —
+     or (b) store an additional MealDate column (the actual calendar date
+     of the target weekday) so Date/DayOfWeek/MealDate are all consistent.
+     Option (b) is cleaner long-term.
+
+   [MINOR] Weekend fallback: getTodayDayOfWeek() maps 週六/週日 → '週一'.
+     Reasonable (schedule is Mon–Fri) but surprising if a user orders on a
+     Saturday expecting a Saturday meal — it silently lands on 週一.
+     FIX: Surface this in the help text ("週末點餐將歸入週一"), or allow explicit
+     週六/週七 targeting if the schedule ever extends.
+
+   [MINOR] The day-prefix regex only accepts 週[一二三四五] (Mon–Fri). A
+     "週六 …" or "週日 …" prefix won't match, so it's treated as part of
+     the item name (mis-parse). Consistent with the Mon–Fri design but
+     worth a comment.
+
+▸ src/FlexMessage.js  (889 LOC)  —  RATING 9/10  (best module)
+  VERIFIED STRENGTHS:
+   • Cleanest, most consistent module. Clear split: internal builders
+     (_flexText/_flexBox/_flexSeparator/_flexFiller/_flexIcon/_flexButton/
+     _flexImage) + data shapers (_groupMenuByCategory/_formatPrice/
+     _calcOrderTotal) + 6 public create*Flex builders.
+   • Consistent, well-named FLEX_COLORS palette (LINE green #1DB446 primary,
+     proper surface/background/border/text tiers, success/danger accents).
+     Used uniformly — no magic hex strings scattered in builders.
+   • _groupMenuByCategory() correctly preserves first-seen category order
+     (catOrder array) — verified: categories render in encounter order,
+     not alphabetical.
+   • _formatPrice() correctly renders integers without decimals ($100) and
+     fractions with 2dp ($10.50). Verified.
+   • All 6 builders (menu, order-receipt, summary, help, weekly-schedule,
+     weekly-summary) produce valid LINE bubble JSON with proper
+     header/body/footer, giga size, and sensible altText. The weekly
+     schedule + weekly summary builders correctly render Mon–Fri rows
+     with per-day subtotals and the grand total + per-user payable list.
+   • Order-receipt builder correctly highlights the just-added item
+     (bold + successBg) and shows the running total.
+
+  ISSUES:
+   [MINOR] Dead code: _flexIcon(), _flexButton(), _flexImage() are defined
+     and exported (for tests) but NEVER called by any of the 6 builders —
+     the builders inline their button/icon/image JSON instead of using
+     the helpers. Not a bug, but it's ~40 lines of unused abstraction. Either
+     wire the builders to use the helpers (consistency) or drop the helpers.
+   [MINOR] The Flex JSON is inherently verbose (deeply nested boxes) —
+     inherent to the LINE Flex format, not a code smell. Just a readability
+     note; the helper abstraction already mitigates it well.
+
+▸ src/Code.js  (249 LOC)  —  RATING 8/10
+  VERIFIED STRENGTHS:
+   • Solid GAS webhook entrypoint. doPost() correctly: validates
+     postData, extracts X-Line-Signature (from e.parameter AND e.headers —
+     good dual-source), pulls CHANNEL_SECRET via getConfigProperty,
+     verifies the signature (403 on fail), parses events, and routes
+     message/postback/join events to the right handlers.
+   • Signature verification is correctly delegated to
+     LineService.validateSignature(), which is well-implemented:
+     GAS path uses Utilities.computeHmacSha256Signature(body, secret,
+     'UTF-8') compared to the header; Node path uses
+     crypto.createHmac('sha256', secret).update(body,'utf8').digest('base64')
+     with a TIMING-SAFE comparison (crypto.timingSafeEqual after a
+     length check). Verified: the HMAC logic is correct and the Node
+     path is properly constant-time.
+   • doGet() returns a clean JSON health/status payload.
+   • Admin UI: onOpen() → onOpenSpreadsheet() builds the menu;
+     refreshDailySummary() / refreshWeeklySummary() correctly
+     regenerate the Summary tab (clear → headers → per-item rows →
+     subtotals → grand total → per-user payable list). The weekly
+     refresher correctly iterates daySummaries and writes the
+     Mon–Fi batch + member totals.
+   • showUberEatsImportDialog() is a clean 2-step prompt (day → URL) that
+     calls parseUberEatsUrl → fetchStoreMenu → extractMenuItems →
+     saveMenuItems + setWeeklyScheduleDay, with correct handling of
+     the async (promise) vs sync return from fetchStoreMenu.
+
+  ISSUES:
+   [MINOR] initSheets() is called on EVERY doPost (line 170). It's
+     idempotent (getSheetByName guards), so it's correct, but it re-runs
+     the 5× getSheetByName + getDataRange checks on every webhook hit
+     after the first. Low cost, but a one-shot "initialized" flag (e.g. a
+     Config key) would skip it after first run. Perf nit, not a bug.
+
+   [MINOR] Inconsistent spreadsheet accessor in Code.js: refreshDailySummary
+     / refreshWeeklySummary obtain the workbook via getSpreadsheet() (correct,
+     respects SPREADSHEET_ID) but then call
+     SpreadsheetApp.getActiveSpreadsheet().toast(...) for the toast — bypassing
+     getSpreadsheet(). If SPREADSHEET_ID points at a different sheet than the
+     "active" one, the toast fires on the wrong spreadsheet (or throws if
+     there's no active one in a standalone script). FIX: reuse the `ss`
+     already obtained: `ss.toast('…','成功',3)`.
+
+   [MINOR] doPost() swallows all errors into a 200 response
+     ({status:'error'}). Returning 200 on error is actually CORRECT for
+     LINE (LINE retries on non-2xx, and you don't want a transient handler
+     throw to trigger a webhook replay storm), and it logs via console.error.
+     So this is defensible — just note it's intentional.
+
+================================================================================
+CROSS-CUTTING OBSERVATIONS
+================================================================================
+1. ARCHITECTURE (strength): The "resolve-from-globals-else-require"
+   bootstrap + "attach-to-globalThis + module.exports" dual-export is
+   applied uniformly across all 7 modules. This is what makes the
+   single-file GAS bundle (dist/Code.gs) and the modular Node test
+   harness both work from the same source. Very clean.
+
+2. DUAL-RUNTIME CORRECTNESS (strength, verified): _isGasRuntime() /
+   isGasRuntime() correctly detect the environment (presence of
+   UrlFetchApp / SpreadsheetApp). All HTTP, sheet, and crypto ops have
+   correct GAS + Node branches. The test suite exercising the Node
+   path passing 100% confirms the non-GAS branches are sound.
+
+3. SECURITY (mostly strong, one real gap):
+   • HMAC-SHA256 webhook signature: CORRECT. Right algorithm, right
+     input (raw body), base64 digest, and — notably — the Node path uses
+     timingSafeEqual (constant-time), which is the kind of detail people
+     forget. The GAS path uses simple === (not constant-time), acceptable
+     for GAS since Utilities doesn't expose a timing-safe compare.
+   • Secrets handling: CHANNEL_ACCESS_TOKEN / CHANNEL_SECRET /
+     SPREADSHEET_ID are read via PropertiesService.getScriptProperties()
+     (GAS) or process.env (Node) — NOT hardcoded. Correct, and the
+     deployment guide documents setting them as Script Properties.
+   • XSS: Low risk — output goes to LINE (Flex JSON / text), not a browser.
+     User text is embedded in Flex text components (JSON-escaped by
+     JSON.stringify on send), so no classic DOM XSS.
+   • INJECTION: The one real gap is the Google Sheets formula injection
+     (see SheetService [MAJOR]) — user text starting with "=" is evaluated
+     as a formula. This is the highest-value security fix.
+
+4. GAS ENVIRONMENT COMPATIBILITY (strength, verified):
+   • SpreadsheetApp: correctly used for openById/getActiveSpreadsheet,
+     getSheetByName, insertSheet, appendRow, getRange().setValue,
+     getDataRange().getValues, clear, setFontWeight/setBackground,
+     getUi().createMenu/addItem/addSeparator/addToUi, prompt/alert/toast.
+     All valid GAS APIs, all guarded by isGasRuntime() so Node doesn't
+     choke.
+   • UrlFetchApp: correctly used with method/headers/payload/
+     contentType/muteHttpExceptions, and getResponseCode()/
+     getContentText() parsed. muteHttpExceptions:true is the RIGHT
+     choice (lets you inspect 4xx/5xx instead of throwing).
+   • PropertiesService: correctly used via getScriptProperties().
+     getProperty() with the ''/null/undefined guard.
+   • Utilities: correctly used for computeHmacSha256Signature.
+   • ContentService: correctly used for createTextOutput +
+     setMimeType(MimeType.JSON) in doGet/doPost responses.
+   • All GAS-specific globals are feature-detected (typeof X !==
+     'undefined') before use — no hard crashes in Node.
+
+5. TESTING (strength): The offline suite is genuinely end-to-end —
+   it drives real handleTextMessage() calls through the full
+   parse → match → addOrder → summary → Flex pipeline using the
+   in-memory sheet mock, and asserts on both the captured LINE
+   replies AND the resulting sheet state (per-user per-day orders,
+   cancellation, grand totals). The UberEats tests verify URL parsing,
+   cent→dollar price conversion, extraction, and persistence. This
+   is a much stronger test story than "unit tests exist."
+
+6. BUILD/BUNDLE (verified working): scripts/bundle.js concatenates the
+   7 src files in dependency order (Config → Line → Sheet → UberEats →
+   Flex → Order → Code) into dist/Code.gs. Re-running it reproduces the
+   bundle with only the timestamp line changing — confirming src/ and
+   dist/ are in sync. Correct file order matters (Config first so CONFIG
+   is defined; Code last so it can call into all the others) and it's right.
+
+================================================================================
+CONSOLIDATED RECOMMENDATIONS (prioritized)
+================================================================================
+P0 — Fix before relying on imported UberEats prices:
+  1. Harden _convertPrice() (UberEatsService.js). Use the currency arg;
+     for TWD treat as cents only when `num>=1000 && num%100===0` (catches 12000/
+     13000/3000, spares 1001/1500). Add unit tests for 1001, 1500, 12000, 3000.
+
+P1 — Correctness/robustness:
+  2. Resolve the getUserProfile async race (OrderService.js): await the
+     profile before the addOrder loop so Orders.UserName is the real
+     display name, not '成員'.
+  3. Escape formula injection on sheet write (SheetService.js): prefix
+     leading "=" in user strings with "'" (or set column format to text).
+  4. Loosen + normalize the getMenuItems() restaurant match
+     (SheetService.js): trim + casefold both sides; fall back to day-only
+     when strict match is empty.
+  5. Clarify/fix the Orders Date vs DayOfWeek semantics (OrderService/
+     SheetService): document Date=placed-on vs DayOfWeek=meal-for, and/or
+     add a MealDate column; ensure "my orders" queries key off DayOfWeek
+     for weekly items.
+
+P2 — Hygiene/minor:
+  6. Wrap decodeURIComponent in _decodeSlug() with try/catch (fallback to
+     raw slug) to survive malformed %-escapes.
+  7. In Code.js, use the already-obtained `ss` for .toast() instead of
+     SpreadsheetApp.getActiveSpreadsheet() (consistency + avoids wrong/
+     missing active sheet).
+  8. Optionally gate initSheets() in doPost behind a one-shot
+     "initialized" Config flag to skip the 5-tab check after first run.
+  9. Remove or wire up the unused _flexIcon/_flexButton/_flexImage helpers
+     (FlexMessage.js) for consistency.
+  10. Update docs/deployment_guide.md to list the 5th tab (WeeklySchedule) —
+      it currently documents only 4.
+  11. Rebuild dist/Code.gs (npm run bundle) as the last step before commit so
+      the timestamp/content always matches src/.
+
+================================================================================
+VERIFIED-CORRECT (things that looked risky but are fine)
+================================================================================
+• Mon–Fi batch ordering: multi-day single-command orders route each
+  item to the correct day's menu and are aggregated correctly in the
+  weekly summary (test: 5 items / $460 grand total — correct).
+• Taiwan timezone math in getTodayDateString/getTodayDayOfWeek is
+  algebraically correct (UTC via getTimezoneOffset, then +8h).
+• LINE webhook HMAC-SHA256 (both GAS and Node paths) is correct; Node is
+  constant-time.
+• UberEats URL parser handles locale prefixes, encoded CJK slugs,
+  hyphenated names, and rejects non-matching hosts.
+• Flex builders emit valid LINE bubble JSON; category ordering and
+  price formatting are correct.
+• The GAS/Node dual-runtime abstraction is sound (100% Node-path test
+  pass confirms non-GAS branches).
+
+================================================================================
+BOTTOM LINE
+================================================================================
+Ship-quality core with a small, well-understood defect list. The
+architecture, parsing, scheduling, Flex rendering, security
+(signing), and GAS compatibility are all genuinely solid and
+well-tested. The price-conversion heuristic (P0) is the only thing
+that can silently produce a WRONG number in normal operation; the
+rest (injection, async race, date semantics) are robustness/clarity
+improvements that don't break the happy path. Address P0+P1 and this
+is a confident 9/10.
+
+================================================================================
+END OF REPORT
+================================================================================
