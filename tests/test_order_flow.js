@@ -1,6 +1,7 @@
 /**
  * test_order_flow.js - End-to-end integration and unit test suite
- * Tests full meal ordering lifecycle offline without requiring real LINE or Google API calls.
+ * Tests full meal ordering lifecycle, Mon-Fri weekly batch scheduling,
+ * and Uber Eats scraping offline without requiring external network.
  */
 
 const assert = require('assert');
@@ -8,12 +9,24 @@ const ConfigModule = require('../src/Config.js');
 const SheetModule = require('../src/SheetService.js');
 const FlexModule = require('../src/FlexMessage.js');
 const LineModule = require('../src/LineService.js');
+const UberEatsModule = require('../src/UberEatsService.js');
 const OrderModule = require('../src/OrderService.js');
 const CodeModule = require('../src/Code.js');
 
-console.log('🧪 Starting LINE Meal Ordering Bot Test Suite...\n');
+console.log('🧪 Starting LINE Meal Ordering Bot Extended Test Suite...\n');
 
-// 1. Text Parsing Tests
+// Mock reply capturing
+let lastReply = null;
+globalThis.replyFlex = LineModule.replyFlex = function (token, altText, flex) {
+  lastReply = { type: 'flex', token: token, altText: altText, flex: flex };
+  return { statusCode: 200 };
+};
+globalThis.replyText = LineModule.replyText = function (token, text) {
+  lastReply = { type: 'text', token: token, text: text };
+  return { statusCode: 200 };
+};
+
+// 1. Text Parsing Tests (Single-day & Weekly Batch)
 console.log('▶ Test 1: Order Text Parsing');
 const p1 = OrderModule.parseOrderText('+1 招牌排骨飯');
 assert.strictEqual(p1.length, 1);
@@ -25,13 +38,18 @@ assert.strictEqual(p2.length, 1);
 assert.strictEqual(p2[0].itemName, '酥炸雞腿飯');
 assert.strictEqual(p2[0].quantity, 2);
 
-const p3 = OrderModule.parseOrderText('清蒸魚排飯*3, 古早味紅茶x2');
-assert.strictEqual(p3.length, 2);
-assert.strictEqual(p3[0].itemName, '清蒸魚排飯');
-assert.strictEqual(p3[0].quantity, 3);
-assert.strictEqual(p3[1].itemName, '古早味紅茶');
+const p3 = OrderModule.parseOrderText('週一 排骨飯+1, 週二 雞腿飯+2, 週四 水煮雞胸*1');
+assert.strictEqual(p3.length, 3);
+assert.strictEqual(p3[0].dayOfWeek, '週一');
+assert.strictEqual(p3[0].itemName, '排骨飯');
+assert.strictEqual(p3[0].quantity, 1);
+assert.strictEqual(p3[1].dayOfWeek, '週二');
+assert.strictEqual(p3[1].itemName, '雞腿飯');
 assert.strictEqual(p3[1].quantity, 2);
-console.log('  ✔ Text parsing passed.\n');
+assert.strictEqual(p3[2].dayOfWeek, '週四');
+assert.strictEqual(p3[2].itemName, '水煮雞胸');
+assert.strictEqual(p3[2].quantity, 1);
+console.log('  ✔ Text parsing (single-day and Mon-Fri batch) passed.\n');
 
 // 2. Menu Matching Tests
 console.log('▶ Test 2: Menu Matching & Price Lookup');
@@ -45,125 +63,146 @@ assert.strictEqual(m2.itemName, '古早味紅茶');
 assert.strictEqual(m2.price, 25);
 console.log('  ✔ Menu matching passed.\n');
 
-// Mock reply capturing
-let lastReply = null;
-globalThis.replyFlex = LineModule.replyFlex = function (token, altText, flex) {
-  lastReply = { type: 'flex', token: token, altText: altText, flex: flex };
-  return { statusCode: 200 };
-};
-globalThis.replyText = LineModule.replyText = function (token, text) {
-  lastReply = { type: 'text', token: token, text: text };
-  return { statusCode: 200 };
-};
+// 3. Uber Eats Scraper & Importer Tests
+console.log('▶ Test 3: Uber Eats URL Parser & Menu Extraction');
+const testUrl = 'https://www.ubereats.com/tw/store/' + encodeURIComponent('福山排骨便當專賣') + '/aX6-T9T3TEG3dK-7p7Kspw';
+const parsedUrl = UberEatsModule.parseUberEatsUrl(testUrl);
+assert.ok(parsedUrl);
+assert.strictEqual(parsedUrl.storeUuid, 'aX6-T9T3TEG3dK-7p7Kspw');
+assert.strictEqual(parsedUrl.storeName, '福山排骨便當專賣');
 
-// 3. Full Ordering Lifecycle Test
-console.log('▶ Test 3: Full Meal Ordering Lifecycle Simulation');
-const groupId = 'group_team_abc';
+// Test menu extraction from mock data
+const mockData = UberEatsModule._mockStoreData();
+const extractedItems = UberEatsModule.extractMenuItems(mockData);
+assert.strictEqual(extractedItems.length, 3);
+assert.strictEqual(extractedItems[0].itemName, '招牌排骨飯');
+assert.strictEqual(extractedItems[0].price, 120); // 12000 cents -> 120 dollars
+assert.strictEqual(extractedItems[1].price, 130);
+assert.strictEqual(extractedItems[2].price, 30);
+
+// Test saving items to Sheet
+SheetModule.saveMenuItems('週一', '福山排骨便當專賣', extractedItems);
+const mondayMenu = SheetModule.getMenuItems('週一', '福山排骨便當專賣');
+assert.strictEqual(mondayMenu.length, 3);
+console.log('  ✔ Uber Eats URL parser and menu import passed.\n');
+
+// 4. Weekly Schedule & Batch Ordering Lifecycle Test
+console.log('▶ Test 4: Weekly Schedule & Mon-Fri Batch Ordering Simulation');
+const groupId = 'group_team_weekly';
 const today = OrderModule.getTodayDateString();
 
-// Step A: Open order
-console.log('  [Step A] Organizer opens order');
+// Step A: View Weekly Schedule
+console.log('  [Step A] Member queries weekly schedule (本週菜單)');
 OrderModule.handleTextMessage({
-  replyToken: 'token_1',
-  source: { groupId: groupId, userId: 'user_boss' },
-  message: { type: 'text', text: '開單 老王便當 11:30' }
-});
-assert.strictEqual(SheetModule.getConfigValue('IS_ORDERING_OPEN'), 'true');
-assert.strictEqual(SheetModule.getConfigValue('RESTAURANT_NAME'), '老王便當');
-assert.strictEqual(SheetModule.getConfigValue('CUTOFF_TIME'), '11:30');
-assert.strictEqual(lastReply.type, 'flex');
-console.log('  ✔ Order session successfully opened.');
-
-// Step B: Alice orders 排骨飯 + 1
-console.log('  [Step B] Alice places an order (+1 招牌排骨飯)');
-OrderModule.handleTextMessage({
-  replyToken: 'token_2',
+  replyToken: 'token_sched',
   source: { groupId: groupId, userId: 'user_alice' },
-  message: { type: 'text', text: '+1 招牌排骨飯' }
+  message: { type: 'text', text: '本週菜單' }
 });
 assert.strictEqual(lastReply.type, 'flex');
-const aliceOrders = SheetModule.getUserOrders('user_alice', groupId, today);
-assert.strictEqual(aliceOrders.length, 1);
-assert.strictEqual(aliceOrders[0].itemName, '招牌排骨飯');
-assert.strictEqual(aliceOrders[0].subtotal, 100);
-console.log('  ✔ Alice order recorded.');
+assert.strictEqual(lastReply.altText, '📅 本週訂餐排程表 (週一至週五)');
+console.log('  ✔ Weekly schedule flex card verified.');
 
-// Step C: Bob orders 2 chicken legs and 1 black tea
-console.log('  [Step C] Bob places multi-item order (酥炸雞腿飯+2, 古早味紅茶+1)');
+// Step B: Query Specific Day Menu
+console.log('  [Step B] Member queries Tuesday menu (週二菜單)');
 OrderModule.handleTextMessage({
-  replyToken: 'token_3',
-  source: { groupId: groupId, userId: 'user_bob' },
-  message: { type: 'text', text: '酥炸雞腿飯+2, 古早味紅茶+1' }
+  replyToken: 'token_tue_menu',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '週二菜單' }
 });
-const bobOrders = SheetModule.getUserOrders('user_bob', groupId, today);
-assert.strictEqual(bobOrders.length, 2);
-console.log('  ✔ Bob multi-item order recorded.');
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastReply.altText.includes('週二'));
+console.log('  ✔ Day-specific menu flex card verified.');
 
-// Step D: Bob queries his orders
-console.log('  [Step D] Bob queries his order (我的訂單)');
+// Step C: Member Alice places multi-day batch order
+console.log('  [Step C] Alice orders across multiple weekdays in one command');
 OrderModule.handleTextMessage({
-  replyToken: 'token_4',
+  replyToken: 'token_batch_order',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '週一 排骨飯+1, 週二 日式厚切豬排飯+1, 週三 招牌鍋貼+2' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+
+const aliceMonOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週一');
+assert.strictEqual(aliceMonOrders.length, 1);
+assert.strictEqual(aliceMonOrders[0].quantity, 1);
+
+const aliceTueOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週二');
+assert.strictEqual(aliceTueOrders.length, 1);
+assert.strictEqual(aliceTueOrders[0].itemName, '日式厚切豬排飯');
+
+const aliceWedOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週三');
+assert.strictEqual(aliceWedOrders.length, 1);
+assert.strictEqual(aliceWedOrders[0].quantity, 2);
+console.log('  ✔ Alice multi-day batch order recorded.');
+
+// Step D: Member Bob orders for Friday
+console.log('  [Step D] Bob orders for Friday (週五 舒肥嫩雞胸餐盒+2)');
+OrderModule.handleTextMessage({
+  replyToken: 'token_bob_fri',
   source: { groupId: groupId, userId: 'user_bob' },
-  message: { type: 'text', text: '我的訂單' }
+  message: { type: 'text', text: '週五 舒肥嫩雞胸餐盒+2' }
+});
+const bobFriOrders = SheetModule.getUserOrders('user_bob', groupId, null, '週五');
+assert.strictEqual(bobFriOrders.length, 1);
+assert.strictEqual(bobFriOrders[0].quantity, 2);
+console.log('  ✔ Bob Friday order recorded.');
+
+// Step E: Alice checks her weekly orders
+console.log('  [Step E] Alice checks her weekly orders (我的本週訂單)');
+OrderModule.handleTextMessage({
+  replyToken: 'token_my_weekly',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '我的本週訂單' }
 });
 assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('酥炸雞腿飯 x2'));
-assert.ok(lastReply.text.includes('古早味紅茶 x1'));
-assert.ok(lastReply.text.includes('245')); // 110*2 + 25 = 245
-console.log('  ✔ Order query verified.');
+assert.ok(lastReply.text.includes('【週一】'));
+assert.ok(lastReply.text.includes('【週二】'));
+assert.ok(lastReply.text.includes('【週三】'));
+console.log('  ✔ Alice weekly orders verified.');
 
-// Step E: Bob cancels black tea
-console.log('  [Step E] Bob cancels black tea (取消 古早味紅茶)');
+// Step F: Alice cancels Tuesday order
+console.log('  [Step F] Alice cancels Tuesday order (取消 週二 全部)');
 OrderModule.handleTextMessage({
-  replyToken: 'token_5',
-  source: { groupId: groupId, userId: 'user_bob' },
-  message: { type: 'text', text: '取消 古早味紅茶' }
-});
-assert.ok(lastReply.text.includes('已為您取消'));
-const bobOrdersAfterCancel = SheetModule.getUserOrders('user_bob', groupId, today);
-assert.strictEqual(bobOrdersAfterCancel.length, 1);
-assert.strictEqual(bobOrdersAfterCancel[0].itemName, '酥炸雞腿飯');
-console.log('  ✔ Cancellation verified.');
-
-// Step F: View real-time summary
-console.log('  [Step F] Team views summary (統計)');
-OrderModule.handleTextMessage({
-  replyToken: 'token_6',
+  replyToken: 'token_cancel_tue',
   source: { groupId: groupId, userId: 'user_alice' },
-  message: { type: 'text', text: '統計' }
+  message: { type: 'text', text: '取消 週二 全部' }
+});
+assert.ok(lastReply.text.includes('已為您取消 週二'));
+const aliceTueAfterCancel = SheetModule.getUserOrders('user_alice', groupId, null, '週二');
+assert.strictEqual(aliceTueAfterCancel.length, 0);
+console.log('  ✔ Day-targeted cancellation verified.');
+
+// Step G: View Weekly Batch Summary
+console.log('  [Step G] Team views weekly batch summary (本週統計)');
+OrderModule.handleTextMessage({
+  replyToken: 'token_weekly_sum',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '本週統計' }
 });
 assert.strictEqual(lastReply.type, 'flex');
-const summary = SheetModule.getOrderSummary(groupId, today);
-// Alice: 1 pork chop (100). Bob: 2 chicken legs (220). Total = 320, 3 items
-assert.strictEqual(summary.totalQuantity, 3);
-assert.strictEqual(summary.totalAmount, 320);
-console.log('  ✔ Summary calculation verified (Total items: 3, Total: $320).');
+assert.strictEqual(lastReply.altText, '📊 本週梯次訂餐統計總表');
 
-// Step G: Organizer closes order
-console.log('  [Step G] Organizer closes order (結單)');
-OrderModule.handleTextMessage({
-  replyToken: 'token_7',
-  source: { groupId: groupId, userId: 'user_boss' },
-  message: { type: 'text', text: '結單' }
-});
-assert.strictEqual(SheetModule.getConfigValue('IS_ORDERING_OPEN'), 'false');
-console.log('  ✔ Session closed.');
+const weeklySummary = SheetModule.getWeeklyOrderSummary(groupId);
+// Alice has: Mon 1x (100) + Wed 2x 鍋貼 (70*2=140) = 240.
+// Bob has: Fri 2x 水煮雞胸 (110*2=220) = 220.
+// Grand total = 460, 5 items.
+assert.strictEqual(weeklySummary.grandTotalQuantity, 5);
+assert.strictEqual(weeklySummary.grandTotalAmount, 460);
+console.log('  ✔ Weekly batch summary verified (Grand Total: 5 items, $460).\n');
 
-// Step H: Late order attempt rejected
-console.log('  [Step H] Late order attempt after cutoff');
-OrderModule.handleTextMessage({
-  replyToken: 'token_8',
-  source: { groupId: groupId, userId: 'user_late' },
-  message: { type: 'text', text: '+1 招牌排骨飯' }
-});
-assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'));
-console.log('  ✔ Late order properly rejected.\n');
+// 5. Google Sheets Admin Editing & Management Methods
+console.log('▶ Test 5: Google Sheets Admin Schedule Editing');
+SheetModule.setWeeklyScheduleDay('週二', '五星級牛排便當', '11:00', '', '特製黑椒牛排', true);
+const updatedTue = SheetModule.getScheduleByDay('週二');
+assert.strictEqual(updatedTue.restaurantName, '五星級牛排便當');
+assert.strictEqual(updatedTue.cutoffTime, '11:00');
+console.log('  ✔ Admin schedule update in Sheet verified.\n');
 
-// 4. Webhook Entrypoint Test (doGet & doPost)
-console.log('▶ Test 4: Webhook HTTP Endpoints');
+// 6. Webhook Entrypoint Test
+console.log('▶ Test 6: Webhook HTTP Endpoints');
 const getRes = CodeModule.doGet({});
 assert.strictEqual(getRes.status, 'online');
+assert.ok(getRes.features.includes('weekly-batch-schedule'));
 
 const postRes = CodeModule.doPost({
   postData: {
@@ -173,7 +212,7 @@ const postRes = CodeModule.doPost({
           type: 'message',
           replyToken: 'token_webhook',
           source: { groupId: 'g1', userId: 'u1' },
-          message: { type: 'text', text: '說明' }
+          message: { type: 'text', text: '本週菜單' }
         }
       ]
     })
@@ -182,4 +221,4 @@ const postRes = CodeModule.doPost({
 assert.strictEqual(postRes.statusCode, 200);
 console.log('  ✔ Webhook doPost and doGet passed.\n');
 
-console.log('🎉 ALL TESTS PASSED SUCCESSFULLY! 100% Verified.');
+console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
