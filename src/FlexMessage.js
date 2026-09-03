@@ -726,6 +726,126 @@ function createHelpFlex() {
   };
 }
 
+/**
+ * createWeeklyScheduleFlex — Build a Flex card displaying the Mon-Fri schedule
+ * @param {Array<Object>} schedule - List of { dayOfWeek, restaurantName, cutoffTime, notes, isActive }
+ * @returns {Object} LINE Flex bubble
+ */
+function createWeeklyScheduleFlex(schedule) {
+  var rows = [];
+  var days = schedule || [];
+
+  for (var i = 0; i < days.length; i++) {
+    var s = days[i];
+    rows.push(_flexBox([
+      _flexBox([
+        _flexText(s.dayOfWeek, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
+      ], {
+        backgroundColor: FLEX_COLORS.primary,
+        cornerRadius: 'sm',
+        padding: 'xs',
+        width: '45px'
+      }),
+      _flexBox([
+        _flexText(s.restaurantName || '尚未指定店家', { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText('⏰ 截止 ' + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
+      ], { layout: 'vertical', margin: 'md', flex: 1 }),
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '看菜單',
+          text: s.dayOfWeek + '菜單'
+        },
+        style: 'secondary',
+        height: 'sm',
+        flex: 0
+      }
+    ], {
+      layout: 'horizontal',
+      margin: 'md',
+      alignItems: 'center',
+      backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
+      padding: 'sm',
+      cornerRadius: 'md'
+    }));
+  }
+
+  return {
+    type: 'bubble',
+    size: 'giga',
+    header: _flexBox([
+      _flexText('📅 本週訂餐排程表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
+      _flexText('週一至週五每日店家 · 支援一梯次預訂', { size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs' })
+    ], { backgroundColor: FLEX_COLORS.primaryDark, padding: 'lg' }),
+    body: _flexBox(rows, { layout: 'vertical', padding: 'md' }),
+    footer: _flexBox([
+      _flexText('💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
+    ], { backgroundColor: FLEX_COLORS.background, padding: 'sm' })
+  };
+}
+
+/**
+ * createWeeklySummaryFlex — Build a Flex card displaying the weekly batch summary
+ * @param {Object} weeklySummary - { daySummaries, grandTotalQuantity, grandTotalAmount, users }
+ * @returns {Object} LINE Flex bubble
+ */
+function createWeeklySummaryFlex(weeklySummary) {
+  var summary = weeklySummary || { daySummaries: [], users: [] };
+  var bodyContents = [];
+
+  for (var i = 0; i < summary.daySummaries.length; i++) {
+    var ds = summary.daySummaries[i];
+    var dayItemsText = ds.items && ds.items.length > 0
+      ? ds.items.map(function (it) { return it.itemName + 'x' + it.quantity; }).join('、')
+      : '無訂單';
+
+    bodyContents.push(_flexBox([
+      _flexBox([
+        _flexText(ds.dayOfWeek + ' ' + (ds.restaurantName || ''), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText('共 ' + ds.totalQuantity + ' 份 · $' + ds.totalAmount + ' 元', { size: 'xs', color: FLEX_COLORS.primary, weight: 'bold' })
+      ], { layout: 'horizontal', justifyContent: 'space-between' }),
+      _flexText(dayItemsText, { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' })
+    ], {
+      layout: 'vertical',
+      backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
+      padding: 'sm',
+      cornerRadius: 'sm',
+      margin: 'sm'
+    }));
+  }
+
+  bodyContents.push(_flexSeparator({ margin: 'md' }));
+  bodyContents.push(_flexText('👤 成員本週梯次應付明細', { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
+
+  if (summary.users && summary.users.length > 0) {
+    for (var u = 0; u < summary.users.length; u++) {
+      var user = summary.users[u];
+      bodyContents.push(_flexBox([
+        _flexText(user.userName, { size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText('$' + user.total + ' 元', { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
+      ], { layout: 'horizontal', justifyContent: 'space-between', margin: 'xs' }));
+    }
+  } else {
+    bodyContents.push(_flexText('尚無成員訂購紀錄', { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
+  }
+
+  return {
+    type: 'bubble',
+    size: 'giga',
+    header: _flexBox([
+      _flexText('📊 本週梯次訂餐統計總表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
+      _flexText('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元', {
+        size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs'
+      })
+    ], { backgroundColor: FLEX_COLORS.primary, padding: 'lg' }),
+    body: _flexBox(bodyContents, { layout: 'vertical', padding: 'md' }),
+    footer: _flexBox([
+      _flexText('📋 請各成員依此表金額完成對帳與付款', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
+    ], { backgroundColor: FLEX_COLORS.background, padding: 'sm' })
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Dual-Environment Export (GAS + Node.js)
  * ------------------------------------------------------------------ */
@@ -740,6 +860,8 @@ function createHelpFlex() {
   g.createOrderReceiptFlex = createOrderReceiptFlex;
   g.createSummaryFlex = createSummaryFlex;
   g.createHelpFlex = createHelpFlex;
+  g.createWeeklyScheduleFlex = createWeeklyScheduleFlex;
+  g.createWeeklySummaryFlex = createWeeklySummaryFlex;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -748,6 +870,8 @@ function createHelpFlex() {
       createOrderReceiptFlex: createOrderReceiptFlex,
       createSummaryFlex: createSummaryFlex,
       createHelpFlex: createHelpFlex,
+      createWeeklyScheduleFlex: createWeeklyScheduleFlex,
+      createWeeklySummaryFlex: createWeeklySummaryFlex,
       // Internal helpers exposed for Node.js testing.
       _flexText: _flexText,
       _flexBox: _flexBox,
@@ -762,3 +886,4 @@ function createHelpFlex() {
     };
   }
 })();
+
