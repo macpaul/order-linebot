@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-03T17:39:51.748Z
+ * Automatically generated on: 2026-09-03T17:53:07.333Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -788,6 +788,16 @@ function getMenuItems(dayOfWeek, restaurantName) {
 }
 
 /**
+ * Sanitize cell values against Google Sheets formula injection (=, +, -, @)
+ */
+function _sanitizeSheetCell(val) {
+  if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
+    return "'" + val;
+  }
+  return val;
+}
+
+/**
  * Save / Import menu items for a specific day and restaurant
  */
 function saveMenuItems(dayOfWeek, restaurantName, items) {
@@ -821,12 +831,12 @@ function saveMenuItems(dayOfWeek, restaurantName, items) {
   items.forEach(function (it) {
     sheet.appendRow([
       dayOfWeek,
-      restaurantName,
-      it.category || '一般',
-      it.itemName,
+      _sanitizeSheetCell(restaurantName),
+      _sanitizeSheetCell(it.category || '一般'),
+      _sanitizeSheetCell(it.itemName),
       it.price || 0,
       it.isAvailable !== false ? 'TRUE' : 'FALSE',
-      it.description || ''
+      _sanitizeSheetCell(it.description || '')
     ]);
   });
 
@@ -879,8 +889,8 @@ function addOrder(orderData) {
     record.dayOfWeek,
     record.groupId,
     record.userId,
-    record.userName,
-    record.itemName,
+    _sanitizeSheetCell(record.userName),
+    _sanitizeSheetCell(record.itemName),
     record.quantity,
     record.price,
     record.subtotal,
@@ -1339,8 +1349,10 @@ function _cleanString(str) {
 function _convertPrice(rawPrice, currency) {
   var num = parseFloat(rawPrice);
   if (isNaN(num)) return 0;
-  // If price is in cents (e.g. 12000 = NT$120)
-  if (num > 1000) {
+  // If price is in cents (e.g. 12000 = NT$120, 3000 = NT$30)
+  // Check that currency is TWD/default, value is >= 1000 and is an even multiple of 100
+  var isTwd = !currency || currency === 'TWD';
+  if (isTwd && num >= 1000 && num % 100 === 0) {
     return Math.round(num / 100);
   }
   return Math.round(num);
@@ -1394,7 +1406,12 @@ function _mockStoreData() {
  */
 function _decodeSlug(slug) {
   if (!slug) return '';
-  var decoded = decodeURIComponent(slug);
+  var decoded = '';
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch (e) {
+    decoded = slug;
+  }
   // If slug contains hyphens and is ASCII, format with spaces
   if (/^[a-zA-Z0-9_-]+$/.test(slug)) {
     return decoded.replace(/[-_]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }).trim();
@@ -3010,7 +3027,7 @@ function refreshDailySummary() {
         sheet.appendRow(['今日', rest, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
       });
       sheet.appendRow(['【今日總計】', '', '', summary.totalQuantity, '', summary.totalAmount, '']);
-      SpreadsheetApp.getActiveSpreadsheet().toast('今日訂單統計表已更新完畢！', '成功', 3);
+      ss.toast('今日訂單統計表已更新完畢！', '成功', 3);
     }
   }
 }
@@ -3048,7 +3065,7 @@ function refreshWeeklySummary() {
         sheet.appendRow(['', u.userName, u.total]);
       });
 
-      SpreadsheetApp.getActiveSpreadsheet().toast('本週梯次統計表已更新完畢！', '成功', 3);
+      ss.toast('本週梯次統計表已更新完畢！', '成功', 3);
     }
   }
 }
