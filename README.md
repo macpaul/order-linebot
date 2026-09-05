@@ -119,6 +119,8 @@ npm run bundle
   請檢查 GAS 部署權限是否設為「所有人 (Anyone)」、網址結尾是否為 `/exec`。若已開啟「Use webhook」，通常可直接於群組輸入 `幫助` 測試，機器人正常回覆即代表運作正常。
 - **試算表初始化出現 `TypeError: getConfigProperty is not a function`？**
   已於最新版解決變數覆蓋問題，請重新複製最新的 [`dist/Code.gs`](dist/Code.gs) 貼入 Apps Script 編輯器即可。
+- **純文字訊息可回覆，但「幫助」或「本週菜單」圖文卡片沒有反應？**
+  Flex Message 卡片已全數重構對齊 LINE 官方最新嚴格規範（移除無效 CSS 屬性，改用 `paddingAll` 與標準 `mega` 尺寸），請更新部署最新 [`dist/Code.gs`](dist/Code.gs) 即可。
 
 ---
 
