@@ -743,6 +743,10 @@ function onOpenSpreadsheet() {
       .addItem('📈 重新產生本週梯次統計表', 'refreshWeeklySummary')
       .addSeparator()
       .addItem('🍔 從 Uber Eats 網址匯入菜單', 'showUberEatsImportDialog')
+      .addSeparator()
+      .addItem('🔍 診斷測試：Uber Eats 菜單抓取', 'testUberEatsImport')
+      .addItem('🔍 診斷測試：LINE 連線狀態', 'testLineConnection')
+      .addItem('🔍 診斷測試：幫助卡片訊息', 'testHelpMessage')
       .addToUi();
   } catch (e) {}
 }
