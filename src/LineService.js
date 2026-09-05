@@ -78,8 +78,23 @@ async function _httpPostJson(url, headers, payload) {
       muteHttpExceptions: true
     });
     var statusCode = parseInt(response.getResponseCode(), 10);
+    var contentText = response.getContentText();
     var data = null;
-    try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
+    try { data = JSON.parse(contentText); } catch (e) { data = null; }
+
+    if (statusCode < 200 || statusCode >= 300) {
+      if (typeof console !== 'undefined') {
+        console.error('❌ [LINE API Error] HTTP ' + statusCode + ' Response: ' + contentText);
+      }
+      if (typeof Logger !== 'undefined') {
+        Logger.log('❌ [LINE API Error] HTTP ' + statusCode + ' Response: ' + contentText);
+      }
+    } else {
+      if (typeof console !== 'undefined') {
+        console.log('✅ [LINE API Success] HTTP ' + statusCode);
+      }
+    }
+
     return { statusCode: statusCode, data: data };
   }
 
@@ -130,6 +145,14 @@ async function _httpGetJson(url, headers) {
  */
 function _authHeaders() {
   var channelAccessToken = getConfigProperty('CHANNEL_ACCESS_TOKEN', '');
+  if (!channelAccessToken) {
+    if (typeof console !== 'undefined') {
+      console.error('⚠️ [LINE Error] CHANNEL_ACCESS_TOKEN is missing or empty in Script Properties!');
+    }
+    if (typeof Logger !== 'undefined') {
+      Logger.log('⚠️ [LINE Error] CHANNEL_ACCESS_TOKEN is missing or empty in Script Properties!');
+    }
+  }
   return {
     'Authorization': 'Bearer ' + channelAccessToken,
     'Content-Type': 'application/json'
