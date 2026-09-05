@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-05T14:35:15.833Z
+ * Automatically generated on: 2026-09-05T14:48:27.124Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -1722,56 +1722,57 @@ var FLEX_COLORS = {
  */
 function _flexText(text, opts) {
   var o = opts || {};
-  return {
+  var txt = {
     type: 'text',
-    text: String(text),
-    color: o.color || FLEX_COLORS.textPrimary,
-    size: o.size || 'md',
-    weight: o.weight || 'regular',
-    align: o.align || 'start',
-    wrap: o.wrap !== undefined ? o.wrap : true,
-    lineHeight: o.lineHeight || '1.4',
-    decoration: o.decoration || 'none',
-    margin: o.margin || 'none'
+    text: String(text !== undefined && text !== null ? text : '')
   };
+  if (o.color) txt.color = o.color;
+  if (o.size) txt.size = o.size;
+  if (o.weight) txt.weight = o.weight;
+  if (o.align) txt.align = o.align;
+  if (o.wrap !== undefined) txt.wrap = o.wrap;
+  if (o.margin && o.margin !== 'none') txt.margin = o.margin;
+  if (o.flex !== undefined) txt.flex = o.flex;
+  return txt;
 }
 
 /**
  * _flexBox — Build a LINE Flex box (container) component.
- * @param {Array<Object>} contents - Child components.
- * @param {Object} [opts] - Layout/style options (layout, spacing, margin, padding, backgroundColor, cornerRadius, borderWidth, borderColor, borderStyle).
- * @returns {Object}
+ * Strictly outputs only valid LINE Flex Box properties.
  */
 function _flexBox(contents, opts) {
   var o = opts || {};
-  return {
+  var box = {
     type: 'box',
     layout: o.layout || 'vertical',
-    spacing: o.spacing || 'none',
-    margin: o.margin || 'none',
-    padding: o.padding || 'none',
-    backgroundColor: o.backgroundColor || 'transparent',
-    cornerRadius: o.cornerRadius || 'none',
-    borderWidth: o.borderWidth || '0px',
-    borderColor: o.borderColor || 'transparent',
-    borderStyle: o.borderStyle || 'solid',
     contents: contents || []
   };
+  if (o.spacing && o.spacing !== 'none') box.spacing = o.spacing;
+  if (o.margin && o.margin !== 'none') box.margin = o.margin;
+  if (o.paddingAll) box.paddingAll = o.paddingAll;
+  else if (o.padding && o.padding !== 'none') box.paddingAll = o.padding;
+  if (o.backgroundColor && o.backgroundColor !== 'transparent') box.backgroundColor = o.backgroundColor;
+  if (o.cornerRadius && o.cornerRadius !== 'none') box.cornerRadius = o.cornerRadius;
+  if (o.borderWidth && o.borderWidth !== '0px' && o.borderWidth !== 'none') box.borderWidth = o.borderWidth;
+  if (o.borderColor && o.borderColor !== 'transparent') box.borderColor = o.borderColor;
+  if (o.flex !== undefined) box.flex = o.flex;
+  if (o.width) box.width = o.width;
+  if (o.alignItems) box.alignItems = o.alignItems;
+  if (o.justifyContent) box.justifyContent = o.justifyContent;
+  return box;
 }
 
 /**
  * _flexSeparator — Horizontal divider line.
- * @param {Object} [opts] - Options (color, margin, size).
+ * @param {Object} [opts] - Options (color, margin).
  * @returns {Object}
  */
 function _flexSeparator(opts) {
   var o = opts || {};
-  return {
-    type: 'separator',
-    color: o.color || FLEX_COLORS.border,
-    margin: o.margin || 'md',
-    size: o.size || 'sm'
-  };
+  var sep = { type: 'separator' };
+  if (o.color) sep.color = o.color;
+  if (o.margin && o.margin !== 'none') sep.margin = o.margin;
+  return sep;
 }
 
 /**
@@ -2323,7 +2324,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed) {
 function createHelpFlex() {
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText('📖 使用說明', {
+    _flexText('📖 便當點餐使用說明', {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -2331,18 +2332,20 @@ function createHelpFlex() {
     })
   ], {
     layout: 'vertical',
-    padding: 'lg',
-    backgroundColor: FLEX_COLORS.primary,
-    cornerRadius: 'lg'
+    paddingAll: 'lg',
+    backgroundColor: FLEX_COLORS.primary
   });
 
   /* ---- body: command list ---- */
   var commands = [
-    { num: '1', label: '選單',       desc: '查看今日菜單與價格' },
-    { num: '2', label: '菜名',       desc: '直接回覆菜名即可加購' },
-    { num: '3', label: '我的訂單',   desc: '查看目前已點的所有項目' },
-    { num: '4', label: '取消 菜名',  desc: '移除指定項目（如：取消 排骨飯）' },
-    { num: '5', label: '說明',       desc: '重新顯示本頁說明' }
+    { num: '1', label: '本週菜單',       desc: '查看週一至週五每日店家與排程' },
+    { num: '2', label: '週一菜單',       desc: '查看指定星期菜單（如：週二菜單）' },
+    { num: '3', label: '+1 餐點名',      desc: '點餐或加購（如：+1 排骨飯 或 雞腿+2）' },
+    { num: '4', label: '我的訂單',       desc: '查詢個人今日點餐紀錄與總額' },
+    { num: '5', label: '我的本週訂單',   desc: '查詢全週預約餐點與個人總金額' },
+    { num: '6', label: '取消 餐點',      desc: '取消餐點（如：取消 週二 全部）' },
+    { num: '7', label: '本週統計',       desc: '查看全週梯次訂餐統計與應付金額' },
+    { num: '8', label: '說明 / 幫助',   desc: '重新顯示本頁使用說明' }
   ];
 
   var bodyContents = [];
@@ -2351,68 +2354,70 @@ function createHelpFlex() {
       // Number badge
       _flexBox([
         _flexText(cmd.num, {
-          size: 'md',
+          size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.textOnColor,
           align: 'center'
         })
       ], {
         layout: 'vertical',
-        padding: 'xxs',
+        paddingAll: 'xs',
         backgroundColor: FLEX_COLORS.primary,
-        cornerRadius: 'sm'
+        cornerRadius: 'sm',
+        width: '24px'
       }),
       // Label + description
       _flexBox([
         _flexText(cmd.label, {
-          size: 'md',
+          size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.textPrimary,
           align: 'start'
         }),
         _flexText(cmd.desc, {
-          size: 'sm',
+          size: 'xs',
           color: FLEX_COLORS.textSecondary,
           align: 'start',
-          margin: 'xxs'
+          margin: 'xs'
         })
       ], {
         layout: 'vertical',
         spacing: 'none',
-        margin: 'xs'
+        margin: 'sm',
+        flex: 1
       })
     ], {
       layout: 'horizontal',
-      spacing: 'sm',
-      padding: 'sm',
+      alignItems: 'center',
+      paddingAll: 'sm',
       backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
-      cornerRadius: 'md'
+      cornerRadius: 'md',
+      margin: 'xs'
     }));
   });
 
   var body = _flexBox(bodyContents, {
     layout: 'vertical',
-    spacing: 'sm',
-    padding: 'lg',
+    paddingAll: 'md',
     backgroundColor: FLEX_COLORS.surface
   });
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('問題請聯繫管理員 🙋', {
-      size: 'sm',
+    _flexText('💡 點餐或疑問請直接在群組發送指令 🙋', {
+      size: 'xs',
       color: FLEX_COLORS.textSecondary,
       align: 'center'
     })
   ], {
     layout: 'vertical',
-    padding: 'md',
+    paddingAll: 'sm',
     backgroundColor: FLEX_COLORS.background
   });
 
   return {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     header: header,
     body: body,
     footer: footer
@@ -2436,7 +2441,7 @@ function createWeeklyScheduleFlex(schedule) {
       ], {
         backgroundColor: FLEX_COLORS.primary,
         cornerRadius: 'sm',
-        padding: 'xs',
+        paddingAll: 'xs',
         width: '45px'
       }),
       _flexBox([
@@ -2459,22 +2464,22 @@ function createWeeklyScheduleFlex(schedule) {
       margin: 'md',
       alignItems: 'center',
       backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
-      padding: 'sm',
+      paddingAll: 'sm',
       cornerRadius: 'md'
     }));
   }
 
   return {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     header: _flexBox([
       _flexText('📅 本週訂餐排程表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
       _flexText('週一至週五每日店家 · 支援一梯次預訂', { size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs' })
-    ], { backgroundColor: FLEX_COLORS.primaryDark, padding: 'lg' }),
-    body: _flexBox(rows, { layout: 'vertical', padding: 'md' }),
+    ], { backgroundColor: FLEX_COLORS.primaryDark, paddingAll: 'lg' }),
+    body: _flexBox(rows, { layout: 'vertical', paddingAll: 'md' }),
     footer: _flexBox([
       _flexText('💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
-    ], { backgroundColor: FLEX_COLORS.background, padding: 'sm' })
+    ], { backgroundColor: FLEX_COLORS.background, paddingAll: 'sm' })
   };
 }
 
@@ -2502,7 +2507,7 @@ function createWeeklySummaryFlex(weeklySummary) {
     ], {
       layout: 'vertical',
       backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
-      padding: 'sm',
+      paddingAll: 'sm',
       cornerRadius: 'sm',
       margin: 'sm'
     }));
@@ -2525,17 +2530,17 @@ function createWeeklySummaryFlex(weeklySummary) {
 
   return {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     header: _flexBox([
       _flexText('📊 本週梯次訂餐統計總表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
       _flexText('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元', {
         size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs'
       })
-    ], { backgroundColor: FLEX_COLORS.primary, padding: 'lg' }),
-    body: _flexBox(bodyContents, { layout: 'vertical', padding: 'md' }),
+    ], { backgroundColor: FLEX_COLORS.primary, paddingAll: 'lg' }),
+    body: _flexBox(bodyContents, { layout: 'vertical', paddingAll: 'md' }),
     footer: _flexBox([
       _flexText('📋 請各成員依此表金額完成對帳與付款', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
-    ], { backgroundColor: FLEX_COLORS.background, padding: 'sm' })
+    ], { backgroundColor: FLEX_COLORS.background, paddingAll: 'sm' })
   };
 }
 
