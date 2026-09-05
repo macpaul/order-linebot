@@ -65,6 +65,28 @@ console.log('  ✔ Menu matching passed.\n');
 
 // 3. Uber Eats Scraper & Importer Tests
 console.log('▶ Test 3: Uber Eats URL Parser & Menu Extraction');
+// Test URL-safe Base64 UUID conversion
+const uuid1 = UberEatsModule.base64ToUuid('xDKpVlsqTdmXKiJsQdkf_g');
+assert.strictEqual(uuid1, 'c432a956-5b2a-4dd9-972a-226c41d91ffe');
+
+const uuid2 = UberEatsModule.base64ToUuid('kRJsM5CqSrCohWhzSS_y-w');
+assert.strictEqual(uuid2, '91126c33-90aa-4ab0-a885-6873492ff2fb');
+
+// Test parsing user-provided URLs
+const userUrl1 = 'ubereats.com/tw/store/真好味茶餐廳/xDKpVlsqTdmXKiJsQdkf_g?sc=SEARCH_SUGGESTION';
+const parsedUserUrl1 = UberEatsModule.parseUberEatsUrl(userUrl1);
+assert.ok(parsedUserUrl1);
+assert.strictEqual(parsedUserUrl1.storeName, '真好味茶餐廳');
+assert.strictEqual(parsedUserUrl1.storeUuid, 'xDKpVlsqTdmXKiJsQdkf_g');
+assert.strictEqual(parsedUserUrl1.standardUuid, 'c432a956-5b2a-4dd9-972a-226c41d91ffe');
+
+const userUrl2 = 'https://www.ubereats.com/tw/store/%E4%B8%8A%E6%B5%B7%E7%81%98%E8%8C%B6%E9%A4%90%E5%BB%B3/kRJsM5CqSrCohWhzSS_y-w?diningMode=DELIVERY';
+const parsedUserUrl2 = UberEatsModule.parseUberEatsUrl(userUrl2);
+assert.ok(parsedUserUrl2);
+assert.strictEqual(parsedUserUrl2.storeName, '上海灘茶餐廳');
+assert.strictEqual(parsedUserUrl2.storeUuid, 'kRJsM5CqSrCohWhzSS_y-w');
+assert.strictEqual(parsedUserUrl2.standardUuid, '91126c33-90aa-4ab0-a885-6873492ff2fb');
+
 const testUrl = 'https://www.ubereats.com/tw/store/' + encodeURIComponent('福山排骨便當專賣') + '/aX6-T9T3TEG3dK-7p7Kspw';
 const parsedUrl = UberEatsModule.parseUberEatsUrl(testUrl);
 assert.ok(parsedUrl);
@@ -84,7 +106,12 @@ assert.strictEqual(extractedItems[2].price, 30);
 SheetModule.saveMenuItems('週一', '福山排骨便當專賣', extractedItems);
 const mondayMenu = SheetModule.getMenuItems('週一', '福山排骨便當專賣');
 assert.strictEqual(mondayMenu.length, 3);
-console.log('  ✔ Uber Eats URL parser and menu import passed.\n');
+
+// Test CodeModule.testUberEatsImport diagnostic function
+const diagResults = CodeModule.testUberEatsImport();
+assert.ok(Array.isArray(diagResults));
+assert.strictEqual(diagResults.length, 2);
+console.log('  ✔ Uber Eats URL parser, Base64 UUID converter, and diagnostics passed.\n');
 
 // 4. Weekly Schedule & Batch Ordering Lifecycle Test
 console.log('▶ Test 4: Weekly Schedule & Mon-Fri Batch Ordering Simulation');
