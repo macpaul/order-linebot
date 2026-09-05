@@ -111,6 +111,17 @@ npm run bundle
 
 ---
 
+## ❓ 常見問題與除錯 (FAQ)
+
+- **找不到 Channel access token？**
+  請注意官方帳號營運後台 (`manager.line.biz`) 僅提供基本資訊，Token 必須至 [LINE Developers Console](https://developers.line.biz/) 的 `Messaging API` 標籤頁最底部點選「Issue」產生。詳細圖解請參閱 [docs/deployment_guide.md#第六部分常見問題與疑難排解-faq--troubleshooting](docs/deployment_guide.md)。
+- **LINE 後台按 Verify 提示 302 Found？**
+  請檢查 GAS 部署權限是否設為「所有人 (Anyone)」、網址結尾是否為 `/exec`。若已開啟「Use webhook」，通常可直接於群組輸入 `幫助` 測試，機器人正常回覆即代表運作正常。
+- **試算表初始化出現 `TypeError: getConfigProperty is not a function`？**
+  已於最新版解決變數覆蓋問題，請重新複製最新的 [`dist/Code.gs`](dist/Code.gs) 貼入 Apps Script 編輯器即可。
+
+---
+
 ## 📄 開發規範與授權
 
 - 嚴格遵循 Git 原子化提交規範 (1 commit per file, Signed-off-by, detailed commit body)。
