@@ -180,6 +180,9 @@ function doPost(e) {
         if (typeof console !== 'undefined') {
           console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
         }
+        if (typeof logToSheet === 'function') {
+          logToSheet('MSG_RECV', msgText, srcId);
+        }
         var result = handleTextMessage(event);
         if (typeof console !== 'undefined') {
           console.log('📤 [處理結果]: ' + JSON.stringify(result));
@@ -204,6 +207,9 @@ function doPost(e) {
   } catch (err) {
     if (typeof console !== 'undefined') {
       console.error('❌ doPost error:', err);
+    }
+    if (typeof logToSheet === 'function') {
+      logToSheet('EXCEPTION', err.message, err.stack);
     }
     return _createResponse(200, { status: 'error', error: err.message });
   }
