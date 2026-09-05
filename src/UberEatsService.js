@@ -45,9 +45,74 @@ function _isGasRuntime() {
 }
 
 /**
- * HTTP POST helper with dual-environment support
+ * Convert URL-safe Base64 UUID (22 chars) to standard canonical 36-char hyphenated UUID.
+ * e.g., 'xDKpVlsqTdmXKiJsQdkf_g' -> 'c432a956-5b2a-4dd9-972a-226c41d91ffe'
+ * e.g., 'kRJsM5CqSrCohWhzSS_y-w' -> '91126c33-90aa-4ab0-a885-6873492ff2fb'
  */
-async function _httpPostJson(url, headers, payload) {
+function base64ToUuid(b64) {
+  if (!b64 || typeof b64 !== 'string') return '';
+  b64 = b64.trim();
+  // Standard UUID format (36 chars)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(b64)) {
+    return b64.toLowerCase();
+  }
+  // Hex UUID without hyphens (32 chars)
+  if (/^[0-9a-f]{32}$/i.test(b64)) {
+    var h = b64.toLowerCase();
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20, 32);
+  }
+
+  // URL-safe Base64 string
+  var base64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4 !== 0) {
+    base64 += '=';
+  }
+
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  var bytes = [];
+  for (var i = 0; i < base64.length; i += 4) {
+    var c1 = chars.indexOf(base64.charAt(i));
+    var c2 = chars.indexOf(base64.charAt(i + 1));
+    var c3 = chars.indexOf(base64.charAt(i + 2));
+    var c4 = chars.indexOf(base64.charAt(i + 3));
+
+    if (c1 === -1 || c2 === -1) break;
+    var b1 = (c1 << 2) | (c2 >> 4);
+    bytes.push(b1);
+
+    if (c3 !== -1 && base64.charAt(i + 2) !== '=') {
+      var b2 = ((c2 & 15) << 4) | (c3 >> 2);
+      bytes.push(b2);
+      if (c4 !== -1 && base64.charAt(i + 3) !== '=') {
+        var b3 = ((c3 & 3) << 6) | c4;
+        bytes.push(b3);
+      }
+    }
+  }
+
+  if (bytes.length !== 16) {
+    return b64;
+  }
+
+  var hex = '';
+  for (var j = 0; j < bytes.length; j++) {
+    var byteHex = bytes[j].toString(16);
+    if (byteHex.length < 2) byteHex = '0' + byteHex;
+    hex += byteHex;
+  }
+
+  return hex.slice(0, 8) + '-' +
+         hex.slice(8, 12) + '-' +
+         hex.slice(12, 16) + '-' +
+         hex.slice(16, 20) + '-' +
+         hex.slice(20, 32);
+}
+
+/**
+ * HTTP POST helper with dual-environment support.
+ * Synchronous in Google Apps Script (UrlFetchApp), Promise-based in Node.js.
+ */
+function _httpPostJson(url, headers, payload) {
   if (_isGasRuntime()) {
     var response = UrlFetchApp.fetch(url, {
       method: 'post',
@@ -57,20 +122,24 @@ async function _httpPostJson(url, headers, payload) {
       muteHttpExceptions: true
     });
     var statusCode = parseInt(response.getResponseCode(), 10);
+    var contentText = response.getContentText();
     var data = null;
-    try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
-    return { statusCode: statusCode, data: data };
+    try { data = JSON.parse(contentText); } catch (e) { data = null; }
+    return { statusCode: statusCode, data: data, rawText: contentText };
   }
 
   // Node.js
-  var nodeResponse = await fetch(url, {
+  return fetch(url, {
     method: 'POST',
     headers: headers,
     body: JSON.stringify(payload)
+  }).then(function (nodeResponse) {
+    return nodeResponse.text().then(function (nodeText) {
+      var nodeData = null;
+      try { nodeData = JSON.parse(nodeText); } catch (e) { nodeData = null; }
+      return { statusCode: nodeResponse.status, data: nodeData, rawText: nodeText };
+    });
   });
-  var nodeData = null;
-  try { nodeData = await nodeResponse.json(); } catch (e) { nodeData = null; }
-  return { statusCode: nodeResponse.status, data: nodeData };
 }
 
 /**
@@ -170,6 +239,7 @@ function _decodeSlug(slug) {
  * Supports:
  *   https://www.ubereats.com/tw/store/store-name/uuid
  *   https://www.ubereats.com/store/store-name/uuid
+ *   ubereats.com/tw/store/store-name/uuid?...
  */
 function parseUberEatsUrl(url) {
   if (!url) return null;
@@ -178,39 +248,70 @@ function parseUberEatsUrl(url) {
   if (match) {
     var storeName = _decodeSlug(match[1]);
     var storeUuid = match[2];
-    return { storeName: storeName, storeUuid: storeUuid };
+    var standardUuid = base64ToUuid(storeUuid);
+    return {
+      storeName: storeName,
+      storeUuid: storeUuid,
+      standardUuid: standardUuid,
+      rawUuid: storeUuid
+    };
   }
 
   return null;
 }
 
 /**
- * fetchStoreMenu — Fetch store menu from Uber Eats internal getStoreV1 API
+ * fetchStoreMenu — Fetch store menu from Uber Eats internal getStoreV1 API.
+ * Supports both standard 36-char UUID and 22-char URL slug Base64 UUID.
+ * Synchronous in Google Apps Script; returns Promise in Node.js.
  */
-async function fetchStoreMenu(storeUuid) {
+function fetchStoreMenu(storeUuid) {
   if (!storeUuid) {
     return _mockStoreData();
   }
 
+  var standardUuid = base64ToUuid(storeUuid) || storeUuid;
   var apiUrl = 'https://www.ubereats.com/_p/api/getStoreV1';
   var headers = {
     'Content-Type': 'application/json',
     'x-csrf-token': 'x',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
   };
   var payload = {
-    storeUuid: storeUuid,
+    storeUuid: standardUuid,
     diningMode: 'DELIVERY'
   };
 
-  try {
-    var result = await _httpPostJson(apiUrl, headers, payload);
-    if (result.statusCode >= 200 && result.statusCode < 300 && result.data) {
-      return result.data;
+  function parseResult(res) {
+    if (res && res.statusCode >= 200 && res.statusCode < 300 && res.data) {
+      if (typeof Logger !== 'undefined' && Logger.log) {
+        Logger.log('✔ [UberEats] API 請求成功 (HTTP ' + res.statusCode + ')');
+        if (res.data.data && res.data.data.title) {
+          Logger.log('✔ [UberEats] 店家名稱: ' + res.data.data.title);
+        }
+      }
+      return res.data;
     }
-  } catch (e) {}
+    if (typeof Logger !== 'undefined' && Logger.log) {
+      Logger.log('⚠️ [UberEats] API 請求失敗，HTTP 狀態碼: ' + (res ? res.statusCode : '未知'));
+      if (res && res.rawText) {
+        Logger.log('⚠️ [UberEats] 回應內文前 200 字: ' + res.rawText.slice(0, 200));
+      }
+    }
+    return null;
+  }
 
-  return _mockStoreData();
+  var resOrPromise = _httpPostJson(apiUrl, headers, payload);
+  if (resOrPromise && typeof resOrPromise.then === 'function') {
+    return resOrPromise.then(parseResult).catch(function (err) {
+      if (typeof Logger !== 'undefined' && Logger.log) {
+        Logger.log('❌ [UberEats] 網路請求異常: ' + (err ? err.message : err));
+      }
+      return null;
+    });
+  }
+
+  return parseResult(resOrPromise);
 }
 
 /**
@@ -221,12 +322,18 @@ function _collectSections(storeData) {
   var root = (storeData && storeData.data) ? storeData.data : storeData;
   if (!root) return result;
 
-  // 1. catalogSectionsMap
+  // 1. catalogSectionsMap (may contain array of sections per key)
   if (root.catalogSectionsMap && typeof root.catalogSectionsMap === 'object') {
     var keys = Object.keys(root.catalogSectionsMap);
     for (var i = 0; i < keys.length; i++) {
       var sec = root.catalogSectionsMap[keys[i]];
-      if (sec) result.push(sec);
+      if (Array.isArray(sec)) {
+        for (var k = 0; k < sec.length; k++) {
+          if (sec[k]) result.push(sec[k]);
+        }
+      } else if (sec) {
+        result.push(sec);
+      }
     }
   }
 
@@ -235,7 +342,13 @@ function _collectSections(storeData) {
     var entKeys = Object.keys(root.sectionEntitiesMap);
     for (var j = 0; j < entKeys.length; j++) {
       var ent = root.sectionEntitiesMap[entKeys[j]];
-      if (ent) result.push(ent);
+      if (Array.isArray(ent)) {
+        for (var ek = 0; ek < ent.length; ek++) {
+          if (ent[ek]) result.push(ent[ek]);
+        }
+      } else if (ent) {
+        result.push(ent);
+      }
     }
   }
 
@@ -254,7 +367,7 @@ function extractMenuItems(storeData) {
   if (!storeData) return [];
 
   var sections = _collectSections(storeData);
-  var currency = (storeData.data && storeData.data.currency) || storeData.currency || 'TWD';
+  var currency = (storeData.data && (storeData.data.currencyCode || storeData.data.currency)) || storeData.currency || 'TWD';
   var seen = {};
   var items = [];
 
@@ -326,21 +439,28 @@ function parseRawMenuJson(jsonStr) {
 /**
  * High-level orchestration function to import from Uber Eats
  */
-async function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
+function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
   var parsed = parseUberEatsUrl(url);
-  var storeUuid = parsed ? parsed.storeUuid : '';
+  var storeUuid = parsed ? (parsed.standardUuid || parsed.storeUuid) : '';
   var storeName = restaurantNameOverride || (parsed ? parsed.storeName : 'UberEats外送');
 
-  var storeData = await fetchStoreMenu(storeUuid);
-  var items = extractMenuItems(storeData);
+  function finishImport(storeData) {
+    var items = extractMenuItems(storeData);
+    return {
+      restaurantName: storeName,
+      dayOfWeek: dayOfWeek || '週一',
+      url: url,
+      itemsCount: items.length,
+      items: items
+    };
+  }
 
-  return {
-    restaurantName: storeName,
-    dayOfWeek: dayOfWeek || '週一',
-    url: url,
-    itemsCount: items.length,
-    items: items
-  };
+  var storeDataOrPromise = fetchStoreMenu(storeUuid);
+  if (storeDataOrPromise && typeof storeDataOrPromise.then === 'function') {
+    return storeDataOrPromise.then(finishImport);
+  }
+
+  return finishImport(storeDataOrPromise);
 }
 
 // Dual export
@@ -350,6 +470,7 @@ async function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
        : (typeof self     !== 'undefined') ? self
        : this;
 
+  g.base64ToUuid = base64ToUuid;
   g.parseUberEatsUrl = parseUberEatsUrl;
   g.fetchStoreMenu = fetchStoreMenu;
   g.extractMenuItems = extractMenuItems;
@@ -358,6 +479,7 @@ async function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+      base64ToUuid: base64ToUuid,
       parseUberEatsUrl: parseUberEatsUrl,
       fetchStoreMenu: fetchStoreMenu,
       extractMenuItems: extractMenuItems,
