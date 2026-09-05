@@ -98,20 +98,32 @@ function showUberEatsImportDialog() {
   try {
     ui.alert('⏳ 正在抓取 Uber Eats 菜單，請稍候約 3~5 秒...');
     var parsed = parseUberEatsUrl(url);
-    var storeUuid = parsed ? parsed.storeUuid : '';
-    var storeName = parsed ? parsed.storeName : 'UberEats外送';
+    if (!parsed) {
+      ui.alert('❌ 網址解析失敗！請確認網址格式正確。\n例如：https://www.ubereats.com/tw/store/...');
+      return;
+    }
+    var storeUuid = parsed.standardUuid || parsed.storeUuid;
+    var storeName = parsed.storeName || 'UberEats外送';
 
     var storeData = fetchStoreMenu(storeUuid);
     // If returned promise (in async environment)
     if (storeData && typeof storeData.then === 'function') {
       storeData.then(function (data) {
         var items = extractMenuItems(data);
+        if (!items || items.length === 0) {
+          ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
+          return;
+        }
         saveMenuItems(dayOfWeek, storeName, items);
         setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
         ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
       });
     } else {
       var items = extractMenuItems(storeData);
+      if (!items || items.length === 0) {
+        ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
+        return;
+      }
       saveMenuItems(dayOfWeek, storeName, items);
       setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
@@ -296,6 +308,112 @@ function testHelpMessage() {
 }
 
 /**
+ * 診斷工具：在 Google Apps Script 編輯器中直接測試 Uber Eats 菜單抓取
+ * 預設測試使用者指定的兩家店：
+ * 1. 真好味茶餐廳: ubereats.com/tw/store/真好味茶餐廳/xDKpVlsqTdmXKiJsQdkf_g?sc=SEARCH_SUGGESTION
+ * 2. 上海灘茶餐廳: https://www.ubereats.com/tw/store/%E4%B8%8A%E6%B5%B7%E7%81%98%E8%8C%B6%E9%A4%90%E5%BB%B3/kRJsM5CqSrCohWhzSS_y-w?diningMode=DELIVERY
+ *
+ * 可在 Apps Script 工具列選擇「testUberEatsImport」並點擊「執行」進行偵錯！
+ */
+function testUberEatsImport(customUrl) {
+  if (typeof Logger !== 'undefined') {
+    Logger.log('====================================================');
+    Logger.log('🔍 開始執行 Uber Eats 菜單抓取診斷測試 (testUberEatsImport)...');
+    Logger.log('====================================================');
+  }
+
+  var testUrls = [];
+  if (customUrl) {
+    testUrls.push({ label: '自訂網址', url: customUrl });
+  } else {
+    testUrls.push({
+      label: '店家 1 (真好味茶餐廳)',
+      url: 'ubereats.com/tw/store/真好味茶餐廳/xDKpVlsqTdmXKiJsQdkf_g?sc=SEARCH_SUGGESTION'
+    });
+    testUrls.push({
+      label: '店家 2 (上海灘茶餐廳)',
+      url: 'https://www.ubereats.com/tw/store/%E4%B8%8A%E6%B5%B7%E7%81%98%E8%8C%B6%E9%A4%90%E5%BB%B3/kRJsM5CqSrCohWhzSS_y-w?diningMode=DELIVERY'
+    });
+  }
+
+  var results = [];
+
+  for (var i = 0; i < testUrls.length; i++) {
+    var t = testUrls[i];
+    if (typeof Logger !== 'undefined') {
+      Logger.log('\n--- 測試 ' + t.label + ' ---');
+      Logger.log('輸入網址: ' + t.url);
+    }
+
+    var parsed = parseUberEatsUrl(t.url);
+    if (!parsed) {
+      if (typeof Logger !== 'undefined') Logger.log('❌ 網址解析失敗！無法辨識 Uber Eats 店家網址格式');
+      results.push({ label: t.label, success: false, error: 'URL parse failed' });
+      continue;
+    }
+
+    if (typeof Logger !== 'undefined') {
+      Logger.log('✔ 網址解析成功:');
+      Logger.log('   - 店家名稱: ' + parsed.storeName);
+      Logger.log('   - Slug UUID: ' + parsed.storeUuid);
+      Logger.log('   - 標準 UUID: ' + parsed.standardUuid);
+    }
+
+    try {
+      var storeData = fetchStoreMenu(parsed.standardUuid || parsed.storeUuid);
+      // If Promise (Node.js runtime)
+      if (storeData && typeof storeData.then === 'function') {
+        if (typeof Logger !== 'undefined') Logger.log('ℹ 非同步 Promise 物件已回傳');
+        results.push({ label: t.label, success: true, parsed: parsed, isPromise: true });
+        continue;
+      }
+
+      if (!storeData) {
+        if (typeof Logger !== 'undefined') {
+          Logger.log('❌ 抓取失敗: fetchStoreMenu 回傳 null (可能因 Uber Eats 防護限制、網路逾時或店家非營業狀態)');
+        }
+        results.push({ label: t.label, success: false, error: 'fetchStoreMenu returned null' });
+        continue;
+      }
+
+      var items = extractMenuItems(storeData);
+      if (typeof Logger !== 'undefined') {
+        Logger.log('✔ 菜單品項解析成功！共抓取到 ' + items.length + ' 道餐點');
+        if (items.length > 0) {
+          Logger.log('📋 前 3 道餐點範例:');
+          for (var k = 0; k < Math.min(3, items.length); k++) {
+            var itm = items[k];
+            Logger.log('   [' + (k + 1) + '] 分類: ' + itm.category + ' | 餐點: ' + itm.itemName + ' | 價格: NT$' + itm.price);
+          }
+        }
+      }
+
+      results.push({
+        label: t.label,
+        storeName: parsed.storeName,
+        standardUuid: parsed.standardUuid,
+        itemsCount: items.length,
+        sampleItems: items.slice(0, 3),
+        success: true
+      });
+    } catch (err) {
+      if (typeof Logger !== 'undefined') {
+        Logger.log('❌ 抓取發生例外: ' + err.message);
+      }
+      results.push({ label: t.label, success: false, error: err.message });
+    }
+  }
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('\n====================================================');
+    Logger.log('🎉 診斷測試完成！總共測試 ' + testUrls.length + ' 個店家');
+    Logger.log('====================================================');
+  }
+
+  return results;
+}
+
+/**
  * Manual setup helper - can be run from the Apps Script editor toolbar
  */
 function setup() {
@@ -322,6 +440,7 @@ function setup() {
   g.setup = setup;
   g.testLineConnection = testLineConnection;
   g.testHelpMessage = testHelpMessage;
+  g.testUberEatsImport = testUberEatsImport;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -333,7 +452,8 @@ function setup() {
       doPost: doPost,
       setup: setup,
       testLineConnection: testLineConnection,
-      testHelpMessage: testHelpMessage
+      testHelpMessage: testHelpMessage,
+      testUberEatsImport: testUberEatsImport
     };
   }
 })();
