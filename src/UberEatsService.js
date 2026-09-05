@@ -13,7 +13,9 @@
 /* ------------------------------------------------------------------ *
  * Bootstrap — resolve CONFIG across runtimes
  * ------------------------------------------------------------------ */
-var CONFIG = null;
+if (typeof CONFIG === 'undefined') {
+  var CONFIG = null;
+}
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
        : (typeof global   !== 'undefined') ? global
