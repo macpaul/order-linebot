@@ -14,8 +14,12 @@
  * Bootstrap — resolve CONFIG and getConfigProperty across
  * runtimes (GAS globals vs. Node.js sibling module).
  * ------------------------------------------------------------------ */
-var CONFIG = null;
-var getConfigProperty = null;
+if (typeof CONFIG === 'undefined') {
+  var CONFIG = null;
+}
+if (typeof getConfigProperty === 'undefined') {
+  var getConfigProperty = null;
+}
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
        : (typeof global   !== 'undefined') ? global
