@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-05T14:48:27.124Z
+ * Automatically generated on: 2026-09-05T17:52:44.982Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -1228,6 +1228,10 @@ function onOpenSpreadsheet() {
       .addItem('📈 重新產生本週梯次統計表', 'refreshWeeklySummary')
       .addSeparator()
       .addItem('🍔 從 Uber Eats 網址匯入菜單', 'showUberEatsImportDialog')
+      .addSeparator()
+      .addItem('🔍 診斷測試：Uber Eats 菜單抓取', 'testUberEatsImport')
+      .addItem('🔍 診斷測試：LINE 連線狀態', 'testLineConnection')
+      .addItem('🔍 診斷測試：幫助卡片訊息', 'testHelpMessage')
       .addToUi();
   } catch (e) {}
 }
@@ -1360,9 +1364,74 @@ function _isGasRuntime() {
 }
 
 /**
- * HTTP POST helper with dual-environment support
+ * Convert URL-safe Base64 UUID (22 chars) to standard canonical 36-char hyphenated UUID.
+ * e.g., 'xDKpVlsqTdmXKiJsQdkf_g' -> 'c432a956-5b2a-4dd9-972a-226c41d91ffe'
+ * e.g., 'kRJsM5CqSrCohWhzSS_y-w' -> '91126c33-90aa-4ab0-a885-6873492ff2fb'
  */
-async function _httpPostJson(url, headers, payload) {
+function base64ToUuid(b64) {
+  if (!b64 || typeof b64 !== 'string') return '';
+  b64 = b64.trim();
+  // Standard UUID format (36 chars)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(b64)) {
+    return b64.toLowerCase();
+  }
+  // Hex UUID without hyphens (32 chars)
+  if (/^[0-9a-f]{32}$/i.test(b64)) {
+    var h = b64.toLowerCase();
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20, 32);
+  }
+
+  // URL-safe Base64 string
+  var base64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4 !== 0) {
+    base64 += '=';
+  }
+
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  var bytes = [];
+  for (var i = 0; i < base64.length; i += 4) {
+    var c1 = chars.indexOf(base64.charAt(i));
+    var c2 = chars.indexOf(base64.charAt(i + 1));
+    var c3 = chars.indexOf(base64.charAt(i + 2));
+    var c4 = chars.indexOf(base64.charAt(i + 3));
+
+    if (c1 === -1 || c2 === -1) break;
+    var b1 = (c1 << 2) | (c2 >> 4);
+    bytes.push(b1);
+
+    if (c3 !== -1 && base64.charAt(i + 2) !== '=') {
+      var b2 = ((c2 & 15) << 4) | (c3 >> 2);
+      bytes.push(b2);
+      if (c4 !== -1 && base64.charAt(i + 3) !== '=') {
+        var b3 = ((c3 & 3) << 6) | c4;
+        bytes.push(b3);
+      }
+    }
+  }
+
+  if (bytes.length !== 16) {
+    return b64;
+  }
+
+  var hex = '';
+  for (var j = 0; j < bytes.length; j++) {
+    var byteHex = bytes[j].toString(16);
+    if (byteHex.length < 2) byteHex = '0' + byteHex;
+    hex += byteHex;
+  }
+
+  return hex.slice(0, 8) + '-' +
+         hex.slice(8, 12) + '-' +
+         hex.slice(12, 16) + '-' +
+         hex.slice(16, 20) + '-' +
+         hex.slice(20, 32);
+}
+
+/**
+ * HTTP POST helper with dual-environment support.
+ * Synchronous in Google Apps Script (UrlFetchApp), Promise-based in Node.js.
+ */
+function _httpPostJson(url, headers, payload) {
   if (_isGasRuntime()) {
     var response = UrlFetchApp.fetch(url, {
       method: 'post',
@@ -1372,20 +1441,24 @@ async function _httpPostJson(url, headers, payload) {
       muteHttpExceptions: true
     });
     var statusCode = parseInt(response.getResponseCode(), 10);
+    var contentText = response.getContentText();
     var data = null;
-    try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
-    return { statusCode: statusCode, data: data };
+    try { data = JSON.parse(contentText); } catch (e) { data = null; }
+    return { statusCode: statusCode, data: data, rawText: contentText };
   }
 
   // Node.js
-  var nodeResponse = await fetch(url, {
+  return fetch(url, {
     method: 'POST',
     headers: headers,
     body: JSON.stringify(payload)
+  }).then(function (nodeResponse) {
+    return nodeResponse.text().then(function (nodeText) {
+      var nodeData = null;
+      try { nodeData = JSON.parse(nodeText); } catch (e) { nodeData = null; }
+      return { statusCode: nodeResponse.status, data: nodeData, rawText: nodeText };
+    });
   });
-  var nodeData = null;
-  try { nodeData = await nodeResponse.json(); } catch (e) { nodeData = null; }
-  return { statusCode: nodeResponse.status, data: nodeData };
 }
 
 /**
@@ -1485,6 +1558,7 @@ function _decodeSlug(slug) {
  * Supports:
  *   https://www.ubereats.com/tw/store/store-name/uuid
  *   https://www.ubereats.com/store/store-name/uuid
+ *   ubereats.com/tw/store/store-name/uuid?...
  */
 function parseUberEatsUrl(url) {
   if (!url) return null;
@@ -1493,39 +1567,70 @@ function parseUberEatsUrl(url) {
   if (match) {
     var storeName = _decodeSlug(match[1]);
     var storeUuid = match[2];
-    return { storeName: storeName, storeUuid: storeUuid };
+    var standardUuid = base64ToUuid(storeUuid);
+    return {
+      storeName: storeName,
+      storeUuid: storeUuid,
+      standardUuid: standardUuid,
+      rawUuid: storeUuid
+    };
   }
 
   return null;
 }
 
 /**
- * fetchStoreMenu — Fetch store menu from Uber Eats internal getStoreV1 API
+ * fetchStoreMenu — Fetch store menu from Uber Eats internal getStoreV1 API.
+ * Supports both standard 36-char UUID and 22-char URL slug Base64 UUID.
+ * Synchronous in Google Apps Script; returns Promise in Node.js.
  */
-async function fetchStoreMenu(storeUuid) {
+function fetchStoreMenu(storeUuid) {
   if (!storeUuid) {
     return _mockStoreData();
   }
 
+  var standardUuid = base64ToUuid(storeUuid) || storeUuid;
   var apiUrl = 'https://www.ubereats.com/_p/api/getStoreV1';
   var headers = {
     'Content-Type': 'application/json',
     'x-csrf-token': 'x',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
   };
   var payload = {
-    storeUuid: storeUuid,
+    storeUuid: standardUuid,
     diningMode: 'DELIVERY'
   };
 
-  try {
-    var result = await _httpPostJson(apiUrl, headers, payload);
-    if (result.statusCode >= 200 && result.statusCode < 300 && result.data) {
-      return result.data;
+  function parseResult(res) {
+    if (res && res.statusCode >= 200 && res.statusCode < 300 && res.data) {
+      if (typeof Logger !== 'undefined' && Logger.log) {
+        Logger.log('✔ [UberEats] API 請求成功 (HTTP ' + res.statusCode + ')');
+        if (res.data.data && res.data.data.title) {
+          Logger.log('✔ [UberEats] 店家名稱: ' + res.data.data.title);
+        }
+      }
+      return res.data;
     }
-  } catch (e) {}
+    if (typeof Logger !== 'undefined' && Logger.log) {
+      Logger.log('⚠️ [UberEats] API 請求失敗，HTTP 狀態碼: ' + (res ? res.statusCode : '未知'));
+      if (res && res.rawText) {
+        Logger.log('⚠️ [UberEats] 回應內文前 200 字: ' + res.rawText.slice(0, 200));
+      }
+    }
+    return null;
+  }
 
-  return _mockStoreData();
+  var resOrPromise = _httpPostJson(apiUrl, headers, payload);
+  if (resOrPromise && typeof resOrPromise.then === 'function') {
+    return resOrPromise.then(parseResult).catch(function (err) {
+      if (typeof Logger !== 'undefined' && Logger.log) {
+        Logger.log('❌ [UberEats] 網路請求異常: ' + (err ? err.message : err));
+      }
+      return null;
+    });
+  }
+
+  return parseResult(resOrPromise);
 }
 
 /**
@@ -1536,12 +1641,18 @@ function _collectSections(storeData) {
   var root = (storeData && storeData.data) ? storeData.data : storeData;
   if (!root) return result;
 
-  // 1. catalogSectionsMap
+  // 1. catalogSectionsMap (may contain array of sections per key)
   if (root.catalogSectionsMap && typeof root.catalogSectionsMap === 'object') {
     var keys = Object.keys(root.catalogSectionsMap);
     for (var i = 0; i < keys.length; i++) {
       var sec = root.catalogSectionsMap[keys[i]];
-      if (sec) result.push(sec);
+      if (Array.isArray(sec)) {
+        for (var k = 0; k < sec.length; k++) {
+          if (sec[k]) result.push(sec[k]);
+        }
+      } else if (sec) {
+        result.push(sec);
+      }
     }
   }
 
@@ -1550,7 +1661,13 @@ function _collectSections(storeData) {
     var entKeys = Object.keys(root.sectionEntitiesMap);
     for (var j = 0; j < entKeys.length; j++) {
       var ent = root.sectionEntitiesMap[entKeys[j]];
-      if (ent) result.push(ent);
+      if (Array.isArray(ent)) {
+        for (var ek = 0; ek < ent.length; ek++) {
+          if (ent[ek]) result.push(ent[ek]);
+        }
+      } else if (ent) {
+        result.push(ent);
+      }
     }
   }
 
@@ -1569,7 +1686,7 @@ function extractMenuItems(storeData) {
   if (!storeData) return [];
 
   var sections = _collectSections(storeData);
-  var currency = (storeData.data && storeData.data.currency) || storeData.currency || 'TWD';
+  var currency = (storeData.data && (storeData.data.currencyCode || storeData.data.currency)) || storeData.currency || 'TWD';
   var seen = {};
   var items = [];
 
@@ -1641,21 +1758,28 @@ function parseRawMenuJson(jsonStr) {
 /**
  * High-level orchestration function to import from Uber Eats
  */
-async function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
+function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
   var parsed = parseUberEatsUrl(url);
-  var storeUuid = parsed ? parsed.storeUuid : '';
+  var storeUuid = parsed ? (parsed.standardUuid || parsed.storeUuid) : '';
   var storeName = restaurantNameOverride || (parsed ? parsed.storeName : 'UberEats外送');
 
-  var storeData = await fetchStoreMenu(storeUuid);
-  var items = extractMenuItems(storeData);
+  function finishImport(storeData) {
+    var items = extractMenuItems(storeData);
+    return {
+      restaurantName: storeName,
+      dayOfWeek: dayOfWeek || '週一',
+      url: url,
+      itemsCount: items.length,
+      items: items
+    };
+  }
 
-  return {
-    restaurantName: storeName,
-    dayOfWeek: dayOfWeek || '週一',
-    url: url,
-    itemsCount: items.length,
-    items: items
-  };
+  var storeDataOrPromise = fetchStoreMenu(storeUuid);
+  if (storeDataOrPromise && typeof storeDataOrPromise.then === 'function') {
+    return storeDataOrPromise.then(finishImport);
+  }
+
+  return finishImport(storeDataOrPromise);
 }
 
 // Dual export
@@ -1665,6 +1789,7 @@ async function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
        : (typeof self     !== 'undefined') ? self
        : this;
 
+  g.base64ToUuid = base64ToUuid;
   g.parseUberEatsUrl = parseUberEatsUrl;
   g.fetchStoreMenu = fetchStoreMenu;
   g.extractMenuItems = extractMenuItems;
@@ -1673,6 +1798,7 @@ async function importUberEatsToMenu(url, dayOfWeek, restaurantNameOverride) {
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+      base64ToUuid: base64ToUuid,
       parseUberEatsUrl: parseUberEatsUrl,
       fetchStoreMenu: fetchStoreMenu,
       extractMenuItems: extractMenuItems,
@@ -3159,20 +3285,32 @@ function showUberEatsImportDialog() {
   try {
     ui.alert('⏳ 正在抓取 Uber Eats 菜單，請稍候約 3~5 秒...');
     var parsed = parseUberEatsUrl(url);
-    var storeUuid = parsed ? parsed.storeUuid : '';
-    var storeName = parsed ? parsed.storeName : 'UberEats外送';
+    if (!parsed) {
+      ui.alert('❌ 網址解析失敗！請確認網址格式正確。\n例如：https://www.ubereats.com/tw/store/...');
+      return;
+    }
+    var storeUuid = parsed.standardUuid || parsed.storeUuid;
+    var storeName = parsed.storeName || 'UberEats外送';
 
     var storeData = fetchStoreMenu(storeUuid);
     // If returned promise (in async environment)
     if (storeData && typeof storeData.then === 'function') {
       storeData.then(function (data) {
         var items = extractMenuItems(data);
+        if (!items || items.length === 0) {
+          ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
+          return;
+        }
         saveMenuItems(dayOfWeek, storeName, items);
         setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
         ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
       });
     } else {
       var items = extractMenuItems(storeData);
+      if (!items || items.length === 0) {
+        ui.alert('⚠️ 未能從 Uber Eats 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
+        return;
+      }
       saveMenuItems(dayOfWeek, storeName, items);
       setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 Uber Eats 匯入');
       ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
@@ -3357,6 +3495,112 @@ function testHelpMessage() {
 }
 
 /**
+ * 診斷工具：在 Google Apps Script 編輯器中直接測試 Uber Eats 菜單抓取
+ * 預設測試使用者指定的兩家店：
+ * 1. 真好味茶餐廳: ubereats.com/tw/store/真好味茶餐廳/xDKpVlsqTdmXKiJsQdkf_g?sc=SEARCH_SUGGESTION
+ * 2. 上海灘茶餐廳: https://www.ubereats.com/tw/store/%E4%B8%8A%E6%B5%B7%E7%81%98%E8%8C%B6%E9%A4%90%E5%BB%B3/kRJsM5CqSrCohWhzSS_y-w?diningMode=DELIVERY
+ *
+ * 可在 Apps Script 工具列選擇「testUberEatsImport」並點擊「執行」進行偵錯！
+ */
+function testUberEatsImport(customUrl) {
+  if (typeof Logger !== 'undefined') {
+    Logger.log('====================================================');
+    Logger.log('🔍 開始執行 Uber Eats 菜單抓取診斷測試 (testUberEatsImport)...');
+    Logger.log('====================================================');
+  }
+
+  var testUrls = [];
+  if (customUrl) {
+    testUrls.push({ label: '自訂網址', url: customUrl });
+  } else {
+    testUrls.push({
+      label: '店家 1 (真好味茶餐廳)',
+      url: 'ubereats.com/tw/store/真好味茶餐廳/xDKpVlsqTdmXKiJsQdkf_g?sc=SEARCH_SUGGESTION'
+    });
+    testUrls.push({
+      label: '店家 2 (上海灘茶餐廳)',
+      url: 'https://www.ubereats.com/tw/store/%E4%B8%8A%E6%B5%B7%E7%81%98%E8%8C%B6%E9%A4%90%E5%BB%B3/kRJsM5CqSrCohWhzSS_y-w?diningMode=DELIVERY'
+    });
+  }
+
+  var results = [];
+
+  for (var i = 0; i < testUrls.length; i++) {
+    var t = testUrls[i];
+    if (typeof Logger !== 'undefined') {
+      Logger.log('\n--- 測試 ' + t.label + ' ---');
+      Logger.log('輸入網址: ' + t.url);
+    }
+
+    var parsed = parseUberEatsUrl(t.url);
+    if (!parsed) {
+      if (typeof Logger !== 'undefined') Logger.log('❌ 網址解析失敗！無法辨識 Uber Eats 店家網址格式');
+      results.push({ label: t.label, success: false, error: 'URL parse failed' });
+      continue;
+    }
+
+    if (typeof Logger !== 'undefined') {
+      Logger.log('✔ 網址解析成功:');
+      Logger.log('   - 店家名稱: ' + parsed.storeName);
+      Logger.log('   - Slug UUID: ' + parsed.storeUuid);
+      Logger.log('   - 標準 UUID: ' + parsed.standardUuid);
+    }
+
+    try {
+      var storeData = fetchStoreMenu(parsed.standardUuid || parsed.storeUuid);
+      // If Promise (Node.js runtime)
+      if (storeData && typeof storeData.then === 'function') {
+        if (typeof Logger !== 'undefined') Logger.log('ℹ 非同步 Promise 物件已回傳');
+        results.push({ label: t.label, success: true, parsed: parsed, isPromise: true });
+        continue;
+      }
+
+      if (!storeData) {
+        if (typeof Logger !== 'undefined') {
+          Logger.log('❌ 抓取失敗: fetchStoreMenu 回傳 null (可能因 Uber Eats 防護限制、網路逾時或店家非營業狀態)');
+        }
+        results.push({ label: t.label, success: false, error: 'fetchStoreMenu returned null' });
+        continue;
+      }
+
+      var items = extractMenuItems(storeData);
+      if (typeof Logger !== 'undefined') {
+        Logger.log('✔ 菜單品項解析成功！共抓取到 ' + items.length + ' 道餐點');
+        if (items.length > 0) {
+          Logger.log('📋 前 3 道餐點範例:');
+          for (var k = 0; k < Math.min(3, items.length); k++) {
+            var itm = items[k];
+            Logger.log('   [' + (k + 1) + '] 分類: ' + itm.category + ' | 餐點: ' + itm.itemName + ' | 價格: NT$' + itm.price);
+          }
+        }
+      }
+
+      results.push({
+        label: t.label,
+        storeName: parsed.storeName,
+        standardUuid: parsed.standardUuid,
+        itemsCount: items.length,
+        sampleItems: items.slice(0, 3),
+        success: true
+      });
+    } catch (err) {
+      if (typeof Logger !== 'undefined') {
+        Logger.log('❌ 抓取發生例外: ' + err.message);
+      }
+      results.push({ label: t.label, success: false, error: err.message });
+    }
+  }
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log('\n====================================================');
+    Logger.log('🎉 診斷測試完成！總共測試 ' + testUrls.length + ' 個店家');
+    Logger.log('====================================================');
+  }
+
+  return results;
+}
+
+/**
  * Manual setup helper - can be run from the Apps Script editor toolbar
  */
 function setup() {
@@ -3383,6 +3627,7 @@ function setup() {
   g.setup = setup;
   g.testLineConnection = testLineConnection;
   g.testHelpMessage = testHelpMessage;
+  g.testUberEatsImport = testUberEatsImport;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -3394,7 +3639,8 @@ function setup() {
       doPost: doPost,
       setup: setup,
       testLineConnection: testLineConnection,
-      testHelpMessage: testHelpMessage
+      testHelpMessage: testHelpMessage,
+      testUberEatsImport: testUberEatsImport
     };
   }
 })();
