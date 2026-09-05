@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-05T13:56:15.454Z
+ * Automatically generated on: 2026-09-05T14:28:43.219Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -213,9 +213,15 @@ async function _httpPostJson(url, headers, payload) {
       if (typeof Logger !== 'undefined') {
         Logger.log('❌ [LINE API Error] HTTP ' + statusCode + ' Response: ' + contentText);
       }
+      if (typeof logToSheet === 'function') {
+        logToSheet('LINE_ERROR', 'HTTP ' + statusCode, contentText);
+      }
     } else {
       if (typeof console !== 'undefined') {
         console.log('✅ [LINE API Success] HTTP ' + statusCode);
+      }
+      if (typeof logToSheet === 'function') {
+        logToSheet('LINE_SUCCESS', 'HTTP ' + statusCode, contentText);
       }
     }
 
@@ -1226,6 +1232,30 @@ function onOpenSpreadsheet() {
   } catch (e) {}
 }
 
+/**
+ * Log diagnostic events directly into a 'Logs' sheet tab in Google Sheets
+ */
+function logToSheet(type, message, detail) {
+  if (!isGasRuntime()) return;
+  try {
+    var ss = getSpreadsheet();
+    if (!ss) return;
+    var logSheet = ss.getSheetByName('Logs');
+    if (!logSheet) {
+      logSheet = ss.insertSheet('Logs');
+      logSheet.appendRow(['Timestamp', 'Type', 'Message', 'Detail']);
+      logSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
+    }
+    var detailStr = '';
+    if (typeof detail === 'object') {
+      try { detailStr = JSON.stringify(detail); } catch (e) { detailStr = String(detail); }
+    } else if (detail !== undefined && detail !== null) {
+      detailStr = String(detail);
+    }
+    logSheet.appendRow([new Date().toISOString(), type || 'INFO', message || '', detailStr]);
+  } catch (e) {}
+}
+
 // Dual export
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -1250,6 +1280,7 @@ function onOpenSpreadsheet() {
   g.getOrderSummary = getOrderSummary;
   g.getWeeklyOrderSummary = getWeeklyOrderSummary;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
+  g.logToSheet = logToSheet;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -1271,6 +1302,7 @@ function onOpenSpreadsheet() {
       getOrderSummary: getOrderSummary,
       getWeeklyOrderSummary: getWeeklyOrderSummary,
       onOpenSpreadsheet: onOpenSpreadsheet,
+      logToSheet: logToSheet,
       _mockStore: _mockStore
     };
   }
@@ -3204,6 +3236,9 @@ function doPost(e) {
         if (typeof console !== 'undefined') {
           console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
         }
+        if (typeof logToSheet === 'function') {
+          logToSheet('MSG_RECV', msgText, srcId);
+        }
         var result = handleTextMessage(event);
         if (typeof console !== 'undefined') {
           console.log('📤 [處理結果]: ' + JSON.stringify(result));
@@ -3228,6 +3263,9 @@ function doPost(e) {
   } catch (err) {
     if (typeof console !== 'undefined') {
       console.error('❌ doPost error:', err);
+    }
+    if (typeof logToSheet === 'function') {
+      logToSheet('EXCEPTION', err.message, err.stack);
     }
     return _createResponse(200, { status: 'error', error: err.message });
   }
