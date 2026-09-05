@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-03T17:53:07.333Z
+ * Automatically generated on: 2026-09-05T11:39:36.393Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -138,8 +138,12 @@ function getConfigProperty(key, defaultValue) {
  * Bootstrap — resolve CONFIG and getConfigProperty across
  * runtimes (GAS globals vs. Node.js sibling module).
  * ------------------------------------------------------------------ */
-var CONFIG = null;
-var getConfigProperty = null;
+if (typeof CONFIG === 'undefined') {
+  var CONFIG = null;
+}
+if (typeof getConfigProperty === 'undefined') {
+  var getConfigProperty = null;
+}
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
        : (typeof global   !== 'undefined') ? global
@@ -1269,7 +1273,9 @@ function onOpenSpreadsheet() {
 /* ------------------------------------------------------------------ *
  * Bootstrap — resolve CONFIG across runtimes
  * ------------------------------------------------------------------ */
-var CONFIG = null;
+if (typeof CONFIG === 'undefined') {
+  var CONFIG = null;
+}
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
        : (typeof global   !== 'undefined') ? global
