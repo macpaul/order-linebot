@@ -16,42 +16,56 @@
 
 ## 第一部分：申請與設定 LINE Developers (免費 Messaging API)
 
-### 步驟 1：登入 LINE Developers Console
+### 💡 找不到「Messaging API」標籤頁的快速排查 (UI 更新說明)
+如果您在畫面上找不到「Messaging API 標籤頁」或「Channel access token」，通常是以下三種情況之一：
+1. **尚未點進 Channel 內部**：剛登入 LINE Developers Console 時是 Provider 列表，您必須先點選左側或中央的 **Provider 名稱**，接著**點擊進入您的 Channel（點擊該圖示或名稱）**，進入後頁面最上方才會出現 `Basic settings`、`Messaging API`、`Roles` 等橫排分頁！
+2. **建立錯 Channel 類型**：如果不小心建成了「LINE Login」頻道，上方只會有 LINE Login 分頁而**不會有** Messaging API 分頁。請確認 Channel 類型為 `Messaging API`。
+3. **最新改版替代路徑 (最不易出錯)**：LINE 現已支援從 [LINE Official Account Manager](https://manager.line.biz/) 直接啟用，詳見下方 **【路徑 A】**。
+
+---
+
+### 【推薦：路徑 A】從 LINE Official Account Manager 直接啟用（最簡單直覺）
+1. 前往 [LINE Official Account Manager](https://manager.line.biz/)，登入您的 LINE 帳號。
+2. 建立或點選您的官方帳號。
+3. 點擊右上角的 **「設定 (Settings)」**。
+4. 點選左側選單中的 **「Messaging API」**。
+5. 點擊畫面中央的綠色按鈕 **「啟用 Messaging API」**。
+6. 輸入或選擇您的 Provider（提供者名稱，例如您的團隊或專案名稱），點擊確定同意。
+7. 啟用後，此頁面會顯示 Channel ID 與 Channel Secret，並會提供一個 **「前往 LINE Developers」** 的按鈕，點擊後會**直接帶您進入該頻道的 Messaging API 設定頁**！
+
+---
+
+### 【路徑 B】從 LINE Developers Console 操作步驟
+
+#### 步驟 1：登入 LINE Developers Console
 1. 前往 [LINE Developers Console](https://developers.line.biz/)。
-2. 點擊右上角 **Log in**，使用您現有的個人 LINE 帳號登入。
+2. 點擊右上角 **Log in**，使用個人 LINE 帳號登入。
 
-### 步驟 2：建立 Provider (提供者)
-1. 進入主控制台，點擊 **Create a new provider**。
-2. 輸入名稱（例如：`MealService` 或您的團隊名稱），點擊 **Create**。
+#### 步驟 2：進入 Provider 與建立 Channel
+1. 點擊左側已存在的 **Provider**（若無則點擊 `Create a new provider` 建立）。
+2. 在該 Provider 頁面下，確認點擊的是 **Create a Messaging API channel**（請勿點選 LINE Login）。
+3. 填寫頻道名稱、說明、分類、Email，勾選同意條款後按 **Create** 建立。
 
-### 步驟 3：建立 Messaging API Channel
-1. 在剛剛建立的 Provider 頁面中，點選 **Create a Messaging API channel**。
-2. 填寫以下必要欄位：
-   - **Channel type**: Messaging API
-   - **Channel name**: 例如 `便當點餐小助手`
-   - **Channel description**: `群組每日/每週便當訂餐統計機器人`
-   - **Category**: 選擇餐飲（Food & Beverage）或生活工具
-   - **Subcategory**: 隨選適合項目
-   - **Email address**: 填寫您的聯絡信箱
-3. 勾選同意服務條款後點擊 **Create**。
+#### 步驟 3：進入 Channel 取得憑證金鑰 (關鍵位置圖解)
+建立完成後，請**務必點進該 Channel 頁面**，此時頁面上方會顯示水平橫排分頁：
+1. **取得 Channel Secret**：
+   - 點選上方第一個標籤 **`Basic settings`**。
+   - 向下滾動找到 **Channel secret** 欄位，複製此 32 位元字串備用。
+2. **取得 Channel Access Token**：
+   - 點選上方第二個標籤 **`Messaging API`**。
+   - 向下滑動到頁面最底部，找到 **Channel access token**（或 `Channel access token (long-lived)`）。
+   - 點擊右側的 **「Issue」（發行）** 按鈕。
+   - 系統即會生成一串長效存取權杖（Token），點擊旁邊的複製按鈕妥善保存。
 
-### 步驟 4：取得憑證金鑰 (Tokens & Secrets)
-1. **Channel Secret**：
-   - 切換至 **Basic settings** 標籤頁。
-   - 找到 **Channel secret** 欄位，複製此 32 位元字串並妥善保存。
-2. **Channel Access Token**：
-   - 切換至 **Messaging API** 標籤頁。
-   - 滾動到最下方 **Channel access token**。
-   - 點選 **Issue** 按鈕，生成長效權杖 (Long-lived Token)，複製此字串並妥善保存。
-
-### 步驟 5：設定 LINE 官方帳號重要功能 (極關鍵！)
-在 **Messaging API** 標籤頁中，找到 **LINE Official Account features** 區塊，點選 **Edit** 開啟 LINE Official Account Manager 後台：
-1. **回應設定 (Response Settings)**：
+#### 步驟 4：設定官方帳號重要功能 (極關鍵！)
+在同一個 **`Messaging API`** 分頁中：
+1. 找到 **Webhook settings** 區塊：
+   - 稍後貼入 Google Apps Script 產生的網址，並將 **Use webhook** 切換為開啟。
+2. 找到 **LINE Official Account features** 區塊，點選 **Edit** 開啟後台設定：
    - **回應模式**：選擇 **Bot (聊天機器人)**。
-   - **自動回應訊息 (Auto-response)**：務必切換為 **停用 (Disabled)**（若開啟，每次成員打字，LINE 預設罐頭回覆會重複跳出干擾）。
+   - **自動回應訊息 (Auto-response)**：務必切換為 **停用 (Disabled)**（避免每次群組成員點餐跳出官方罐頭回覆）。
    - **Webhooks**：切換為 **啟用 (Enabled)**。
-2. **聊天室設定 (Chat room and group chats)**：
-   - 勾選 **允許加入群組與多人聊天室 (Allow)**，這樣才能將機器人邀請進群組中訂餐。
+   - **加入聊天室 (Chat room and group chats)**：勾選 **允許加入群組與多人聊天室 (Allow)**。
 
 ---
 
