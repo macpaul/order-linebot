@@ -190,3 +190,24 @@
 - **解決步驟**：
   - 本專案已於 `v1.1.1` 加入嚴格的環境保護守衛修復此問題。
   - 請重新複製專案中的最新 [`dist/Code.gs`](dist/Code.gs) 內容，完整覆蓋貼入 Google Apps Script 編輯器，儲存後再次點擊選單初始化即可順利建立 5 大工作表。
+
+---
+
+### Q4：為什麼輸入「我的訂單」能正常回覆，但輸入「幫助」或「本週菜單」完全沒有反應？
+- **原因**：
+  1. **純文字與 Flex 卡片的機制差異**：輸入「我的訂單」時，若尚無訂餐紀錄，系統回傳的是純文字訊息 (`replyText`)。既然純文字能正常回傳，**代表您的 Webhook、Token、Google 試算表連線全部都是 100% 正常的**！
+  2. **LINE Flex Message 的嚴格驗證機制**：「幫助」與「本週菜單」使用的是 LINE Flex Message 圖文互動卡片。若卡片 JSON 帶有非官方標準屬性（例如無效的 `borderStyle`、使用了 `padding` 而非標準的 `paddingAll`、或部分裝置不支援的 `size: 'giga'`），LINE 伺服器會判定格式錯誤並回傳 **`HTTP 400 Bad Request`** 退件拒發！
+- **解決步驟**：
+  - 本專案已於 `v1.2.0` 重構所有 Flex Message 卡片產生器，嚴格對齊 LINE 官方規範，並全面改用相容性最高的標準尺寸 `size: 'mega'`。
+  - 複製最新的 [`dist/Code.gs`](dist/Code.gs) 貼入 Apps Script 編輯器，並至「管理部署」發布為「新版本」即可正常顯示所有彩色卡片。
+
+---
+
+### Q5：如何使用內建的診斷工具進行快速自我檢測？
+本專案在 Apps Script 內建了兩大一鍵診斷工具，無須依賴 Cloud Logging：
+1. **`testLineConnection`**：
+   - 於 Apps Script 工具列選取此函式並按「執行」，直接連線 LINE 官方 API 驗證 Token 是否有效，並印出機器人名稱與 ID。
+2. **`testHelpMessage`**：
+   - 於 Apps Script 工具列選取此函式並按「執行」，在編輯器內部模擬使用者發送「幫助」訊息，即時驗證整套點餐派發邏輯。
+3. **試算表 `Logs` 頁籤**：
+   - 系統會將每次收到的 Webhook 訊息與 LINE API 回應狀態碼（如 200 或 400/401）自動記錄於試算表的 `Logs` 工作表，打開試算表即可直接除錯。
