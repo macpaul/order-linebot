@@ -175,10 +175,21 @@ function doPost(e) {
 
       // 1. Text Message Event
       if (event.type === 'message' && event.message && event.message.type === 'text') {
-        handleTextMessage(event);
+        var msgText = event.message.text;
+        var srcId = (event.source && (event.source.groupId || event.source.roomId || event.source.userId)) || 'unknown';
+        if (typeof console !== 'undefined') {
+          console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
+        }
+        var result = handleTextMessage(event);
+        if (typeof console !== 'undefined') {
+          console.log('📤 [處理結果]: ' + JSON.stringify(result));
+        }
       }
       // 2. Postback Event (from Flex Message Buttons)
       else if (event.type === 'postback') {
+        if (typeof console !== 'undefined') {
+          console.log('🔘 [收到 Postback 點擊] Data: ' + (event.postback && event.postback.data));
+        }
         handlePostbackEvent(event);
       }
       // 3. Join Group Event - Say Hello
@@ -192,7 +203,7 @@ function doPost(e) {
     return _createResponse(200, { status: 'success' });
   } catch (err) {
     if (typeof console !== 'undefined') {
-      console.error('doPost error:', err);
+      console.error('❌ doPost error:', err);
     }
     return _createResponse(200, { status: 'error', error: err.message });
   }
@@ -207,6 +218,50 @@ function _createResponse(statusCode, data) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   return { statusCode: statusCode, body: data };
+}
+
+/**
+ * Diagnostic tool - Test LINE API Token connection directly from Apps Script editor
+ */
+function testLineConnection() {
+  var token = getConfigProperty('CHANNEL_ACCESS_TOKEN', '');
+  if (!token) {
+    var noTokenMsg = '❌ 錯誤：找不到 CHANNEL_ACCESS_TOKEN！請至 Apps Script 左側「專案設定」->「指令碼屬性」填入。';
+    if (typeof Logger !== 'undefined') Logger.log(noTokenMsg);
+    if (typeof console !== 'undefined') console.error(noTokenMsg);
+    return false;
+  }
+
+  var masked = token.length > 10 ? token.substring(0, 10) + '...' : '***';
+  if (typeof Logger !== 'undefined') {
+    Logger.log('🔍 正在檢測 CHANNEL_ACCESS_TOKEN (長度: ' + token.length + ', 前 10 碼: ' + masked + ')...');
+  }
+
+  try {
+    var res = UrlFetchApp.fetch('https://api.line.me/v2/bot/info', {
+      headers: { 'Authorization': 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    var body = res.getContentText();
+    if (typeof Logger !== 'undefined') {
+      Logger.log('LINE API 回應狀態碼: ' + code);
+      Logger.log('LINE API 回應內容: ' + body);
+    }
+    if (code === 200) {
+      var info = JSON.parse(body);
+      var okMsg = '🎉 驗證成功！LINE 權杖有效，Bot 連線正常！\n機器人名稱: ' + info.displayName + '\n機器人 ID: ' + info.basicId;
+      if (typeof Logger !== 'undefined') Logger.log(okMsg);
+      return true;
+    } else {
+      var failMsg = '❌ 憑證無效 (HTTP ' + code + ')！LINE 回傳: ' + body + '\n請重新檢查 Script Properties 中的 CHANNEL_ACCESS_TOKEN 是否包含多餘空格或過期。';
+      if (typeof Logger !== 'undefined') Logger.log(failMsg);
+      return false;
+    }
+  } catch (e) {
+    if (typeof Logger !== 'undefined') Logger.log('❌ 網路請求例外: ' + e.message);
+    return false;
+  }
 }
 
 /**
@@ -234,6 +289,7 @@ function setup() {
   g.doGet = doGet;
   g.doPost = doPost;
   g.setup = setup;
+  g.testLineConnection = testLineConnection;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -243,7 +299,8 @@ function setup() {
       showUberEatsImportDialog: showUberEatsImportDialog,
       doGet: doGet,
       doPost: doPost,
-      setup: setup
+      setup: setup,
+      testLineConnection: testLineConnection
     };
   }
 })();
