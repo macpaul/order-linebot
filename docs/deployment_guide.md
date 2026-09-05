@@ -152,3 +152,41 @@
 | `結單` | 截止今日訂餐，產生最終聯絡店家明細與總金額 | `結單` |
 | `匯入菜單 [週X] [網址]` | 在群組直接透過 Uber Eats 網址匯入菜單 | `匯入菜單 週一 https://www.ubereats.com/...` |
 | `幫助` | 顯示所有可用指令教學卡片 | `幫助` |
+
+---
+
+## 第六部分：常見問題與疑難排解 (FAQ & Troubleshooting)
+
+### Q1：我在官方帳號管理後台 (manager.line.biz) 找不到 Channel access token？
+- **原因**：LINE 將一般營運與程式開發分成兩個後台：
+  1. **LINE Official Account Manager (`manager.line.biz`)**：為一般小編營運後台，只會顯示 `Channel ID`、`Channel secret` 與 Webhook 網址，最下方會標註 *「您可由 LINE Developers Console 進行其他設定」*。**這個頁面本來就沒有 Token**。
+  2. **LINE Developers Console (`developers.line.biz`)**：才是供工程師與 API 串接的開發者後台，**Channel access token 唯一存在於此**。
+- **解決步驟**：
+  1. 取得您的 Channel ID（例如 `2011460997`）。
+  2. 直接在瀏覽器開啟直達網址：`https://developers.line.biz/console/channel/{您的ChannelID}/messaging-api`。
+  3. 進入頁面後確認上方標籤為 **Messaging API**，向下滑動到頁面最底部。
+  4. 找到 **Channel access token**，點擊旁邊的 **「Issue」（發行）** 按鈕即可取得。
+
+---
+
+### Q2：點擊 LINE Developers 後台的 Webhook「Verify」按鈕出現 `302 Found` 錯誤？
+- **錯誤訊息**：`The webhook returned an HTTP status code other than 200.(302 Found)`
+- **原因與解決步驟**：
+  1. **存取權限未設為「所有人」（最常見）**：
+     - 在 Apps Script 點擊「部署」->「管理部署」-> 點擊鉛筆 ✏️ 編輯。
+     - 檢查 **「誰可以存取 (Who has access)」** 是否為 **「所有人 (Anyone)」**。若選成「僅限自己」或「具有 Google 帳戶的使用者」，Google 會強制回傳 302 重定向到 Google 登入畫面，LINE 伺服器無法登入即會報錯。
+  2. **Webhook 網址結尾錯誤**：
+     - 正式對外網址結尾必須為 **`/exec`**，若不小心複製到測試版網址（結尾為 `/dev`），因其需要開發者登入授權，Google 一律回應 302。
+  3. **修改程式碼後未建立「新版本」部署**：
+     - Google Apps Script 在修改代碼後，必須在「管理部署」中將版本下拉選單切換為 **「新版本 (New version)」** 並點擊部署，線上網址才會載入新程式碼。
+  4. **Verify 按鈕的轉發誤報特性（實測最準）**：
+     - Google Apps Script 伺服器在架構上會使用內部 302 重新導向至 `script.googleusercontent.com`。LINE 後台的 Verify 測試按鈕由於未完整跟隨轉發，時常會出現 302 誤報。
+     - **只要將「Use webhook」開關打開，直接在 LINE 聊天室發送訊息（如輸入 `幫助` 或 `菜單`），機器人能正常回應即代表串接完全成功**，無須理會 Verify 按鈕的誤報。
+
+---
+
+### Q3：在 Google 試算表點擊「檢查/初始化試算表結構」出現 `TypeError: getConfigProperty is not a function`？
+- **原因**：早期模組變數在單檔打包時，全域宣告發生了變數提升覆蓋（Variable Hoisting Shadowing），導致 `getConfigProperty` 函式被初始化為 `null`。
+- **解決步驟**：
+  - 本專案已於 `v1.1.1` 加入嚴格的環境保護守衛修復此問題。
+  - 請重新複製專案中的最新 [`dist/Code.gs`](dist/Code.gs) 內容，完整覆蓋貼入 Google Apps Script 編輯器，儲存後再次點擊選單初始化即可順利建立 5 大工作表。
