@@ -271,6 +271,31 @@ function testLineConnection() {
 }
 
 /**
+ * Diagnostic tool - Simulate incoming message '幫助' directly from editor
+ */
+function testHelpMessage() {
+  if (typeof Logger !== 'undefined') Logger.log('🧪 正在模擬使用者在 LINE 聊天室輸入「幫助」...');
+  var fakeEvent = {
+    replyToken: 'dummy_test_token',
+    message: { type: 'text', text: '幫助' },
+    source: { userId: 'test_user_id', groupId: 'test_group_id' }
+  };
+  try {
+    var res = handleTextMessage(fakeEvent);
+    if (typeof Logger !== 'undefined') {
+      Logger.log('📤 處理結果: ' + JSON.stringify(res));
+      Logger.log('🎉 handleTextMessage 執行完全正常！');
+    }
+    return res;
+  } catch (err) {
+    if (typeof Logger !== 'undefined') {
+      Logger.log('❌ 執行發生錯誤: ' + err.message + '\n' + err.stack);
+    }
+    return null;
+  }
+}
+
+/**
  * Manual setup helper - can be run from the Apps Script editor toolbar
  */
 function setup() {
@@ -296,6 +321,7 @@ function setup() {
   g.doPost = doPost;
   g.setup = setup;
   g.testLineConnection = testLineConnection;
+  g.testHelpMessage = testHelpMessage;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -306,7 +332,8 @@ function setup() {
       doGet: doGet,
       doPost: doPost,
       setup: setup,
-      testLineConnection: testLineConnection
+      testLineConnection: testLineConnection,
+      testHelpMessage: testHelpMessage
     };
   }
 })();
