@@ -747,6 +747,30 @@ function onOpenSpreadsheet() {
   } catch (e) {}
 }
 
+/**
+ * Log diagnostic events directly into a 'Logs' sheet tab in Google Sheets
+ */
+function logToSheet(type, message, detail) {
+  if (!isGasRuntime()) return;
+  try {
+    var ss = getSpreadsheet();
+    if (!ss) return;
+    var logSheet = ss.getSheetByName('Logs');
+    if (!logSheet) {
+      logSheet = ss.insertSheet('Logs');
+      logSheet.appendRow(['Timestamp', 'Type', 'Message', 'Detail']);
+      logSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
+    }
+    var detailStr = '';
+    if (typeof detail === 'object') {
+      try { detailStr = JSON.stringify(detail); } catch (e) { detailStr = String(detail); }
+    } else if (detail !== undefined && detail !== null) {
+      detailStr = String(detail);
+    }
+    logSheet.appendRow([new Date().toISOString(), type || 'INFO', message || '', detailStr]);
+  } catch (e) {}
+}
+
 // Dual export
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -771,6 +795,7 @@ function onOpenSpreadsheet() {
   g.getOrderSummary = getOrderSummary;
   g.getWeeklyOrderSummary = getWeeklyOrderSummary;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
+  g.logToSheet = logToSheet;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -792,6 +817,7 @@ function onOpenSpreadsheet() {
       getOrderSummary: getOrderSummary,
       getWeeklyOrderSummary: getWeeklyOrderSummary,
       onOpenSpreadsheet: onOpenSpreadsheet,
+      logToSheet: logToSheet,
       _mockStore: _mockStore
     };
   }
