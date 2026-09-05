@@ -89,9 +89,15 @@ async function _httpPostJson(url, headers, payload) {
       if (typeof Logger !== 'undefined') {
         Logger.log('❌ [LINE API Error] HTTP ' + statusCode + ' Response: ' + contentText);
       }
+      if (typeof logToSheet === 'function') {
+        logToSheet('LINE_ERROR', 'HTTP ' + statusCode, contentText);
+      }
     } else {
       if (typeof console !== 'undefined') {
         console.log('✅ [LINE API Success] HTTP ' + statusCode);
+      }
+      if (typeof logToSheet === 'function') {
+        logToSheet('LINE_SUCCESS', 'HTTP ' + statusCode, contentText);
       }
     }
 
