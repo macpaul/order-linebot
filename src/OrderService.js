@@ -376,7 +376,13 @@ function handleTextMessage(event) {
       }
     }
     if (payInfo.linePayUrl) {
-      pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+      if (payInfo.isPersonalLinePay) {
+        var idHint = payInfo.linePayUserId ? ' (LINE ID: ' + payInfo.linePayUserId + ')' : '';
+        pLines.push('• LINE Pay 好友轉帳：' + payInfo.linePayUrl);
+        pLines.push('  (請於錢包點選「轉帳」搜尋好友「' + payInfo.linePayRecipientName + '」' + idHint + ')');
+      } else {
+        pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+      }
     }
     if (payInfo.linePayQrUrl) {
       pLines.push('• LINE Pay 收款碼：' + payInfo.linePayQrUrl);
