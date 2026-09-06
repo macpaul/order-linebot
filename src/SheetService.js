@@ -583,20 +583,20 @@ function _getOrderColumnIndexes(headers) {
   if (!headers || headers.length === 0) return colMap;
   for (var c = 0; c < headers.length; c++) {
     var h = String(headers[c]).trim().toLowerCase();
-    if (h === 'orderid') colMap.orderId = c;
-    else if (h === 'timestamp') colMap.timestamp = c;
-    else if (h === 'date') colMap.date = c;
-    else if (h === 'dayofweek') colMap.dayOfWeek = c;
-    else if (h === 'groupid') colMap.groupId = c;
-    else if (h === 'userid') colMap.userId = c;
-    else if (h === 'username') colMap.userName = c;
-    else if (h === 'usernickname') colMap.userNickname = c;
-    else if (h === 'itemname') colMap.itemName = c;
-    else if (h === 'quantity') colMap.quantity = c;
-    else if (h === 'price') colMap.price = c;
-    else if (h === 'subtotal') colMap.subtotal = c;
-    else if (h === 'status') colMap.status = c;
-    else if (h === 'paid') colMap.paid = c;
+    if (h === 'orderid' || h === '訂單編號' || h === '訂單id') colMap.orderId = c;
+    else if (h === 'timestamp' || h === '時間' || h === '建立時間') colMap.timestamp = c;
+    else if (h === 'date' || h === '日期') colMap.date = c;
+    else if (h === 'dayofweek' || h === '星期' || h === '梯次') colMap.dayOfWeek = c;
+    else if (h === 'groupid' || h === '群組id' || h === '群組') colMap.groupId = c;
+    else if (h === 'userid' || h === '使用者id' || h === '用戶id' || h === 'lineid') colMap.userId = c;
+    else if (h === 'username' || h === '使用者名稱' || h === '姓名' || h === '訂購人') colMap.userName = c;
+    else if (h === 'usernickname' || h === '使用者暱稱' || h === '暱稱') colMap.userNickname = c;
+    else if (h === 'itemname' || h === '餐點名稱' || h === '餐點' || h === '品項') colMap.itemName = c;
+    else if (h === 'quantity' || h === '數量' || h === '份數') colMap.quantity = c;
+    else if (h === 'price' || h === '單價' || h === '價格') colMap.price = c;
+    else if (h === 'subtotal' || h === '小計' || h === '金額') colMap.subtotal = c;
+    else if (h === 'status' || h === '狀態') colMap.status = c;
+    else if (h === 'paid' || h === '付款狀態' || h === '付款') colMap.paid = c;
   }
   return colMap;
 }
@@ -700,23 +700,36 @@ function addOrder(orderData) {
 function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
-      var matchUser = (userId && userId !== 'anonymous') ? (o.userId === userId) : false;
-      var matchName = userName ? (o.userName === userName || o.userNickname === userName) : false;
-      var userMatches = (matchUser || matchName);
-      if (!userId && userName) userMatches = matchName;
-      if (userId && !userName) userMatches = matchUser;
-      if (!userId && !userName) userMatches = true;
+      if (o.status !== 'ACTIVE') return false;
+      if (groupId && o.groupId !== groupId) return false;
+      if (date && o.date !== date) return false;
+      if (dayOfWeek && o.dayOfWeek !== dayOfWeek) return false;
 
-      // If userName is provided, strictly exclude orders belonging to someone else
-      if (userName && o.userName && o.userName !== userName && o.userNickname !== userName && !matchUser) {
-        userMatches = false;
+      // Strict user matching:
+      // If userName is provided and not fallback '成員', order MUST match userName or userNickname
+      if (userName && userName !== '成員') {
+        var oName = o.userName || '';
+        var oNick = o.userNickname || '';
+        if (oName && oName !== '成員' && oName !== userName && oNick !== userName) {
+          return false;
+        }
       }
 
-      return userMatches &&
-        (!groupId || o.groupId === groupId) &&
-        (!date || o.date === date) &&
-        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
-        o.status === 'ACTIVE';
+      // If userId is provided and not 'anonymous', order MUST match userId
+      if (userId && userId !== 'anonymous') {
+        if (o.userId && o.userId !== 'anonymous' && o.userId !== userId) {
+          return false;
+        }
+      }
+
+      // If neither userId nor userName matches any criteria, return false
+      var hasValidUserId = (userId && userId !== 'anonymous');
+      var hasValidUserName = (userName && userName !== '成員');
+      if (!hasValidUserId && !hasValidUserName) {
+        return false;
+      }
+
+      return true;
     });
   }
 
@@ -729,49 +742,61 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
   if (!rows || rows.length <= 1) return [];
   var colMap = _getOrderColumnIndexes(rows[0]);
   var orders = [];
+
+  var hasValidUserId = (userId && userId !== 'anonymous');
+  var hasValidUserName = (userName && userName !== '成員');
+  if (!hasValidUserId && !hasValidUserName) {
+    return [];
+  }
+
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
+    if (rStatus !== 'ACTIVE') continue;
+
+    var rGroupId = String(r[colMap.groupId]);
+    if (groupId && rGroupId !== groupId) continue;
+
+    var rDate = String(r[colMap.date]);
+    if (date && rDate !== date) continue;
+
+    var rDayOfWeek = String(r[colMap.dayOfWeek]);
+    if (dayOfWeek && rDayOfWeek !== dayOfWeek) continue;
+
     var rUserId = String(r[colMap.userId]);
     var rUserName = String(r[colMap.userName]);
     var rUserNickname = colMap.userNickname !== -1 ? String(r[colMap.userNickname]) : rUserName;
-    var rGroupId = String(r[colMap.groupId]);
-    var rDate = String(r[colMap.date]);
-    var rDayOfWeek = String(r[colMap.dayOfWeek]);
 
-    var matchUser = (userId && userId !== 'anonymous') ? (rUserId === userId) : false;
-    var matchName = userName ? (rUserName === userName || rUserNickname === userName) : false;
-    var userMatches = (matchUser || matchName);
-    if (!userId && userName) userMatches = matchName;
-    if (userId && !userName) userMatches = matchUser;
-    if (!userId && !userName) userMatches = true;
-
-    if (userName && rUserName && rUserName !== userName && rUserNickname !== userName && !matchUser) {
-      userMatches = false;
+    // Strict user matching:
+    if (hasValidUserName) {
+      if (rUserName && rUserName !== '成員' && rUserName !== userName && rUserNickname !== userName) {
+        continue;
+      }
     }
 
-    if (rStatus === 'ACTIVE' && userMatches &&
-        (!groupId || rGroupId === groupId) &&
-        (!date || rDate === date) &&
-        (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
-      orders.push({
-        row: i + 1,
-        orderId: r[colMap.orderId],
-        timestamp: r[colMap.timestamp],
-        date: rDate,
-        dayOfWeek: rDayOfWeek,
-        groupId: rGroupId,
-        userId: rUserId,
-        userName: rUserName,
-        userNickname: rUserNickname,
-        itemName: r[colMap.itemName],
-        quantity: Number(r[colMap.quantity]),
-        price: Number(r[colMap.price]),
-        subtotal: Number(r[colMap.subtotal]),
-        status: rStatus,
-        paid: r[colMap.paid]
-      });
+    if (hasValidUserId) {
+      if (rUserId && rUserId !== 'anonymous' && rUserId !== userId) {
+        continue;
+      }
     }
+
+    orders.push({
+      row: i + 1,
+      orderId: r[colMap.orderId],
+      timestamp: r[colMap.timestamp],
+      date: rDate,
+      dayOfWeek: rDayOfWeek,
+      groupId: rGroupId,
+      userId: rUserId,
+      userName: rUserName,
+      userNickname: rUserNickname,
+      itemName: r[colMap.itemName],
+      quantity: Number(r[colMap.quantity]),
+      price: Number(r[colMap.price]),
+      subtotal: Number(r[colMap.subtotal]),
+      status: rStatus,
+      paid: r[colMap.paid]
+    });
   }
   return orders;
 }
@@ -788,33 +813,38 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
  */
 function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
   // If neither userId nor userName is provided, do NOT cancel anything
-  if (!userId && !userName) {
+  var hasValidUserId = (userId && userId !== 'anonymous');
+  var hasValidUserName = (userName && userName !== '成員');
+  if (!hasValidUserId && !hasValidUserName) {
     return 0;
   }
 
   var count = 0;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
-      var matchUser = (userId && userId !== 'anonymous') ? (o.userId === userId) : false;
-      var matchName = userName ? (o.userName === userName || o.userNickname === userName) : false;
-      var userMatches = (matchUser || matchName);
-      if (!userId && userName) userMatches = matchName;
-      if (userId && !userName) userMatches = matchUser;
+      if (o.status !== 'ACTIVE') return;
+      if (groupId && o.groupId !== groupId) return;
+      if (date && o.date !== date) return;
+      if (dayOfWeek && o.dayOfWeek !== dayOfWeek) return;
+      if (itemName && o.itemName.indexOf(itemName) === -1) return;
 
-      // If userName is provided, strictly block cancelling someone else's order
-      if (userName && o.userName && o.userName !== userName && o.userNickname !== userName && !matchUser) {
-        userMatches = false;
+      // Strict user matching
+      if (hasValidUserName) {
+        var oName = o.userName || '';
+        var oNick = o.userNickname || '';
+        if (oName && oName !== '成員' && oName !== userName && oNick !== userName) {
+          return;
+        }
       }
 
-      if (userMatches &&
-        (!groupId || o.groupId === groupId) &&
-        (!date || o.date === date) &&
-        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
-        (!itemName || o.itemName.indexOf(itemName) !== -1) &&
-        o.status === 'ACTIVE') {
-        o.status = 'CANCELLED';
-        count++;
+      if (hasValidUserId) {
+        if (o.userId && o.userId !== 'anonymous' && o.userId !== userId) {
+          return;
+        }
       }
+
+      o.status = 'CANCELLED';
+      count++;
     });
     return count;
   }
@@ -831,33 +861,39 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
+    if (rStatus !== 'ACTIVE') continue;
+
+    var rGroupId = String(r[colMap.groupId]);
+    if (groupId && rGroupId !== groupId) continue;
+
+    var rDate = String(r[colMap.date]);
+    if (date && rDate !== date) continue;
+
+    var rDayOfWeek = String(r[colMap.dayOfWeek]);
+    if (dayOfWeek && rDayOfWeek !== dayOfWeek) continue;
+
+    var rItem = String(r[colMap.itemName]);
+    if (itemName && rItem.indexOf(itemName) === -1) continue;
+
     var rUserId = String(r[colMap.userId]);
     var rUserName = String(r[colMap.userName]);
     var rUserNickname = colMap.userNickname !== -1 ? String(r[colMap.userNickname]) : rUserName;
-    var rGroupId = String(r[colMap.groupId]);
-    var rDate = String(r[colMap.date]);
-    var rDayOfWeek = String(r[colMap.dayOfWeek]);
-    var rItem = String(r[colMap.itemName]);
 
-    var matchUser = (userId && userId !== 'anonymous') ? (rUserId === userId) : false;
-    var matchName = userName ? (rUserName === userName || rUserNickname === userName) : false;
-    var userMatches = (matchUser || matchName);
-    if (!userId && userName) userMatches = matchName;
-    if (userId && !userName) userMatches = matchUser;
-
-    if (userName && rUserName && rUserName !== userName && rUserNickname !== userName && !matchUser) {
-      userMatches = false;
-    }
-
-    if (rStatus === 'ACTIVE' && userMatches &&
-        (!groupId || rGroupId === groupId) &&
-        (!date || rDate === date) &&
-        (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
-      if (!itemName || rItem.indexOf(itemName) !== -1) {
-        sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
-        count++;
+    // Strict user matching
+    if (hasValidUserName) {
+      if (rUserName && rUserName !== '成員' && rUserName !== userName && rUserNickname !== userName) {
+        continue;
       }
     }
+
+    if (hasValidUserId) {
+      if (rUserId && rUserId !== 'anonymous' && rUserId !== userId) {
+        continue;
+      }
+    }
+
+    sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
+    count++;
   }
   return count;
 }
