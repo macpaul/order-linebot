@@ -680,13 +680,14 @@ function _buildPaymentContents(paymentInfo) {
   }
 
   // LINE Pay button & QR
-  if (paymentInfo.linePayUrl || paymentInfo.linePayQrUrl) {
+  if (paymentInfo.linePayUrl || paymentInfo.linePayQrUrl || paymentInfo.isPersonalLinePay) {
     if (paymentInfo.linePayUrl) {
+      var buttonLabel = paymentInfo.isPersonalLinePay ? '🟢 開啟 LINE 錢包轉帳' : '🟢 前往 LINE Pay 轉帳';
       contents.push({
         type: 'button',
         action: {
           type: 'uri',
-          label: '🟢 前往 LINE Pay 轉帳',
+          label: buttonLabel,
           uri: paymentInfo.linePayUrl
         },
         style: 'primary',
@@ -694,6 +695,17 @@ function _buildPaymentContents(paymentInfo) {
         height: 'sm',
         margin: 'sm'
       });
+
+      if (paymentInfo.isPersonalLinePay) {
+        var idHint = paymentInfo.linePayUserId ? ' (LINE ID: ' + paymentInfo.linePayUserId + ')' : '';
+        contents.push(_flexText('📱 請於錢包點選「轉帳」並搜尋好友：「' + paymentInfo.linePayRecipientName + '」' + idHint, {
+          size: 'xxs',
+          color: FLEX_COLORS.textSecondary,
+          align: 'center',
+          margin: 'xs',
+          wrap: true
+        }));
+      }
     }
 
     if (paymentInfo.linePayQrUrl) {
