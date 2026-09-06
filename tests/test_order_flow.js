@@ -751,7 +751,7 @@ assert.ok(aliceMenuJson.includes('個人進行中訂單'));
 assert.ok(aliceMenuJson.includes('取消我的【週五】餐點'));
 assert.ok(!aliceMenuJson.includes('開單人管理專區'));
 
-SheetModule.addOrder({ userId: 'user_boss', groupId: groupId, itemName: '古早味紅茶', quantity: 1, price: 25, userName: '大老闆', userNickname: '大老闆', dayOfWeek: '週五' });
+SheetModule.addOrder({ userId: 'user_boss', groupId: groupId, itemName: '古早味紅茶', quantity: 1, price: 25, userName: '老闆', userNickname: '老闆', dayOfWeek: '週五' });
 OrderModule.handleTextMessage({
   replyToken: 'token_boss_menu',
   source: { groupId: groupId, userId: 'user_boss' },
@@ -759,6 +759,8 @@ OrderModule.handleTextMessage({
 });
 var bossMenuJson = JSON.stringify(lastReply.flex);
 assert.ok(bossMenuJson.includes('(開單人)'));
+assert.ok(bossMenuJson.includes('個人進行中訂單'));
+assert.ok(bossMenuJson.includes('古早味紅茶'));
 assert.ok(bossMenuJson.includes('開單人管理專區'));
 assert.ok(bossMenuJson.includes('取消當日所有餐點'));
 assert.ok(bossMenuJson.includes('取消所有未截止預約訂單'));
@@ -805,17 +807,29 @@ bobChickenOrders = SheetModule.getUserOrders('user_bob', groupId, null, '週五'
 assert.strictEqual(bobChickenOrders.length, 1, 'Bob\'s chicken box still active');
 console.log('  ✔ When cancelling identical dish, only sender\'s own order is cancelled and others are preserved.');
 
-// 8-12: Organizer cancel menu shows all active group orders with member labels
+// 8-12: Organizer cancel menu strictly shows personal orders only (never other members' meals in menu list)
 OrderModule.handleTextMessage({
   replyToken: 'token_boss_menu_all',
   source: { groupId: groupId, userId: 'user_boss' },
   message: { type: 'text', text: '取消' }
 });
 var bossAllMenuJson = JSON.stringify(lastReply.flex);
-assert.ok(bossAllMenuJson.includes('小鮑伯'), 'Organizer menu displays member label');
-assert.ok(bossAllMenuJson.includes('舒肥嫩雞胸餐盒'), 'Organizer menu displays member\'s items');
-assert.ok(bossAllMenuJson.includes('取消 小鮑伯 週五 舒肥嫩雞胸餐盒'), 'Organizer action button carries member name for targeted cancellation');
-console.log('  ✔ Organizer cancel menu displays all group orders with member labels.\n');
+assert.ok(bossAllMenuJson.includes('古早味紅茶'), 'Organizer menu displays own order');
+assert.ok(!bossAllMenuJson.includes('小鮑伯'), 'Organizer cancel menu must NEVER display Bob\'s name in personal menu');
+assert.ok(!bossAllMenuJson.includes('舒肥嫩雞胸餐盒'), 'Organizer cancel menu must NEVER display Bob\'s items in personal menu');
+assert.ok(bossAllMenuJson.includes('開單人管理專區'), 'Organizer menu displays admin batch buttons at bottom');
+
+// Organizer cancels member's dish via targeted command: "取消 小鮑伯 週五 舒肥嫩雞胸餐盒"
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_cancel_member_dish',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '取消 小鮑伯 週五 舒肥嫩雞胸餐盒' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已由開單人為【小鮑伯】取消'));
+var bobOrdersFinal = SheetModule.getUserOrders('user_bob', groupId, null, '週五', '小鮑伯');
+assert.strictEqual(bobOrdersFinal.length, 0, 'Bob\'s chicken box is now cancelled by organizer targeted command');
+console.log('  ✔ Organizer cancel menu strictly isolates personal orders, and organizer uses command to cancel member items.\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
