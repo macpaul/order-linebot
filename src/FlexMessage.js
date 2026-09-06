@@ -1035,6 +1035,16 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   var orders = activeOrders || [];
   var locks = lockMap || {};
 
+  // For regular members: STRICTLY GUARANTEE no other user's orders can ever appear
+  if (!isOrganizer && userName) {
+    orders = orders.filter(function (o) {
+      if (o.userName && o.userName !== userName && o.userNickname !== userName) {
+        return false;
+      }
+      return true;
+    });
+  }
+
   var dayMap = {};
   var dayOrder = [];
   orders.forEach(function (o) {
@@ -1047,13 +1057,13 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   });
 
   var header = _flexBox([
-    _flexText('🗑️ 取消訂單選單', {
+    _flexText(isOrganizer ? '👑 取消訂單選單 (開單人管理)' : '🗑️ 取消訂單選單', {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText((userName || '成員') + (isOrganizer ? ' (開單人) 進行中訂單' : ' 的個人進行中訂單'), {
+    _flexText((userName || '成員') + (isOrganizer ? ' (開單人) 管理全體成員訂單' : ' 的個人進行中訂單'), {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -1096,8 +1106,24 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       }));
 
       dayItems.forEach(function (it) {
-        var itemText = it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
-        var cancelText = '取消 ' + day + ' ' + it.itemName;
+        var ownerTag = '';
+        var cancelCmd = '';
+        var isOwnItem = !it.userName || it.userName === userName || it.userNickname === userName;
+
+        if (isOrganizer) {
+          var ownerName = it.userNickname || it.userName || '成員';
+          if (!isOwnItem) {
+            ownerTag = '👤 [' + ownerName + '] ';
+            cancelCmd = '取消 ' + ownerName + ' ' + day + ' ' + it.itemName;
+          } else {
+            ownerTag = '👤 [開單人] ';
+            cancelCmd = '取消 ' + day + ' ' + it.itemName;
+          }
+        } else {
+          cancelCmd = '取消 ' + day + ' ' + it.itemName;
+        }
+
+        var itemText = ownerTag + it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
 
         var actionComponent = isDayLocked
           ? _flexBox([
@@ -1117,7 +1143,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
               action: {
                 type: 'message',
                 label: '取消此項',
-                text: cancelText
+                text: cancelCmd
               },
               style: 'primary',
               color: FLEX_COLORS.danger,
@@ -1156,8 +1182,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
           type: 'button',
           action: {
             type: 'message',
-            label: '取消我的【' + day + '】餐點',
-            text: '取消我的 ' + day + ' 全部'
+            label: isOrganizer ? '⚠️ 取消全體【' + day + '】餐點' : '取消我的【' + day + '】餐點',
+            text: isOrganizer ? '取消全體 ' + day : '取消我的 ' + day + ' 全部'
           },
           style: 'secondary',
           height: 'sm',
@@ -1173,8 +1199,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
         type: 'button',
         action: {
           type: 'message',
-          label: '❌ 取消我的所有未截止預訂',
-          text: '取消我的 全部'
+          label: isOrganizer ? '🚨 取消全體所有未截止預訂' : '❌ 取消我的所有未截止預訂',
+          text: isOrganizer ? '取消所有未截止預約訂單' : '取消我的 全部'
         },
         style: 'secondary',
         height: 'sm',
