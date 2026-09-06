@@ -690,11 +690,29 @@ function addOrder(orderData) {
 
 /**
  * Get active orders for a user
+ * @param {string} userId
+ * @param {string} [groupId]
+ * @param {string} [date]
+ * @param {string} [dayOfWeek]
+ * @param {string} [userName]
+ * @returns {Array} Array of order objects
  */
-function getUserOrders(userId, groupId, date, dayOfWeek) {
+function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
-      return o.userId === userId &&
+      var matchUser = (userId && userId !== 'anonymous') ? (o.userId === userId) : false;
+      var matchName = userName ? (o.userName === userName || o.userNickname === userName) : false;
+      var userMatches = (matchUser || matchName);
+      if (!userId && userName) userMatches = matchName;
+      if (userId && !userName) userMatches = matchUser;
+      if (!userId && !userName) userMatches = true;
+
+      // If userName is provided, strictly exclude orders belonging to someone else
+      if (userName && o.userName && o.userName !== userName && o.userNickname !== userName && !matchUser) {
+        userMatches = false;
+      }
+
+      return userMatches &&
         (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
         (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
@@ -715,11 +733,24 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
     var rUserId = String(r[colMap.userId]);
+    var rUserName = String(r[colMap.userName]);
+    var rUserNickname = colMap.userNickname !== -1 ? String(r[colMap.userNickname]) : rUserName;
     var rGroupId = String(r[colMap.groupId]);
     var rDate = String(r[colMap.date]);
     var rDayOfWeek = String(r[colMap.dayOfWeek]);
 
-    if (rStatus === 'ACTIVE' && rUserId === userId &&
+    var matchUser = (userId && userId !== 'anonymous') ? (rUserId === userId) : false;
+    var matchName = userName ? (rUserName === userName || rUserNickname === userName) : false;
+    var userMatches = (matchUser || matchName);
+    if (!userId && userName) userMatches = matchName;
+    if (userId && !userName) userMatches = matchUser;
+    if (!userId && !userName) userMatches = true;
+
+    if (userName && rUserName && rUserName !== userName && rUserNickname !== userName && !matchUser) {
+      userMatches = false;
+    }
+
+    if (rStatus === 'ACTIVE' && userMatches &&
         (!groupId || rGroupId === groupId) &&
         (!date || rDate === date) &&
         (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
@@ -731,8 +762,8 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
         dayOfWeek: rDayOfWeek,
         groupId: rGroupId,
         userId: rUserId,
-        userName: r[colMap.userName],
-        userNickname: colMap.userNickname !== -1 ? r[colMap.userNickname] : (r[colMap.userName] || ''),
+        userName: rUserName,
+        userNickname: rUserNickname,
         itemName: r[colMap.itemName],
         quantity: Number(r[colMap.quantity]),
         price: Number(r[colMap.price]),
@@ -746,13 +777,36 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
 }
 
 /**
- * Cancel orders for a user (or for all users in group if userId is null/empty)
+ * Cancel orders for a specific user
+ * @param {string} userId
+ * @param {string} groupId
+ * @param {string} [itemName]
+ * @param {string} [date]
+ * @param {string} [dayOfWeek]
+ * @param {string} [userName]
+ * @returns {number} Count of cancelled orders
  */
-function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
+function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
+  // If neither userId nor userName is provided, do NOT cancel anything
+  if (!userId && !userName) {
+    return 0;
+  }
+
   var count = 0;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
-      if ((!userId || o.userId === userId) &&
+      var matchUser = (userId && userId !== 'anonymous') ? (o.userId === userId) : false;
+      var matchName = userName ? (o.userName === userName || o.userNickname === userName) : false;
+      var userMatches = (matchUser || matchName);
+      if (!userId && userName) userMatches = matchName;
+      if (userId && !userName) userMatches = matchUser;
+
+      // If userName is provided, strictly block cancelling someone else's order
+      if (userName && o.userName && o.userName !== userName && o.userNickname !== userName && !matchUser) {
+        userMatches = false;
+      }
+
+      if (userMatches &&
         (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
         (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
@@ -778,12 +832,78 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
     var rUserId = String(r[colMap.userId]);
+    var rUserName = String(r[colMap.userName]);
+    var rUserNickname = colMap.userNickname !== -1 ? String(r[colMap.userNickname]) : rUserName;
     var rGroupId = String(r[colMap.groupId]);
     var rDate = String(r[colMap.date]);
     var rDayOfWeek = String(r[colMap.dayOfWeek]);
     var rItem = String(r[colMap.itemName]);
 
-    if (rStatus === 'ACTIVE' && (!userId || rUserId === userId) &&
+    var matchUser = (userId && userId !== 'anonymous') ? (rUserId === userId) : false;
+    var matchName = userName ? (rUserName === userName || rUserNickname === userName) : false;
+    var userMatches = (matchUser || matchName);
+    if (!userId && userName) userMatches = matchName;
+    if (userId && !userName) userMatches = matchUser;
+
+    if (userName && rUserName && rUserName !== userName && rUserNickname !== userName && !matchUser) {
+      userMatches = false;
+    }
+
+    if (rStatus === 'ACTIVE' && userMatches &&
+        (!groupId || rGroupId === groupId) &&
+        (!date || rDate === date) &&
+        (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
+      if (!itemName || rItem.indexOf(itemName) !== -1) {
+        sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Cancel group orders across all members (exclusive to organizer bulk cancellations)
+ * @param {string} groupId
+ * @param {string} [date]
+ * @param {string} [dayOfWeek]
+ * @param {string} [itemName]
+ * @returns {number} Count of cancelled orders
+ */
+function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
+  var count = 0;
+  if (!isGasRuntime()) {
+    _mockStore.Orders.forEach(function (o) {
+      if ((!groupId || o.groupId === groupId) &&
+        (!date || o.date === date) &&
+        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
+        (!itemName || o.itemName.indexOf(itemName) !== -1) &&
+        o.status === 'ACTIVE') {
+        o.status = 'CANCELLED';
+        count++;
+      }
+    });
+    return count;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return 0;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
+  if (!sheet) return 0;
+
+  var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return 0;
+  var colMap = _getOrderColumnIndexes(rows[0]);
+
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    var rStatus = String(r[colMap.status]);
+    var rGroupId = String(r[colMap.groupId]);
+    var rDate = String(r[colMap.date]);
+    var rDayOfWeek = String(r[colMap.dayOfWeek]);
+    var rItem = String(r[colMap.itemName]);
+
+    if (rStatus === 'ACTIVE' &&
         (!groupId || rGroupId === groupId) &&
         (!date || rDate === date) &&
         (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
@@ -1071,6 +1191,7 @@ function logToSheet(type, message, detail) {
   g.addOrder = addOrder;
   g.getUserOrders = getUserOrders;
   g.cancelOrder = cancelOrder;
+  g.cancelGroupOrders = cancelGroupOrders;
   g.getGroupOrders = getGroupOrders;
   g.getOrderSummary = getOrderSummary;
   g.getWeeklyOrderSummary = getWeeklyOrderSummary;
@@ -1097,6 +1218,7 @@ function logToSheet(type, message, detail) {
       addOrder: addOrder,
       getUserOrders: getUserOrders,
       cancelOrder: cancelOrder,
+      cancelGroupOrders: cancelGroupOrders,
       findUserInGroup: findUserInGroup,
       getGroupOrders: getGroupOrders,
       getOrderSummary: getOrderSummary,
