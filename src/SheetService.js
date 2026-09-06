@@ -239,8 +239,14 @@ function initSheets() {
  * Get config value
  */
 function getConfigValue(key, defaultValue) {
+  var targetKey = String(key).trim().toUpperCase();
   if (!isGasRuntime()) {
-    return _mockStore.Config[key] !== undefined ? _mockStore.Config[key] : defaultValue;
+    for (var mk in _mockStore.Config) {
+      if (mk.toUpperCase() === targetKey) {
+        return _mockStore.Config[mk];
+      }
+    }
+    return defaultValue;
   }
   var ss = getSpreadsheet();
   if (!ss) return defaultValue;
@@ -249,8 +255,9 @@ function getConfigValue(key, defaultValue) {
 
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === key) {
-      return String(data[i][1]);
+    if (String(data[i][0]).trim().toUpperCase() === targetKey) {
+      var val = data[i][1];
+      return val != null ? String(val) : '';
     }
   }
   return defaultValue;
@@ -308,6 +315,10 @@ function normalizeImageUrl(url) {
  */
 function getPaymentConfig() {
   var linePayUrl = (getConfigValue('PAYMENT_LINEPAY_URL', '') || '').trim();
+  // If linePayUrl is a placeholder (e.g., '無', 'None', '-'), ignore it
+  if (linePayUrl && !/^https?:\/\//i.test(linePayUrl)) {
+    linePayUrl = '';
+  }
   var linePayQrUrl = normalizeImageUrl(getConfigValue('PAYMENT_LINEPAY_QR_URL', '') || '');
   var linePayUserName = (getConfigValue('PAYMENT_LINEPAY_USER_NAME', '') || '').trim();
   var linePayUserId = (getConfigValue('PAYMENT_LINEPAY_USER_ID', '') || '').trim();
