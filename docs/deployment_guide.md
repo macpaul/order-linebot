@@ -71,9 +71,14 @@
 
 ## 第二部分：設定 Google 試算表與 Google Apps Script (GAS)
 
-### 步驟 1：建立 Google 試算表
+### 步驟 1：建立 Google 試算表與設定時區
 1. 打開 [Google Drive](https://drive.google.com/)，新增一個 Google 試算表，命名為 `便當點餐資料庫`。
-2. 試算表將由程式首次執行自動初始化產生 5 個工作表（管理員亦可直接編輯）：
+2. **設定試算表檔案時區（重要）**：
+   - 點選上方選單 **「檔案」 ➡️ 「設定」 (Settings)**。
+   - 確認「地區設定」為 **台灣**，且「時區」設定為 **`(GMT+08:00) 台北時間`**。
+   - 點擊「儲存並載入」。
+   > 💡 系統程式碼會**直接動態讀取此試算表設定之時區**（已全面移除 hardcode 寫死的時區），以確保訂餐截止時間、每日換日與點餐紀錄時間戳記 100% 精確對齊！
+3. 試算表將由程式首次執行自動初始化產生 5 個工作表（管理員亦可直接編輯）：
    - `Config`：系統全域設定（開單狀態、今日店家、截止時間、收據顯示範圍等）。
    - `WeeklySchedule`：**週一至週五梯次排程表**（星期、當日店家、截止時間、Uber Eats 網址、備註、啟用狀態）。
    - `Menu`：菜單清單（星期、店家名稱、分類、品項名稱、價格、供應狀態、描述）。
@@ -106,8 +111,23 @@
 1. 在試算表上方工具列，點選 **擴充功能 (Extensions) -> Apps Script**。
 2. 將專案重新命名為 `LineMealOrderBot`。
 
-### 步驟 3：貼上專案程式碼
-1. 將本專案 [`dist/Code.gs`](dist/Code.gs) 單一檔案內容完整複製貼入 Apps Script 編輯器（完全免安裝任何工具）。
+### 步驟 3：貼上專案程式碼與設定專案資訊清單 (appsscript.json)
+1. **貼上主程式碼**：
+   - 將本專案 [`dist/Code.gs`](dist/Code.gs) 單一檔案內容完整複製貼入 Apps Script 編輯器，取代原本預設的 `myFunction`。
+2. **設定專案資訊清單 (`appsscript.json`) 時區**：
+   - 點擊 Apps Script 左側齒輪圖示 ⚙️ **專案設定 (Project Settings)**。
+   - 勾選 **「在編輯器中顯示 appsscript.json 資訊清單檔案」** (Show "appsscript.json" manifest file in editor)。
+   - 回到左側「檔案」列表，點開出現的 **`appsscript.json`**，確認或替換為專案根目錄的 [`appsscript.json`](../appsscript.json) 內容：
+     ```json
+     {
+       "timeZone": "Asia/Taipei",
+       "dependencies": {},
+       "exceptionLogging": "STACKDRIVER",
+       "runtimeVersion": "V8"
+     }
+     ```
+   - 點擊上方磁碟圖示「儲存專案」。
+   > 💡 確保 `appsscript.json` 與 Google 試算表時區一致均為 `Asia/Taipei`，以杜絕換日或時間解析的任何偏差。
 
 ### 步驟 4：設定指令碼屬性 (安全存放 Token)
 為避免將金鑰寫死在程式碼中，請使用 Google 安全屬性庫：
@@ -286,10 +306,20 @@
 - **完整呈現成員應付名冊**：
   - 今日統計卡片不僅顯示各餐點總量與訂購成員標籤（`👤 [成員1(1), 成員2(2)]`），並於下方清晰列出「`👤 今日成員應付名冊`」，詳列每位同仁今日應繳金額。
 
-#### 2. Apps Script 如何確認所在時區與當前系統時間？
-Google Apps Script 執行於 Google 雲端無伺服器環境中，確認與校準時區有以下三個核心層面：
+##### 2. Apps Script 如何確認所在時區與當前系統時間？
+Google Apps Script 執行於 Google 雲端無伺服器環境中，為避免時間計算偏差，本系統具備動態時區偵測機制：
 
-1. **專案資訊清單 (`appsscript.json`) 時區**：
+1. **直接動態讀取 Google 試算表檔案時區（全面移除 hardcode 寫死）**：
+   - 系統透過 [`getSpreadsheetTimeZone()`](../src/SheetService.js) 函式，直接呼叫 `SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone()` 動態取得試算表檔案設定的時區。
+   - 所有日期格式化、當前星期、訂餐截止時間比對、逾期梯次判斷，以及即時推播時間戳記，均直接依據此時區進行換算，**完全移除程式碼中 hardcode 寫死固定時區**的限制。
+
+2. **Google 試算表本體時區設定（主要來源）**：
+   - 於 Google 試算表工具列點選 **「檔案」 ➡️ 「設定」 (Settings)**。
+   - 檢查「地區設定」是否為「台灣」，「時區」是否設定為 **`(GMT+08:00) 台北時間`**。
+   - 點擊「儲存並載入」。
+
+3. **專案資訊清單 (`appsscript.json`) 時區設定（次要備援）**：
+   - 專案根目錄已提供標準 [`appsscript.json`](../appsscript.json)。
    - 於 Apps Script 編輯器左側齒輪「專案設定 (Project Settings)」勾選 **「在編輯器中顯示 appsscript.json 資訊清單檔案」**。
    - 切換至左側 `appsscript.json`，確認內容包含：
      ```json
@@ -300,19 +330,16 @@ Google Apps Script 執行於 Google 雲端無伺服器環境中，確認與校�
        "runtimeVersion": "V8"
      }
      ```
-   - 若未設定 `Asia/Taipei`，Apps Script 預設可能會落在美東時間 (`America/New_York`) 或 UTC，導致換日判斷提早或延遲 8 至 12 小時。
+   - 若未設定 `Asia/Taipei`，Apps Script 底層伺服器可能預設為美東時間 (`America/New_York`) 或 UTC，因此強烈建議將兩者保持一致。
 
-2. **Google 試算表本體時區**：
-   - 試算表工具列點選 **「檔案」 -> 「設定」 (Settings)**。
-   - 檢查「地區設定」是否為「台灣」，「時區」是否為 **`(GMT+08:00) 台北時間`**。
-
-3. **程式碼內部雙重保險與一鍵診斷工具**：
-   - 系統程式碼全面採用 `Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd')`，強制綁定台北時區 (UTC+8)，不受底層伺服器環境影響。
-   - **一鍵檢測選單**：直接在 Google 試算表上方選單點選：
+4. **一鍵診斷工具（隨時檢視與比對）**：
+   - 直接在 Google 試算表上方選單點選：  
      `🍱 便當訂餐管理` ➡️ `🕒 檢查 Apps Script 時區與系統時間`。
-     系統會彈出即時診斷對話框，清楚列出：
-     - 專案 Script 時區 (`Session.getScriptTimeZone()`)
-     - 試算表 Spreadsheet 時區 (`SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone()`)
-     - 系統伺服器當前時間 (Raw Date)
-     - 強制格式化之台灣台北時間 (Formatted Taipei Time)
-     - 換日判定與星期幾 (Day of Week)
+   - 系統會彈出即時診斷視窗，清楚列出：
+     - **試算表設定時區 (Spreadsheet TimeZone)**：試算表檔案設定
+     - **專案腳本時區 (Script TimeZone)**：`appsscript.json` 資訊清單設定
+     - **系統運行採用時區 (Effective TimeZone)**：系統動態選定採用之時區
+     - **當前時區時間 (Local Time)**：依採用時區轉換之當地時間
+     - **當前判定日期與星期**：換日判定（YYYY-MM-DD 與週一～週日）
+     - **伺服器原始時間 (Raw Date)** 與 **ISO UTC 時間**
+     - **狀態提示**：若試算表與專案時區不一致，會自動跳出 ⚠️ 提醒。
