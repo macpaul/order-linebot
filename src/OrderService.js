@@ -44,6 +44,11 @@ var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 
  */
 function getTodayDateString(refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      return Utilities.formatDate(d, 'Asia/Taipei', 'yyyy-MM-dd');
+    } catch (e) {}
+  }
   var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
   var twDate = new Date(utc + (3600000 * 8));
   var year = twDate.getFullYear();
@@ -57,12 +62,22 @@ function getTodayDateString(refDate) {
  */
 function getTodayDayOfWeek(refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
-  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-  var twDate = new Date(utc + (3600000 * 8));
-  var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
-  var day = dayMap[twDate.getDay()];
-  if (day === '週六' || day === '週日') return '週一';
-  return day;
+  var dayOfWeekStr = '';
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      var dayMapU = { 1: '週一', 2: '週二', 3: '週三', 4: '週四', 5: '週五', 6: '週六', 7: '週日' };
+      dayOfWeekStr = dayMapU[u];
+    } catch (e) {}
+  }
+  if (!dayOfWeekStr) {
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    dayOfWeekStr = dayMap[twDate.getDay()];
+  }
+  if (dayOfWeekStr === '週六' || dayOfWeekStr === '週日') return '週一';
+  return dayOfWeekStr;
 }
 
 /**
@@ -73,9 +88,18 @@ function getTodayDayOfWeek(refDate) {
  */
 function isDayPast(targetDay, refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
-  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-  var twDate = new Date(utc + (3600000 * 8));
-  var currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  var currentDayIndex = -1;
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      currentDayIndex = u === 7 ? 0 : u; // convert Sunday 7 to 0
+    } catch (e) {}
+  }
+  if (currentDayIndex === -1) {
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  }
   var targetDayIndex = DAY_ORDER[targetDay];
   if (!targetDayIndex) return false;
 
@@ -99,10 +123,25 @@ function isDayPast(targetDay, refDate) {
  */
 function isTodayCutoffPassed(day, refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
-  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-  var twDate = new Date(utc + (3600000 * 8));
-  var currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  var currentDayIndex = -1;
+  var currentMinutes = -1;
   var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      currentDayIndex = u === 7 ? 0 : u;
+      var hh = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'HH'), 10);
+      var mm = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'mm'), 10);
+      currentMinutes = hh * 60 + mm;
+    } catch (e) {}
+  }
+  if (currentDayIndex === -1) {
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    currentDayIndex = twDate.getDay();
+    currentMinutes = twDate.getHours() * 60 + twDate.getMinutes();
+  }
   var actualTodayStr = dayMap[currentDayIndex];
 
   // If today is weekend (Sun or Sat), weekdays Mon-Fri are not today
@@ -135,7 +174,6 @@ function isTodayCutoffPassed(day, refDate) {
   var parts = cutoffStr.split(':');
   if (parts.length < 2) return false;
   var cutoffMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-  var currentMinutes = twDate.getHours() * 60 + twDate.getMinutes();
 
   return currentMinutes >= cutoffMinutes;
 }
@@ -812,14 +850,15 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
   }
 
-  // 11. TODAY SUMMARY: 統計 / 即時統計
-  if (/^(?:\/)?(?:統計|即時統計)$/.test(text)) {
-    var restName = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
+  // 11. TODAY SUMMARY: 今日統計 / 本日統計 / 統計 / 即時統計
+  if (/^(?:\/)?(?:今日統計|本日統計|統計|即時統計)$/.test(text)) {
+    var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
+    var restName = (daySched && daySched.restaurantName) ? daySched.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
-    var summary = SheetModule.getOrderSummary(groupId, todayDate);
+    var summary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
     var payInfoTodaySum = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum);
-    return LineModule.replyFlex(replyToken, '【訂餐統計】' + restName, sumFlex);
+    return LineModule.replyFlex(replyToken, '【今日訂餐統計】' + restName, sumFlex);
   }
 
   // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐 / 本週結單 / 今日結單
@@ -834,8 +873,9 @@ function handleTextMessage(event) {
       var weeklyCloseFlex = FlexModule.createWeeklySummaryFlex(weeklySummaryClose, true, payInfoClose);
       return LineModule.replyFlex(replyToken, '【已結單】本週梯次訂餐總表與收費清單', weeklyCloseFlex);
     } else {
-      var finalRest = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
-      var finalSummary = SheetModule.getOrderSummary(groupId, todayDate);
+      var daySchedFinal = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
+      var finalRest = (daySchedFinal && daySchedFinal.restaurantName) ? daySchedFinal.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
+      var finalSummary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
       var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true, payInfoClose);
       return LineModule.replyFlex(replyToken, '【已結單】' + finalRest + ' 訂購名單總計', finalFlex);
     }
