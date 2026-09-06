@@ -895,7 +895,60 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '統計' }
 });
 assert.strictEqual(lastReply.type, 'flex', '統計 command must trigger summary');
-console.log('  ✔ 今日統計 / 本日統計 / 統計 correctly aggregates advance + same-day orders and renders member roster.');
+
+// Test Independence: 今日統計 must NEVER include advance orders for other days, regardless of CLOSE_ORDER_SCOPE or ORDER_RECEIPT_SCOPE
+SheetModule.addOrder({
+  date: '2026-09-08',
+  dayOfWeek: '週三',
+  groupId: groupId,
+  userId: 'user_bob',
+  userName: '小鮑伯',
+  userNickname: '小鮑伯',
+  itemName: '招牌鍋貼(10顆)',
+  quantity: 2,
+  price: 70
+});
+// Verify with CLOSE_ORDER_SCOPE = WEEKLY & ORDER_RECEIPT_SCOPE = WEEKLY
+SheetModule.setConfigValue('CLOSE_ORDER_SCOPE', 'WEEKLY');
+SheetModule.setConfigValue('ORDER_RECEIPT_SCOPE', 'WEEKLY');
+OrderModule.handleTextMessage({
+  replyToken: 'token_today_scope_weekly',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '今日統計' }
+});
+var weeklyScopeSumJson = JSON.stringify(lastReply.flex);
+assert.ok(!weeklyScopeSumJson.includes('招牌鍋貼'), 'Wednesday advance order must NOT appear in Tuesday summary even when scope is WEEKLY');
+assert.ok(weeklyScopeSumJson.includes('日式厚切豬排飯 x3'), 'Tuesday orders must be accurately preserved');
+
+// Verify with CLOSE_ORDER_SCOPE = DAILY & ORDER_RECEIPT_SCOPE = DAILY
+SheetModule.setConfigValue('CLOSE_ORDER_SCOPE', 'DAILY');
+SheetModule.setConfigValue('ORDER_RECEIPT_SCOPE', 'DAILY');
+OrderModule.handleTextMessage({
+  replyToken: 'token_today_scope_daily',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '今日統計' }
+});
+var dailyScopeSumJson = JSON.stringify(lastReply.flex);
+assert.ok(!dailyScopeSumJson.includes('招牌鍋貼'), 'Wednesday advance order must NOT appear in Tuesday summary when scope is DAILY');
+
+// Verify calling 今日統計 when IS_ORDERING_OPEN is false (after 結單)
+SheetModule.setConfigValue('IS_ORDERING_OPEN', 'false');
+OrderModule.handleTextMessage({
+  replyToken: 'token_today_after_closed',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '今日統計' }
+});
+var closedSumJson = JSON.stringify(lastReply.flex);
+assert.ok(closedSumJson.includes('已截止'), 'Status should reflect closed order');
+assert.ok(!closedSumJson.includes('招牌鍋貼'), 'Closed today summary still strictly queries only today data');
+assert.ok(closedSumJson.includes('日式厚切豬排飯 x3'), 'Today order count remains exact');
+
+// Verify Help Card command for 今日統計
+var helpCard = FlexModule.createHelpFlex();
+var helpJson = JSON.stringify(helpCard);
+assert.ok(helpJson.includes('"text":"今日統計"'), 'Help card button for 今日統計 must explicitly dispatch 今日統計 command');
+
+console.log('  ✔ 今日統計 is completely independent of CLOSE_ORDER_SCOPE / ORDER_RECEIPT_SCOPE and strictly isolates today\'s data.');
 
 // Test checkTimeZoneAndCurrentTime diagnostic tool
 var timeDiag = SheetModule.checkTimeZoneAndCurrentTime();
