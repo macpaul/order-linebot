@@ -697,12 +697,12 @@ function createSummaryFlex(restaurantName, summaryData, isClosed) {
 }
 
 /**
- * createHelpFlex — Static instruction card listing all supported bot commands.
+ * createHelpFlex — Interactive instruction card with tappable command buttons.
  *
  * Layout:
- *   header  – title banner ("使用說明")
- *   body     – numbered command list (command + description)
- *   footer   – contact hint
+ *   header  – title banner ("便當點餐使用說明")
+ *   body     – list of commands, each with a quick-action button
+ *   footer   – usage hint
  *
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
@@ -721,56 +721,49 @@ function createHelpFlex() {
     backgroundColor: FLEX_COLORS.primary
   });
 
-  /* ---- body: command list ---- */
+  /* ---- body: buttonized command list ---- */
   var commands = [
-    { num: '1', label: '本週菜單',       desc: '查看週一至週五每日店家與排程' },
-    { num: '2', label: '週一菜單',       desc: '查看指定星期菜單（如：週二菜單）' },
-    { num: '3', label: '+1 餐點名',      desc: '點餐或加購（如：+1 排骨飯 或 雞腿+2）' },
-    { num: '4', label: '我的訂單',       desc: '查詢個人今日點餐紀錄與總額' },
-    { num: '5', label: '我的本週訂單',   desc: '查詢全週預約餐點與個人總金額' },
-    { num: '6', label: '取消 餐點',      desc: '取消餐點（如：取消 週二 全部）' },
-    { num: '7', label: '本週統計',       desc: '查看全週梯次訂餐統計與應付金額' },
-    { num: '8', label: '說明 / 幫助',   desc: '重新顯示本頁使用說明' }
+    { label: '📅 本週菜單', desc: '查看週一至週五排程', cmd: '本週菜單', btnText: '看本週' },
+    { label: '🍱 今日菜單', desc: '查看今日菜單並點餐', cmd: '菜單', btnText: '看菜單' },
+    { label: '📝 我的訂單', desc: '查詢個人今日點餐紀錄', cmd: '我的訂單', btnText: '查今日' },
+    { label: '📦 我的本週訂單', desc: '查詢本週全梯次預訂', cmd: '我的本週訂單', btnText: '查全週' },
+    { label: '🗑️ 取消餐點', desc: '自選退訂特定餐點', cmd: '取消餐點', btnText: '去取消' },
+    { label: '📊 本週統計', desc: '全週梯次訂購對帳總表', cmd: '本週統計', btnText: '本週統計' },
+    { label: '📈 今日統計', desc: '今日即時訂單統計與名冊', cmd: '統計', btnText: '今日統計' }
   ];
 
   var bodyContents = [];
   commands.forEach(function (cmd, i) {
     bodyContents.push(_flexBox([
-      // Number badge
-      _flexBox([
-        _flexText(cmd.num, {
-          size: 'sm',
-          weight: 'bold',
-          color: FLEX_COLORS.textOnColor,
-          align: 'center'
-        })
-      ], {
-        layout: 'vertical',
-        paddingAll: 'xs',
-        backgroundColor: FLEX_COLORS.primary,
-        cornerRadius: 'sm',
-        width: '24px'
-      }),
-      // Label + description
       _flexBox([
         _flexText(cmd.label, {
           size: 'sm',
           weight: 'bold',
-          color: FLEX_COLORS.textPrimary,
-          align: 'start'
+          color: FLEX_COLORS.textPrimary
         }),
         _flexText(cmd.desc, {
-          size: 'xs',
+          size: 'xxs',
           color: FLEX_COLORS.textSecondary,
-          align: 'start',
           margin: 'xs'
         })
       ], {
         layout: 'vertical',
         spacing: 'none',
-        margin: 'sm',
-        flex: 1
-      })
+        flex: 3,
+        justifyContent: 'center'
+      }),
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: cmd.btnText,
+          text: cmd.cmd
+        },
+        style: 'primary',
+        color: FLEX_COLORS.primary,
+        height: 'sm',
+        flex: 2
+      }
     ], {
       layout: 'horizontal',
       alignItems: 'center',
@@ -789,9 +782,10 @@ function createHelpFlex() {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 點餐或疑問請直接在群組發送指令 🙋', {
+    _flexText('💡 點擊上方任一按鈕，即可直接發送指令！', {
       size: 'xs',
-      color: FLEX_COLORS.textSecondary,
+      weight: 'bold',
+      color: FLEX_COLORS.primaryDark,
       align: 'center'
     })
   ], {
@@ -803,6 +797,165 @@ function createHelpFlex() {
   return {
     type: 'bubble',
     size: 'mega',
+    header: header,
+    body: body,
+    footer: footer
+  };
+}
+
+/**
+ * createCancelOrderFlex — Interactive cancel order menu with buttons.
+ * Grouped by dayOfWeek so the user can see and tap specific items or days to cancel.
+ *
+ * @param {string} userName - Display name of the user.
+ * @param {Array<Object>} activeOrders - Array of active order records.
+ * @returns {Object} LINE Flex bubble
+ */
+function createCancelOrderFlex(userName, activeOrders) {
+  var orders = activeOrders || [];
+
+  var dayMap = {};
+  var dayOrder = [];
+  orders.forEach(function (o) {
+    var d = o.dayOfWeek || '今日';
+    if (!dayMap[d]) {
+      dayMap[d] = [];
+      dayOrder.push(d);
+    }
+    dayMap[d].push(o);
+  });
+
+  var header = _flexBox([
+    _flexText('🗑️ 取消訂單選單', {
+      size: 'xl',
+      weight: 'bold',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start'
+    }),
+    _flexText((userName || '成員') + ' 的進行中訂單', {
+      size: 'sm',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start',
+      margin: 'xs'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'lg',
+    backgroundColor: FLEX_COLORS.danger
+  });
+
+  var bodyContents = [];
+  if (dayOrder.length === 0) {
+    bodyContents.push(_flexText('（目前沒有任何進行中的訂餐紀錄）', {
+      size: 'sm',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'lg'
+    }));
+  } else {
+    dayOrder.forEach(function (day, di) {
+      var dayItems = dayMap[day];
+
+      bodyContents.push(_flexText('【' + day + ' 預訂項目】', {
+        size: 'md',
+        weight: 'bold',
+        color: FLEX_COLORS.primaryDark,
+        align: 'start',
+        margin: di === 0 ? 'none' : 'md'
+      }));
+
+      dayItems.forEach(function (it) {
+        var itemText = it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
+        var cancelText = '取消 ' + day + ' ' + it.itemName;
+
+        bodyContents.push(_flexBox([
+          _flexBox([
+            _flexText(itemText, {
+              size: 'sm',
+              weight: 'bold',
+              color: FLEX_COLORS.textPrimary,
+              wrap: true
+            })
+          ], {
+            layout: 'vertical',
+            flex: 3,
+            justifyContent: 'center'
+          }),
+          {
+            type: 'button',
+            action: {
+              type: 'message',
+              label: '取消此項',
+              text: cancelText
+            },
+            style: 'primary',
+            color: FLEX_COLORS.danger,
+            height: 'sm',
+            flex: 2
+          }
+        ], {
+          layout: 'horizontal',
+          spacing: 'sm',
+          alignItems: 'center',
+          paddingAll: 'sm',
+          margin: 'xs',
+          backgroundColor: FLEX_COLORS.background,
+          cornerRadius: 'md'
+        }));
+      });
+
+      // Button to cancel all items for this day
+      bodyContents.push({
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '取消【' + day + '】所有餐點',
+          text: '取消 ' + day + ' 全部'
+        },
+        style: 'secondary',
+        height: 'sm',
+        margin: 'xs'
+      });
+    });
+
+    // Overall button to cancel all orders
+    if (dayOrder.length > 1 || orders.length > 1) {
+      bodyContents.push(_flexSeparator({ margin: 'md' }));
+      bodyContents.push({
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '❌ 取消全部所有預約訂單',
+          text: '取消 全部'
+        },
+        style: 'secondary',
+        height: 'sm',
+        margin: 'sm'
+      });
+    }
+  }
+
+  var body = _flexBox(bodyContents, {
+    layout: 'vertical',
+    paddingAll: 'md',
+    backgroundColor: FLEX_COLORS.surface
+  });
+
+  var footer = _flexBox([
+    _flexText('💡 點選按鈕後將立即退訂，或直接輸入「取消 週幾 菜名」', {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'sm',
+    backgroundColor: FLEX_COLORS.background
+  });
+
+  return {
+    type: 'bubble',
+    size: 'giga',
     header: header,
     body: body,
     footer: footer
@@ -943,6 +1096,7 @@ function createWeeklySummaryFlex(weeklySummary) {
   g.createOrderReceiptFlex = createOrderReceiptFlex;
   g.createSummaryFlex = createSummaryFlex;
   g.createHelpFlex = createHelpFlex;
+  g.createCancelOrderFlex = createCancelOrderFlex;
   g.createWeeklyScheduleFlex = createWeeklyScheduleFlex;
   g.createWeeklySummaryFlex = createWeeklySummaryFlex;
 
@@ -953,6 +1107,7 @@ function createWeeklySummaryFlex(weeklySummary) {
       createOrderReceiptFlex: createOrderReceiptFlex,
       createSummaryFlex: createSummaryFlex,
       createHelpFlex: createHelpFlex,
+      createCancelOrderFlex: createCancelOrderFlex,
       createWeeklyScheduleFlex: createWeeklyScheduleFlex,
       createWeeklySummaryFlex: createWeeklySummaryFlex,
       // Internal helpers exposed for Node.js testing.
