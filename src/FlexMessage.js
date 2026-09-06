@@ -760,6 +760,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   var statusColor = isClosed ? FLEX_COLORS.danger : FLEX_COLORS.success;
 
   /* ---- header ---- */
+  var headerDateText = dateStr + (data.dayOfWeek ? ' (' + data.dayOfWeek + ')' : '');
   var header = _flexBox([
     _flexText(restaurantName || '訂單統計', {
       size: 'xl',
@@ -768,7 +769,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       align: 'start'
     }),
     _flexBox([
-      _flexText(dateStr || '', {
+      _flexText(headerDateText || '', {
         size: 'sm',
         color: FLEX_COLORS.textOnColor,
         align: 'start'
@@ -814,23 +815,47 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       var name = item.itemName || '';
       var qty = item.quantity || 0;
       var sub = _formatPrice(item.subtotal);
+      var buyersText = (item.buyers && item.buyers.length > 0)
+        ? '👤 ' + item.buyers.join('、')
+        : '';
 
-      bodyContents.push(_flexBox([
-        _flexText(name + ' x' + qty, {
-          size: 'md',
-          color: FLEX_COLORS.textPrimary,
-          align: 'start'
-        }),
-        _flexFiller(),
-        _flexText(sub, {
-          size: 'md',
-          color: FLEX_COLORS.textSecondary,
-          align: 'end'
+      var itemBoxChildren = [
+        _flexBox([
+          _flexText(name + ' x' + qty, {
+            size: 'md',
+            weight: 'bold',
+            color: FLEX_COLORS.textPrimary,
+            align: 'start'
+          }),
+          _flexFiller(),
+          _flexText(sub, {
+            size: 'md',
+            weight: 'bold',
+            color: FLEX_COLORS.primaryDark,
+            align: 'end'
+          })
+        ], {
+          layout: 'horizontal',
+          spacing: 'sm'
         })
-      ], {
-        layout: 'horizontal',
-        spacing: 'sm',
-        padding: 'xs'
+      ];
+
+      if (buyersText) {
+        itemBoxChildren.push(_flexText(buyersText, {
+          size: 'xs',
+          color: FLEX_COLORS.textSecondary,
+          margin: 'xs',
+          wrap: true
+        }));
+      }
+
+      bodyContents.push(_flexBox(itemBoxChildren, {
+        layout: 'vertical',
+        spacing: 'none',
+        paddingAll: 'sm',
+        margin: 'xs',
+        backgroundColor: FLEX_COLORS.background,
+        cornerRadius: 'sm'
       }));
     });
   }
@@ -845,7 +870,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       align: 'start'
     }),
     _flexFiller(),
-    _flexText(totalQty + ' 項 / ' + _formatPrice(totalAmt), {
+    _flexText(totalQty + ' 份 / ' + _formatPrice(totalAmt), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.primary,
@@ -856,6 +881,54 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
     spacing: 'sm',
     padding: 'sm'
   }));
+
+  // Member billing & order roster (今日成員應付明細與點餐名冊)
+  if (data.users && data.users.length > 0) {
+    bodyContents.push(_flexSeparator({ margin: 'md' }));
+    bodyContents.push(_flexText('👤 今日成員應付名冊', {
+      weight: 'bold',
+      size: 'sm',
+      color: FLEX_COLORS.textPrimary,
+      margin: 'md'
+    }));
+
+    data.users.forEach(function (u) {
+      var userItemsStr = (u.items && u.items.length > 0) ? u.items.join('、') : '';
+      bodyContents.push(_flexBox([
+        _flexBox([
+          _flexText(u.userName || '成員', {
+            size: 'sm',
+            weight: 'bold',
+            color: FLEX_COLORS.textPrimary
+          }),
+          _flexText(userItemsStr, {
+            size: 'xxs',
+            color: FLEX_COLORS.textSecondary,
+            margin: 'xxs',
+            wrap: true
+          })
+        ], {
+          layout: 'vertical',
+          flex: 3
+        }),
+        _flexFiller(),
+        _flexText('$' + u.total + ' 元', {
+          size: 'sm',
+          weight: 'bold',
+          color: FLEX_COLORS.danger,
+          align: 'end',
+          flex: 2
+        })
+      ], {
+        layout: 'horizontal',
+        alignItems: 'center',
+        margin: 'xs',
+        paddingAll: 'xs',
+        backgroundColor: FLEX_COLORS.background,
+        cornerRadius: 'sm'
+      }));
+    });
+  }
 
   // Append payment contents if available
   if (paymentInfo && paymentInfo.hasPaymentInfo) {
