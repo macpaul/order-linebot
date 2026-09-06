@@ -762,7 +762,60 @@ assert.ok(bossMenuJson.includes('(開單人)'));
 assert.ok(bossMenuJson.includes('開單人管理專區'));
 assert.ok(bossMenuJson.includes('取消當日所有餐點'));
 assert.ok(bossMenuJson.includes('取消所有未截止預約訂單'));
-console.log('  ✔ Interactive cancel menu correctly differentiated between member and organizer.\n');
+console.log('  ✔ Interactive cancel menu correctly differentiated between member and organizer.');
+
+// 8-9: Regular user's cancel menu NEVER contains other users' orders
+SheetModule.addOrder({ userId: 'user_bob', groupId: groupId, itemName: '舒肥嫩雞胸餐盒', quantity: 1, price: 110, userName: '小鮑伯', userNickname: '小鮑伯', dayOfWeek: '週五' });
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_menu_isolation',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消' }
+});
+var aliceIsolatedMenuJson = JSON.stringify(lastReply.flex);
+assert.ok(aliceIsolatedMenuJson.includes('古早味紅茶'), 'Alice should see her own red tea');
+assert.ok(!aliceIsolatedMenuJson.includes('舒肥嫩雞胸餐盒'), 'Alice must NEVER see Bob\'s chicken box in cancel menu');
+assert.ok(!aliceIsolatedMenuJson.includes('小鮑伯'), 'Alice cancel menu must not include Bob\'s name');
+console.log('  ✔ Regular user cancel menu strictly isolates orders and never shows other people\'s meals.');
+
+// 8-10: Member enters dish name ordered by another member (without prefixing name): rejects based on UserName comparison
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_cancel_bobs_dish',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消 舒肥嫩雞胸餐盒' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('除了開單人，不能取消其他使用者的餐點'));
+assert.ok(lastReply.text.includes('小鮑伯'), 'Error message identifies the actual buyer');
+var bobChickenOrders = SheetModule.getUserOrders('user_bob', groupId, null, '週五', '小鮑伯');
+assert.strictEqual(bobChickenOrders.length, 1, 'Bob\'s chicken box must remain active and unaffected');
+console.log('  ✔ Member attempting to cancel another member\'s dish is rejected via UserName comparison.');
+
+// 8-11: Identical dishes ordered by both member and another member: only member's own dish cancelled
+SheetModule.addOrder({ userId: 'user_alice', groupId: groupId, itemName: '舒肥嫩雞胸餐盒', quantity: 1, price: 110, userName: '愛麗絲', userNickname: '愛麗絲', dayOfWeek: '週五' });
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_cancel_own_chicken',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消 舒肥嫩雞胸餐盒' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已為您取消'));
+var aliceChickenAfter = SheetModule.getUserOrders('user_alice', groupId, null, '週五', '愛麗絲').filter(function (o) { return o.itemName === '舒肥嫩雞胸餐盒'; });
+assert.strictEqual(aliceChickenAfter.length, 0, 'Alice\'s chicken box cancelled');
+bobChickenOrders = SheetModule.getUserOrders('user_bob', groupId, null, '週五', '小鮑伯').filter(function (o) { return o.itemName === '舒肥嫩雞胸餐盒'; });
+assert.strictEqual(bobChickenOrders.length, 1, 'Bob\'s chicken box still active');
+console.log('  ✔ When cancelling identical dish, only sender\'s own order is cancelled and others are preserved.');
+
+// 8-12: Organizer cancel menu shows all active group orders with member labels
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_menu_all',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '取消' }
+});
+var bossAllMenuJson = JSON.stringify(lastReply.flex);
+assert.ok(bossAllMenuJson.includes('小鮑伯'), 'Organizer menu displays member label');
+assert.ok(bossAllMenuJson.includes('舒肥嫩雞胸餐盒'), 'Organizer menu displays member\'s items');
+assert.ok(bossAllMenuJson.includes('取消 小鮑伯 週五 舒肥嫩雞胸餐盒'), 'Organizer action button carries member name for targeted cancellation');
+console.log('  ✔ Organizer cancel menu displays all group orders with member labels.\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
