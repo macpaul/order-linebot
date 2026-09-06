@@ -139,7 +139,7 @@ function initSheets() {
     },
     {
       name: CONFIG.SHEET_NAMES.ORDERS,
-      headers: ['OrderId', 'Timestamp', 'Date', 'DayOfWeek', 'GroupId', 'UserId', 'UserName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid']
+      headers: ['OrderId', 'Timestamp', 'Date', 'DayOfWeek', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid']
     },
     {
       name: CONFIG.SHEET_NAMES.SUMMARY,
@@ -459,6 +459,47 @@ function saveMenuItems(dayOfWeek, restaurantName, items) {
 }
 
 /**
+ * Helper to map Orders sheet header columns dynamically
+ */
+function _getOrderColumnIndexes(headers) {
+  var colMap = {
+    orderId: 0,
+    timestamp: 1,
+    date: 2,
+    dayOfWeek: 3,
+    groupId: 4,
+    userId: 5,
+    userName: 6,
+    userNickname: -1,
+    itemName: 7,
+    quantity: 8,
+    price: 9,
+    subtotal: 10,
+    status: 11,
+    paid: 12
+  };
+  if (!headers || headers.length === 0) return colMap;
+  for (var c = 0; c < headers.length; c++) {
+    var h = String(headers[c]).trim().toLowerCase();
+    if (h === 'orderid') colMap.orderId = c;
+    else if (h === 'timestamp') colMap.timestamp = c;
+    else if (h === 'date') colMap.date = c;
+    else if (h === 'dayofweek') colMap.dayOfWeek = c;
+    else if (h === 'groupid') colMap.groupId = c;
+    else if (h === 'userid') colMap.userId = c;
+    else if (h === 'username') colMap.userName = c;
+    else if (h === 'usernickname') colMap.userNickname = c;
+    else if (h === 'itemname') colMap.itemName = c;
+    else if (h === 'quantity') colMap.quantity = c;
+    else if (h === 'price') colMap.price = c;
+    else if (h === 'subtotal') colMap.subtotal = c;
+    else if (h === 'status') colMap.status = c;
+    else if (h === 'paid') colMap.paid = c;
+  }
+  return colMap;
+}
+
+/**
  * Record an order
  */
 function addOrder(orderData) {
@@ -479,6 +520,7 @@ function addOrder(orderData) {
     groupId: orderData.groupId || '',
     userId: orderData.userId || '',
     userName: orderData.userName || '成員',
+    userNickname: orderData.userNickname || orderData.userName || '成員',
     itemName: orderData.itemName || '',
     quantity: quantity,
     price: price,
@@ -497,21 +539,49 @@ function addOrder(orderData) {
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
   if (!sheet) return record;
 
-  sheet.appendRow([
-    record.orderId,
-    record.timestamp,
-    record.date,
-    record.dayOfWeek,
-    record.groupId,
-    record.userId,
-    _sanitizeSheetCell(record.userName),
-    _sanitizeSheetCell(record.itemName),
-    record.quantity,
-    record.price,
-    record.subtotal,
-    record.status,
-    record.paid
-  ]);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0] || [];
+  var hasNicknameCol = false;
+  for (var h = 0; h < headers.length; h++) {
+    if (String(headers[h]).trim().toLowerCase() === 'usernickname') {
+      hasNicknameCol = true;
+      break;
+    }
+  }
+
+  if (hasNicknameCol) {
+    sheet.appendRow([
+      record.orderId,
+      record.timestamp,
+      record.date,
+      record.dayOfWeek,
+      record.groupId,
+      record.userId,
+      _sanitizeSheetCell(record.userName),
+      _sanitizeSheetCell(record.userNickname),
+      _sanitizeSheetCell(record.itemName),
+      record.quantity,
+      record.price,
+      record.subtotal,
+      record.status,
+      record.paid
+    ]);
+  } else {
+    sheet.appendRow([
+      record.orderId,
+      record.timestamp,
+      record.date,
+      record.dayOfWeek,
+      record.groupId,
+      record.userId,
+      _sanitizeSheetCell(record.userName),
+      _sanitizeSheetCell(record.itemName),
+      record.quantity,
+      record.price,
+      record.subtotal,
+      record.status,
+      record.paid
+    ]);
+  }
 
   return record;
 }
@@ -536,14 +606,16 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
   if (!sheet) return [];
 
   var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return [];
+  var colMap = _getOrderColumnIndexes(rows[0]);
   var orders = [];
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
-    var rStatus = String(r[11]);
-    var rUserId = String(r[5]);
-    var rGroupId = String(r[4]);
-    var rDate = String(r[2]);
-    var rDayOfWeek = String(r[3]);
+    var rStatus = String(r[colMap.status]);
+    var rUserId = String(r[colMap.userId]);
+    var rGroupId = String(r[colMap.groupId]);
+    var rDate = String(r[colMap.date]);
+    var rDayOfWeek = String(r[colMap.dayOfWeek]);
 
     if (rStatus === 'ACTIVE' && rUserId === userId &&
         (!groupId || rGroupId === groupId) &&
@@ -551,19 +623,20 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
         (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
       orders.push({
         row: i + 1,
-        orderId: r[0],
-        timestamp: r[1],
+        orderId: r[colMap.orderId],
+        timestamp: r[colMap.timestamp],
         date: rDate,
         dayOfWeek: rDayOfWeek,
         groupId: rGroupId,
         userId: rUserId,
-        userName: r[6],
-        itemName: r[7],
-        quantity: Number(r[8]),
-        price: Number(r[9]),
-        subtotal: Number(r[10]),
+        userName: r[colMap.userName],
+        userNickname: colMap.userNickname !== -1 ? r[colMap.userNickname] : (r[colMap.userName] || ''),
+        itemName: r[colMap.itemName],
+        quantity: Number(r[colMap.quantity]),
+        price: Number(r[colMap.price]),
+        subtotal: Number(r[colMap.subtotal]),
         status: rStatus,
-        paid: r[12]
+        paid: r[colMap.paid]
       });
     }
   }
@@ -596,21 +669,24 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
   if (!sheet) return 0;
 
   var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return 0;
+  var colMap = _getOrderColumnIndexes(rows[0]);
+
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
-    var rStatus = String(r[11]);
-    var rUserId = String(r[5]);
-    var rGroupId = String(r[4]);
-    var rDate = String(r[2]);
-    var rDayOfWeek = String(r[3]);
-    var rItem = String(r[7]);
+    var rStatus = String(r[colMap.status]);
+    var rUserId = String(r[colMap.userId]);
+    var rGroupId = String(r[colMap.groupId]);
+    var rDate = String(r[colMap.date]);
+    var rDayOfWeek = String(r[colMap.dayOfWeek]);
+    var rItem = String(r[colMap.itemName]);
 
     if (rStatus === 'ACTIVE' && rUserId === userId &&
         (!groupId || rGroupId === groupId) &&
         (!date || rDate === date) &&
         (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
       if (!itemName || rItem.indexOf(itemName) !== -1) {
-        sheet.getRange(i + 1, 12).setValue('CANCELLED');
+        sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
         count++;
       }
     }
@@ -637,32 +713,35 @@ function getGroupOrders(groupId, date, dayOfWeek) {
   if (!sheet) return [];
 
   var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return [];
+  var colMap = _getOrderColumnIndexes(rows[0]);
   var orders = [];
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
-    var rStatus = String(r[11]);
-    var rGroupId = String(r[4]);
-    var rDate = String(r[2]);
-    var rDay = String(r[3]);
+    var rStatus = String(r[colMap.status]);
+    var rGroupId = String(r[colMap.groupId]);
+    var rDate = String(r[colMap.date]);
+    var rDay = String(r[colMap.dayOfWeek]);
 
     if (rStatus === 'ACTIVE' &&
         (!groupId || rGroupId === groupId) &&
         (!date || rDate === date) &&
         (!dayOfWeek || rDay === dayOfWeek)) {
       orders.push({
-        orderId: r[0],
-        timestamp: r[1],
+        orderId: r[colMap.orderId],
+        timestamp: r[colMap.timestamp],
         date: rDate,
         dayOfWeek: rDay,
         groupId: rGroupId,
-        userId: r[5],
-        userName: r[6],
-        itemName: r[7],
-        quantity: Number(r[8]),
-        price: Number(r[9]),
-        subtotal: Number(r[10]),
+        userId: r[colMap.userId],
+        userName: r[colMap.userName],
+        userNickname: colMap.userNickname !== -1 ? r[colMap.userNickname] : (r[colMap.userName] || ''),
+        itemName: r[colMap.itemName],
+        quantity: Number(r[colMap.quantity]),
+        price: Number(r[colMap.price]),
+        subtotal: Number(r[colMap.subtotal]),
         status: rStatus,
-        paid: r[12]
+        paid: r[colMap.paid]
       });
     }
   }
@@ -869,6 +948,7 @@ function logToSheet(type, message, detail) {
   g.normalizeImageUrl = normalizeImageUrl;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
   g.logToSheet = logToSheet;
+  g._getOrderColumnIndexes = _getOrderColumnIndexes;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -893,6 +973,7 @@ function logToSheet(type, message, detail) {
       normalizeImageUrl: normalizeImageUrl,
       onOpenSpreadsheet: onOpenSpreadsheet,
       logToSheet: logToSheet,
+      _getOrderColumnIndexes: _getOrderColumnIndexes,
       _mockStore: _mockStore
     };
   }
