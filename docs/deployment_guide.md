@@ -92,6 +92,8 @@
 | `PAYMENT_BANK_NAME` | *(留空)* | **收款銀行名稱**（例如：`中國信託`、`國泰世華`）。 |
 | `PAYMENT_BANK_ACCOUNT` | *(留空)* | **收款銀行帳號**（例如：`123-456789-012`）。 |
 | `PAYMENT_BANK_ACCOUNT_NAME` | *(留空)* | **收款帳戶戶名**（例如：`王大明`）。 |
+| `PAYMENT_BANK_QR_URL` | *(留空)* | **銀行收款 QR Code 圖片網址**：在卡片中呈現 QR Code 圖片供掃碼轉帳。支援一般圖床或 **Google 雲端硬碟分享連結**（系統會自動轉換為直連圖檔，免擔心破圖）。點擊圖片可放大檢視。 |
+| `PAYMENT_LINEPAY_QR_URL` | *(留空)* | **LINE Pay 收款碼/條碼圖片網址**：支援 Google 雲端硬碟分享連結或直接圖片網址。 |
 | `IS_ORDERING_OPEN` | `false` | 今日是否開放即時點餐（`true` / `false`）。管理員亦可於群組發送「開單」或「結單」自動切換。 |
 | `RESTAURANT_NAME` | `老王便當` | 今日配合店家名稱。 |
 | `CUTOFF_TIME` | `11:00` | 今日點餐截止時間。 |
