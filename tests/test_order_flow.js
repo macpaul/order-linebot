@@ -617,6 +617,153 @@ assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_NAME'), '小幫手');
 assert.strictEqual(SheetModule.getConfigValue('CLOSE_ORDER_SCOPE'), 'WEEKLY');
 console.log('  ✔ initSheets automatically backfills all recently added Config variables.\n');
 
+// 8. Test Organizer-Exclusive Cancellation Permissions and Confirmation Warnings
+console.log('▶ Test 8: Organizer Cancellation Permissions & Confirmation Warnings');
+
+SheetModule.setConfigValue('ORGANIZER_ID', 'user_boss');
+SheetModule.setConfigValue('IS_ORDERING_OPEN', 'true');
+
+// Setup: Alice orders for Thursday, Bob orders for Thursday, Carol orders for Friday
+SheetModule.addOrder({ userId: 'user_alice', groupId: groupId, itemName: '招牌三寶飯', quantity: 1, price: 110, userName: '愛麗絲', userNickname: '愛麗絲', dayOfWeek: '週四' });
+SheetModule.addOrder({ userId: 'user_bob', groupId: groupId, itemName: '脆皮燒肉飯', quantity: 1, price: 105, userName: '小鮑伯', userNickname: '小鮑伯', dayOfWeek: '週四' });
+SheetModule.addOrder({ userId: 'user_carol', groupId: groupId, itemName: '舒肥嫩雞胸餐盒', quantity: 1, price: 110, userName: '卡蘿', userNickname: '卡蘿', dayOfWeek: '週五' });
+
+// 8-1: Non-organizer (Alice) tries to cancel Bob's meal -> REJECTED
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_cancel_bob',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消 小鮑伯 脆皮燒肉飯' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('除了開單人，不能取消其他使用者的餐點'));
+var bobOrdersAfter = SheetModule.getUserOrders('user_bob', groupId, null, '週四');
+assert.strictEqual(bobOrdersAfter.length, 1);
+console.log('  ✔ Non-organizer is blocked from cancelling other users\' meals.');
+
+// 8-2: Organizer (Boss) cancels Bob's meal -> ALLOWED
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_cancel_bob',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '取消 小鮑伯 脆皮燒肉飯' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已由開單人為【小鮑伯】取消'));
+bobOrdersAfter = SheetModule.getUserOrders('user_bob', groupId, null, '週四');
+assert.strictEqual(bobOrdersAfter.length, 0);
+console.log('  ✔ Organizer is permitted to cancel another user\'s meal.');
+
+// 8-3: Non-organizer tries to cancel all meals of the day -> REJECTED
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_cancel_all_day',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消當日所有餐點' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('只有開單人可以取消當日所有餐點'));
+console.log('  ✔ Non-organizer is blocked from cancelling all meals of the day.');
+
+// 8-4: Organizer requests cancelling all meals for Thursday -> Warning confirmation card returned
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_req_day_cancel',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '取消全體 週四' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastReply.altText.includes('開單人取消當日全體餐點確認'));
+var confirmDayFlexJson = JSON.stringify(lastReply.flex);
+assert.ok(confirmDayFlexJson.includes('確認取消全體 週四'));
+assert.ok(confirmDayFlexJson.includes('⚠️ 警告：此操作將影響全體成員且無法復原！'));
+
+// 8-5: Organizer confirms cancelling all meals for Thursday -> Executed!
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_confirm_day_cancel',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '確認取消全體 週四' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已由開單人成功取消【週四】全體成員的所有餐點紀錄'));
+var aliceThuOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週四');
+assert.strictEqual(aliceThuOrders.length, 0);
+console.log('  ✔ Organizer cancelling all meals of the day requires two-step confirmation.');
+
+// 8-6: Non-organizer tries to cancel all advance orders -> REJECTED
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_cancel_all_adv',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消所有未截止預約訂單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('只有開單人可以取消所有未截止預約訂單'));
+
+// Plain "取消 全部" by non-organizer is also blocked
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_cancel_all_plain',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消 全部' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('只有開單人可以取消全體預約訂單'));
+console.log('  ✔ Non-organizer is blocked from cancelling all advance orders.');
+
+// 8-7: Organizer requests cancelling all advance orders -> Warning confirmation card returned
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_req_all_adv',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '取消所有未截止預約訂單' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastReply.altText.includes('開單人取消全體預約訂單確認'));
+var confirmAllFlexJson = JSON.stringify(lastReply.flex);
+assert.ok(confirmAllFlexJson.includes('確認取消所有未截止預約訂單'));
+
+// Test abandon cancellation
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_abandon_cancel',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '放棄取消' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已放棄取消操作'));
+var carolOrders = SheetModule.getUserOrders('user_carol', groupId, null, '週五');
+assert.strictEqual(carolOrders.length, 1);
+
+// Organizer confirms cancelling all un-cutoff advance orders -> Executed!
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_confirm_all_adv',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '確認取消所有未截止預約訂單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已由開單人成功取消全體成員所有未截止梯次的預約訂單'));
+carolOrders = SheetModule.getUserOrders('user_carol', groupId, null, '週五');
+assert.strictEqual(carolOrders.length, 0);
+console.log('  ✔ Organizer cancelling all advance orders requires two-step confirmation.');
+
+// 8-8: Cancel order menu differentiation for regular user vs organizer
+SheetModule.addOrder({ userId: 'user_alice', groupId: groupId, itemName: '古早味紅茶', quantity: 1, price: 25, userName: '愛麗絲', userNickname: '愛麗絲', dayOfWeek: '週五' });
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_menu',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消餐點' }
+});
+var aliceMenuJson = JSON.stringify(lastReply.flex);
+assert.ok(aliceMenuJson.includes('個人進行中訂單'));
+assert.ok(aliceMenuJson.includes('取消我的【週五】餐點'));
+assert.ok(!aliceMenuJson.includes('開單人管理專區'));
+
+SheetModule.addOrder({ userId: 'user_boss', groupId: groupId, itemName: '古早味紅茶', quantity: 1, price: 25, userName: '大老闆', userNickname: '大老闆', dayOfWeek: '週五' });
+OrderModule.handleTextMessage({
+  replyToken: 'token_boss_menu',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '取消餐點' }
+});
+var bossMenuJson = JSON.stringify(lastReply.flex);
+assert.ok(bossMenuJson.includes('(開單人)'));
+assert.ok(bossMenuJson.includes('開單人管理專區'));
+assert.ok(bossMenuJson.includes('取消當日所有餐點'));
+assert.ok(bossMenuJson.includes('取消所有未截止預約訂單'));
+console.log('  ✔ Interactive cancel menu correctly differentiated between member and organizer.\n');
+
 // Clean up mock date
 globalThis._mockCurrentDate = null;
 
