@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T10:09:53.135Z
+ * Automatically generated on: 2026-09-06T10:30:18.173Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -1269,11 +1269,29 @@ function addOrder(orderData) {
 
 /**
  * Get active orders for a user
+ * @param {string} userId
+ * @param {string} [groupId]
+ * @param {string} [date]
+ * @param {string} [dayOfWeek]
+ * @param {string} [userName]
+ * @returns {Array} Array of order objects
  */
-function getUserOrders(userId, groupId, date, dayOfWeek) {
+function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
-      return o.userId === userId &&
+      var matchUser = (userId && userId !== 'anonymous') ? (o.userId === userId) : false;
+      var matchName = userName ? (o.userName === userName || o.userNickname === userName) : false;
+      var userMatches = (matchUser || matchName);
+      if (!userId && userName) userMatches = matchName;
+      if (userId && !userName) userMatches = matchUser;
+      if (!userId && !userName) userMatches = true;
+
+      // If userName is provided, strictly exclude orders belonging to someone else
+      if (userName && o.userName && o.userName !== userName && o.userNickname !== userName && !matchUser) {
+        userMatches = false;
+      }
+
+      return userMatches &&
         (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
         (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
@@ -1294,11 +1312,24 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
     var rUserId = String(r[colMap.userId]);
+    var rUserName = String(r[colMap.userName]);
+    var rUserNickname = colMap.userNickname !== -1 ? String(r[colMap.userNickname]) : rUserName;
     var rGroupId = String(r[colMap.groupId]);
     var rDate = String(r[colMap.date]);
     var rDayOfWeek = String(r[colMap.dayOfWeek]);
 
-    if (rStatus === 'ACTIVE' && rUserId === userId &&
+    var matchUser = (userId && userId !== 'anonymous') ? (rUserId === userId) : false;
+    var matchName = userName ? (rUserName === userName || rUserNickname === userName) : false;
+    var userMatches = (matchUser || matchName);
+    if (!userId && userName) userMatches = matchName;
+    if (userId && !userName) userMatches = matchUser;
+    if (!userId && !userName) userMatches = true;
+
+    if (userName && rUserName && rUserName !== userName && rUserNickname !== userName && !matchUser) {
+      userMatches = false;
+    }
+
+    if (rStatus === 'ACTIVE' && userMatches &&
         (!groupId || rGroupId === groupId) &&
         (!date || rDate === date) &&
         (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
@@ -1310,8 +1341,8 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
         dayOfWeek: rDayOfWeek,
         groupId: rGroupId,
         userId: rUserId,
-        userName: r[colMap.userName],
-        userNickname: colMap.userNickname !== -1 ? r[colMap.userNickname] : (r[colMap.userName] || ''),
+        userName: rUserName,
+        userNickname: rUserNickname,
         itemName: r[colMap.itemName],
         quantity: Number(r[colMap.quantity]),
         price: Number(r[colMap.price]),
@@ -1325,13 +1356,36 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
 }
 
 /**
- * Cancel orders for a user (or for all users in group if userId is null/empty)
+ * Cancel orders for a specific user
+ * @param {string} userId
+ * @param {string} groupId
+ * @param {string} [itemName]
+ * @param {string} [date]
+ * @param {string} [dayOfWeek]
+ * @param {string} [userName]
+ * @returns {number} Count of cancelled orders
  */
-function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
+function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
+  // If neither userId nor userName is provided, do NOT cancel anything
+  if (!userId && !userName) {
+    return 0;
+  }
+
   var count = 0;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
-      if ((!userId || o.userId === userId) &&
+      var matchUser = (userId && userId !== 'anonymous') ? (o.userId === userId) : false;
+      var matchName = userName ? (o.userName === userName || o.userNickname === userName) : false;
+      var userMatches = (matchUser || matchName);
+      if (!userId && userName) userMatches = matchName;
+      if (userId && !userName) userMatches = matchUser;
+
+      // If userName is provided, strictly block cancelling someone else's order
+      if (userName && o.userName && o.userName !== userName && o.userNickname !== userName && !matchUser) {
+        userMatches = false;
+      }
+
+      if (userMatches &&
         (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
         (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
@@ -1357,12 +1411,78 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
     var rUserId = String(r[colMap.userId]);
+    var rUserName = String(r[colMap.userName]);
+    var rUserNickname = colMap.userNickname !== -1 ? String(r[colMap.userNickname]) : rUserName;
     var rGroupId = String(r[colMap.groupId]);
     var rDate = String(r[colMap.date]);
     var rDayOfWeek = String(r[colMap.dayOfWeek]);
     var rItem = String(r[colMap.itemName]);
 
-    if (rStatus === 'ACTIVE' && (!userId || rUserId === userId) &&
+    var matchUser = (userId && userId !== 'anonymous') ? (rUserId === userId) : false;
+    var matchName = userName ? (rUserName === userName || rUserNickname === userName) : false;
+    var userMatches = (matchUser || matchName);
+    if (!userId && userName) userMatches = matchName;
+    if (userId && !userName) userMatches = matchUser;
+
+    if (userName && rUserName && rUserName !== userName && rUserNickname !== userName && !matchUser) {
+      userMatches = false;
+    }
+
+    if (rStatus === 'ACTIVE' && userMatches &&
+        (!groupId || rGroupId === groupId) &&
+        (!date || rDate === date) &&
+        (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
+      if (!itemName || rItem.indexOf(itemName) !== -1) {
+        sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Cancel group orders across all members (exclusive to organizer bulk cancellations)
+ * @param {string} groupId
+ * @param {string} [date]
+ * @param {string} [dayOfWeek]
+ * @param {string} [itemName]
+ * @returns {number} Count of cancelled orders
+ */
+function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
+  var count = 0;
+  if (!isGasRuntime()) {
+    _mockStore.Orders.forEach(function (o) {
+      if ((!groupId || o.groupId === groupId) &&
+        (!date || o.date === date) &&
+        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
+        (!itemName || o.itemName.indexOf(itemName) !== -1) &&
+        o.status === 'ACTIVE') {
+        o.status = 'CANCELLED';
+        count++;
+      }
+    });
+    return count;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return 0;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
+  if (!sheet) return 0;
+
+  var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return 0;
+  var colMap = _getOrderColumnIndexes(rows[0]);
+
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    var rStatus = String(r[colMap.status]);
+    var rGroupId = String(r[colMap.groupId]);
+    var rDate = String(r[colMap.date]);
+    var rDayOfWeek = String(r[colMap.dayOfWeek]);
+    var rItem = String(r[colMap.itemName]);
+
+    if (rStatus === 'ACTIVE' &&
         (!groupId || rGroupId === groupId) &&
         (!date || rDate === date) &&
         (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
@@ -1650,6 +1770,7 @@ function logToSheet(type, message, detail) {
   g.addOrder = addOrder;
   g.getUserOrders = getUserOrders;
   g.cancelOrder = cancelOrder;
+  g.cancelGroupOrders = cancelGroupOrders;
   g.getGroupOrders = getGroupOrders;
   g.getOrderSummary = getOrderSummary;
   g.getWeeklyOrderSummary = getWeeklyOrderSummary;
@@ -1676,6 +1797,7 @@ function logToSheet(type, message, detail) {
       addOrder: addOrder,
       getUserOrders: getUserOrders,
       cancelOrder: cancelOrder,
+      cancelGroupOrders: cancelGroupOrders,
       findUserInGroup: findUserInGroup,
       getGroupOrders: getGroupOrders,
       getOrderSummary: getOrderSummary,
@@ -3232,6 +3354,16 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   var orders = activeOrders || [];
   var locks = lockMap || {};
 
+  // For regular members: STRICTLY GUARANTEE no other user's orders can ever appear
+  if (!isOrganizer && userName) {
+    orders = orders.filter(function (o) {
+      if (o.userName && o.userName !== userName && o.userNickname !== userName) {
+        return false;
+      }
+      return true;
+    });
+  }
+
   var dayMap = {};
   var dayOrder = [];
   orders.forEach(function (o) {
@@ -3244,13 +3376,13 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   });
 
   var header = _flexBox([
-    _flexText('🗑️ 取消訂單選單', {
+    _flexText(isOrganizer ? '👑 取消訂單選單 (開單人管理)' : '🗑️ 取消訂單選單', {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText((userName || '成員') + (isOrganizer ? ' (開單人) 進行中訂單' : ' 的個人進行中訂單'), {
+    _flexText((userName || '成員') + (isOrganizer ? ' (開單人) 管理全體成員訂單' : ' 的個人進行中訂單'), {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -3293,8 +3425,24 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       }));
 
       dayItems.forEach(function (it) {
-        var itemText = it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
-        var cancelText = '取消 ' + day + ' ' + it.itemName;
+        var ownerTag = '';
+        var cancelCmd = '';
+        var isOwnItem = !it.userName || it.userName === userName || it.userNickname === userName;
+
+        if (isOrganizer) {
+          var ownerName = it.userNickname || it.userName || '成員';
+          if (!isOwnItem) {
+            ownerTag = '👤 [' + ownerName + '] ';
+            cancelCmd = '取消 ' + ownerName + ' ' + day + ' ' + it.itemName;
+          } else {
+            ownerTag = '👤 [開單人] ';
+            cancelCmd = '取消 ' + day + ' ' + it.itemName;
+          }
+        } else {
+          cancelCmd = '取消 ' + day + ' ' + it.itemName;
+        }
+
+        var itemText = ownerTag + it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
 
         var actionComponent = isDayLocked
           ? _flexBox([
@@ -3314,7 +3462,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
               action: {
                 type: 'message',
                 label: '取消此項',
-                text: cancelText
+                text: cancelCmd
               },
               style: 'primary',
               color: FLEX_COLORS.danger,
@@ -3353,8 +3501,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
           type: 'button',
           action: {
             type: 'message',
-            label: '取消我的【' + day + '】餐點',
-            text: '取消我的 ' + day + ' 全部'
+            label: isOrganizer ? '⚠️ 取消全體【' + day + '】餐點' : '取消我的【' + day + '】餐點',
+            text: isOrganizer ? '取消全體 ' + day : '取消我的 ' + day + ' 全部'
           },
           style: 'secondary',
           height: 'sm',
@@ -3370,8 +3518,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
         type: 'button',
         action: {
           type: 'message',
-          label: '❌ 取消我的所有未截止預訂',
-          text: '取消我的 全部'
+          label: isOrganizer ? '🚨 取消全體所有未截止預訂' : '❌ 取消我的所有未截止預訂',
+          text: isOrganizer ? '取消所有未截止預約訂單' : '取消我的 全部'
         },
         style: 'secondary',
         height: 'sm',
@@ -4228,7 +4376,7 @@ function handleTextMessage(event) {
     if (dayArg === todayDay && isTodayCutoffPassed(dayArg)) {
       return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法取消餐點。');
     }
-    var cCount = SheetModule.cancelOrder(null, groupId, null, null, dayArg);
+    var cCount = SheetModule.cancelGroupOrders ? SheetModule.cancelGroupOrders(groupId, null, dayArg) : SheetModule.cancelOrder(null, groupId, null, null, dayArg);
     if (cCount > 0) {
       var nowTw = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
       var notifMsg = '📢【訂餐通知 - 開單人取消當日全體餐點】\n👤 執行開單人：' + userDisplayName + '\n📅 梯次：' + dayArg + '\n🗑️ 已取消該日全體成員訂單共 ' + cCount + ' 筆紀錄。\n⏰ 時間：' + nowTw;
@@ -4254,7 +4402,7 @@ function handleTextMessage(event) {
     });
     var totalAdvCancelled = 0;
     validDays.forEach(function (d) {
-      totalAdvCancelled += SheetModule.cancelOrder(null, groupId, null, null, d);
+      totalAdvCancelled += SheetModule.cancelGroupOrders ? SheetModule.cancelGroupOrders(groupId, null, d) : SheetModule.cancelOrder(null, groupId, null, null, d);
     });
     if (totalAdvCancelled > 0) {
       var nowTwAdv = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
@@ -4309,9 +4457,24 @@ function handleTextMessage(event) {
   // 9-6. 顯示取消訂單互動選單 (取消 / 取消餐點)
   if (text.trim().match(/^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/)) {
     var isOrgMenu = isUserOrganizer(userId, userDisplayName);
-    var activeOrders = SheetModule.getUserOrders(userId, groupId, null, null);
+    var activeOrders = [];
+    if (isOrgMenu) {
+      activeOrders = SheetModule.getGroupOrders ? SheetModule.getGroupOrders(groupId, null, null) : SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName);
+    } else {
+      activeOrders = SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName);
+      // Strictly guarantee that only orders belonging to current user appear for regular members
+      activeOrders = activeOrders.filter(function (o) {
+        var isMatchUser = (userId && userId !== 'anonymous' && o.userId === userId);
+        var isMatchName = (userDisplayName && (o.userName === userDisplayName || o.userNickname === userDisplayName));
+        if (userDisplayName && o.userName && o.userName !== userDisplayName && o.userNickname !== userDisplayName && !isMatchUser) {
+          return false;
+        }
+        return isMatchUser || isMatchName;
+      });
+    }
+
     if (!activeOrders || activeOrders.length === 0) {
-      return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
+      return LineModule.replyText(replyToken, isOrgMenu ? '本週目前全體無任何可取消的進行中訂單喔！' : '您目前沒有任何可取消的進行中訂單喔！');
     }
     var lockMap = {};
     ['週一', '週二', '週三', '週四', '週五'].forEach(function (d) {
@@ -4349,7 +4512,7 @@ function handleTextMessage(event) {
 
     // Check if remainder is "全部" or "所有預約" -> 取消我的 全部
     if (remainder === '全部' || remainder === '全部訂單' || remainder === '所有預約' || remainder === '所有訂單') {
-      var allUserOrders = SheetModule.getUserOrders(userId, groupId, null, null);
+      var allUserOrders = SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName);
       var cancellableOrders = allUserOrders.filter(function (o) {
         if (isDayPast(o.dayOfWeek)) return false;
         if (o.dayOfWeek === todayDay && isTodayCutoffPassed(o.dayOfWeek)) return false;
@@ -4361,7 +4524,7 @@ function handleTextMessage(event) {
       var totalMyCancelled = 0;
       var myCancelledSummary = [];
       cancellableOrders.forEach(function (co) {
-        var c = SheetModule.cancelOrder(userId, groupId, co.itemName, null, co.dayOfWeek);
+        var c = SheetModule.cancelOrder(userId, groupId, co.itemName, null, co.dayOfWeek, userDisplayName);
         if (c > 0) {
           totalMyCancelled += c;
           myCancelledSummary.push('• 【' + co.dayOfWeek + '】' + co.itemName + ' x' + co.quantity);
@@ -4377,20 +4540,37 @@ function handleTextMessage(event) {
       }
     }
 
-    // Check if remainder specifies another user: e.g. "@Carol 舒肥嫩雞胸餐盒" or "小鮑伯 舒肥嫩雞胸餐盒" or "小鮑伯 全部"
     var targetUserObj = null;
     var targetUserId = userId;
     var targetDisplayName = userDisplayName;
     var cancelDay = null;
     var targetItem = '';
 
-    if (!isExplicitMy) {
+    // Extract day prefix if present (e.g. "週一 招牌三寶飯" or "今日 脆皮燒肉飯")
+    var prefixDayMatch = remainder.match(/^(週[一二三四五]|今日)(?:\s+(.*))?$/);
+    if (prefixDayMatch) {
+      cancelDay = prefixDayMatch[1] === '今日' ? todayDay : prefixDayMatch[1];
+      remainder = prefixDayMatch[2] ? prefixDayMatch[2].trim() : '';
+    }
+
+    // Check if remainder specifies another user: e.g. "@Carol 舒肥嫩雞胸餐盒" or "小鮑伯 舒肥嫩雞胸餐盒" or "小鮑伯 全部"
+    if (!isExplicitMy && remainder) {
       var tokens = remainder.split(/\s+/);
       var firstToken = tokens[0];
-      // If first token is not a weekday and starts with @ or matches another user in group
       if (!/^(?:週[一二三四五]|今日)$/.test(firstToken)) {
         var userInGroup = SheetModule.findUserInGroup ? SheetModule.findUserInGroup(groupId, firstToken) : null;
-        if (firstToken.indexOf('@') === 0 || (userInGroup && userInGroup.userId !== userId)) {
+        var isOtherToken = false;
+        if (firstToken.indexOf('@') === 0) {
+          var cleanName = firstToken.slice(1);
+          if (cleanName !== userDisplayName) isOtherToken = true;
+        } else if (userInGroup) {
+          var matchSelf = (userInGroup.userId && userId && userInGroup.userId === userId) ||
+                          (userInGroup.userName && userDisplayName && userInGroup.userName === userDisplayName) ||
+                          (userInGroup.userNickname && userDisplayName && userInGroup.userNickname === userDisplayName);
+          if (!matchSelf) isOtherToken = true;
+        }
+
+        if (isOtherToken) {
           if (!isOrgGen) {
             return LineModule.replyText(replyToken, '⚠️ 權限不足：除了開單人，不能取消其他使用者的餐點。您只能取消自己訂購的餐點喔！');
           }
@@ -4399,23 +4579,25 @@ function handleTextMessage(event) {
             targetUserId = userInGroup.userId;
             targetDisplayName = userInGroup.userNickname || userInGroup.userName;
           } else {
-            return LineModule.replyText(replyToken, '查無成員「' + firstToken + '」或該成員目前無進行中訂單。');
+            targetDisplayName = firstToken.replace(/^@/, '');
+            targetUserObj = { userId: '', userName: targetDisplayName, userNickname: targetDisplayName };
           }
           remainder = tokens.slice(1).join(' ').trim();
         }
       }
     }
 
-    // Parse [day] and [item] from remainder
-    var dayMatch = remainder.match(/^(週[一二三四五]|今日)(?:\s+(.+))?$/);
-    if (dayMatch) {
-      cancelDay = dayMatch[1] === '今日' ? todayDay : dayMatch[1];
-      targetItem = dayMatch[2] ? dayMatch[2].trim() : '';
-    } else {
-      targetItem = remainder;
+    // Extract day suffix if cancelDay wasn't set yet (e.g. "小鮑伯 週一 排骨飯")
+    if (!cancelDay && remainder) {
+      var suffixDayMatch = remainder.match(/^(週[一二三四五]|今日)(?:\s+(.*))?$/);
+      if (suffixDayMatch) {
+        cancelDay = suffixDayMatch[1] === '今日' ? todayDay : suffixDayMatch[1];
+        remainder = suffixDayMatch[2] ? suffixDayMatch[2].trim() : '';
+      }
     }
 
-    if (targetItem === '全部' || targetItem === '全部訂單' || targetItem === '所有訂單') {
+    targetItem = remainder;
+    if (targetItem === '全部' || targetItem === '全部訂單' || targetItem === '所有訂單' || targetItem === '所有預約') {
       targetItem = '';
     }
 
@@ -4433,17 +4615,69 @@ function handleTextMessage(event) {
       }
     }
 
+    // If not organizer and not explicitly targeting another user, verify that caller actually owns this item
+    if (!isOrgGen && !targetUserObj) {
+      var myOrders = SheetModule.getUserOrders(userId, groupId, null, cancelDay, userDisplayName);
+      var hasMyItem = myOrders && myOrders.some(function (o) {
+        return !targetItem || o.itemName.indexOf(targetItem) !== -1;
+      });
+
+      if (!hasMyItem) {
+        // Check if another member in group has this item
+        var groupOrders = SheetModule.getGroupOrders ? SheetModule.getGroupOrders(groupId, null, cancelDay) : [];
+        var otherOrders = groupOrders.filter(function (o) {
+          return !targetItem || o.itemName.indexOf(targetItem) !== -1;
+        });
+        if (otherOrders.length > 0) {
+          var otherOwners = otherOrders.map(function (o) {
+            return o.userNickname || o.userName || '其他成員';
+          }).filter(function (v, i, a) {
+            return a.indexOf(v) === i;
+          });
+          var itemLabel = targetItem ? '「' + targetItem + '」' : '該餐點';
+          return LineModule.replyText(replyToken, '⚠️ 權限不足：除了開單人，不能取消其他使用者的餐點（' + itemLabel + '訂購人為「' + otherOwners.join('、') + '」）。您只能取消自己訂購的餐點喔！');
+        }
+      }
+    }
+
+    // If organizer is cancelling without specifying a member, and doesn't own the item personally, target group item
+    if (isOrgGen && !targetUserObj && targetItem) {
+      var orgOrders = SheetModule.getUserOrders(userId, groupId, null, cancelDay, userDisplayName);
+      var orgHasItem = orgOrders && orgOrders.some(function (o) {
+        return o.itemName.indexOf(targetItem) !== -1;
+      });
+      if (!orgHasItem) {
+        var groupMatches = SheetModule.getGroupOrders ? SheetModule.getGroupOrders(groupId, null, cancelDay).filter(function (o) {
+          return o.itemName.indexOf(targetItem) !== -1;
+        }) : [];
+        if (groupMatches.length > 0) {
+          targetUserObj = groupMatches[0];
+          targetUserId = targetUserObj.userId;
+          targetDisplayName = targetUserObj.userNickname || targetUserObj.userName;
+        }
+      }
+    }
+
     var targetDate = null;
     if (cancelDay) {
       targetDate = null;
     } else if (targetItem) {
-      var userTodayOrders = SheetModule.getUserOrders(targetUserId, groupId, todayDate, null);
+      var userTodayOrders = SheetModule.getUserOrders(targetUserId, groupId, todayDate, null, targetDisplayName);
       var hasTodayOrder = userTodayOrders && userTodayOrders.some(function (o) { return o.itemName.indexOf(targetItem) !== -1; });
       if (hasTodayOrder) {
         targetDate = todayDate;
       }
     }
-    var cancelledCount = SheetModule.cancelOrder(targetUserId, groupId, targetItem, targetDate, cancelDay);
+
+    var cancelledCount = SheetModule.cancelOrder(
+      targetUserId,
+      groupId,
+      targetItem,
+      targetDate,
+      cancelDay,
+      targetDisplayName
+    );
+
     if (cancelledCount > 0) {
       var dayText = cancelDay ? cancelDay + ' ' : '';
       var itemDesc = targetItem ? '「' + targetItem + '」' : '全部餐點';
@@ -4451,7 +4685,7 @@ function handleTextMessage(event) {
       var cancelPushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + targetDisplayName + '\n📅 梯次：' + (cancelDay || '今日') + '\n🗑️ 取消內容：' + itemDesc + ' (共 ' + cancelledCount + ' 筆)\n⏰ 時間：' + nowTwCancel;
       notifyOrganizer(cancelPushMsg);
 
-      var replyPrefix = targetUserObj ? '✅ 已由開單人為【' + targetDisplayName + '】取消 ' : '✅ 已為您取消 ';
+      var replyPrefix = (targetUserObj && (targetUserId !== userId || targetDisplayName !== userDisplayName)) ? '✅ 已由開單人為【' + targetDisplayName + '】取消 ' : '✅ 已為您取消 ';
       return LineModule.replyText(replyToken, replyPrefix + dayText + itemDesc + ' 共 ' + cancelledCount + ' 筆紀錄。已通知開單人！');
     } else {
       return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
