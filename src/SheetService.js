@@ -746,13 +746,13 @@ function getUserOrders(userId, groupId, date, dayOfWeek) {
 }
 
 /**
- * Cancel orders for a user
+ * Cancel orders for a user (or for all users in group if userId is null/empty)
  */
 function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
   var count = 0;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
-      if (o.userId === userId &&
+      if ((!userId || o.userId === userId) &&
         (!groupId || o.groupId === groupId) &&
         (!date || o.date === date) &&
         (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
@@ -783,7 +783,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
     var rDayOfWeek = String(r[colMap.dayOfWeek]);
     var rItem = String(r[colMap.itemName]);
 
-    if (rStatus === 'ACTIVE' && rUserId === userId &&
+    if (rStatus === 'ACTIVE' && (!userId || rUserId === userId) &&
         (!groupId || rGroupId === groupId) &&
         (!date || rDate === date) &&
         (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
@@ -794,6 +794,34 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek) {
     }
   }
   return count;
+}
+
+/**
+ * Find user info in a group by matching query to userId, userName, or userNickname
+ * @param {string} groupId
+ * @param {string} query
+ * @returns {{ userId: string, userName: string, userNickname: string } | null}
+ */
+function findUserInGroup(groupId, query) {
+  if (!query) return null;
+  var q = String(query).replace(/^@/, '').trim().toLowerCase();
+  if (!q) return null;
+
+  var orders = getGroupOrders(groupId, null, null);
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    var uid = String(o.userId || '').toLowerCase();
+    var uname = String(o.userName || '').toLowerCase();
+    var unick = String(o.userNickname || '').toLowerCase();
+    if (uid === q || uname === q || unick === q) {
+      return {
+        userId: o.userId,
+        userName: o.userName,
+        userNickname: o.userNickname || o.userName
+      };
+    }
+  }
+  return null;
 }
 
 /**
@@ -1049,6 +1077,7 @@ function logToSheet(type, message, detail) {
   g.getPaymentConfig = getPaymentConfig;
   g.normalizeImageUrl = normalizeImageUrl;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
+  g.findUserInGroup = findUserInGroup;
   g.logToSheet = logToSheet;
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
   g._mockStore = _mockStore;
@@ -1068,6 +1097,7 @@ function logToSheet(type, message, detail) {
       addOrder: addOrder,
       getUserOrders: getUserOrders,
       cancelOrder: cancelOrder,
+      findUserInGroup: findUserInGroup,
       getGroupOrders: getGroupOrders,
       getOrderSummary: getOrderSummary,
       getWeeklyOrderSummary: getWeeklyOrderSummary,
