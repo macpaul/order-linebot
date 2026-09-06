@@ -68,7 +68,9 @@ function _isGasRuntime() {
  * @param {Object} payload
  * @returns {Promise<{statusCode:number, data:Object|null}>}
  */
-async function _httpPostJson(url, headers, payload) {
+var _userProfileCache = {};
+
+function _httpPostJson(url, headers, payload) {
   if (_isGasRuntime()) {
     var response = UrlFetchApp.fetch(url, {
       method: 'post',
@@ -105,44 +107,58 @@ async function _httpPostJson(url, headers, payload) {
   }
 
   // Node.js
-  var nodeResponse = await fetch(url, {
+  return fetch(url, {
     method: 'POST',
     headers: headers,
     body: JSON.stringify(payload)
+  }).then(function (nodeResponse) {
+    return nodeResponse.json().then(function (nodeData) {
+      return { statusCode: nodeResponse.status, data: nodeData };
+    }).catch(function () {
+      return { statusCode: nodeResponse.status, data: null };
+    });
+  }).catch(function () {
+    return { statusCode: 500, data: null };
   });
-  var nodeData = null;
-  try { nodeData = await nodeResponse.json(); } catch (e) { nodeData = null; }
-  return { statusCode: nodeResponse.status, data: nodeData };
 }
 
 /**
  * _httpGetJson — GET url, return { statusCode, data }.
- * GAS: UrlFetchApp.fetch; Node.js: global fetch.
+ * GAS: UrlFetchApp.fetch (synchronous); Node.js: fetch (Promise).
  * @param {string} url
  * @param {Object<string,string>} headers
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function _httpGetJson(url, headers) {
+function _httpGetJson(url, headers) {
   if (_isGasRuntime()) {
-    var response = UrlFetchApp.fetch(url, {
-      method: 'get',
-      headers: headers,
-      muteHttpExceptions: true
-    });
-    var statusCode = parseInt(response.getResponseCode(), 10);
-    var data = null;
-    try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
-    return { statusCode: statusCode, data: data };
+    try {
+      var response = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: headers,
+        muteHttpExceptions: true
+      });
+      var statusCode = parseInt(response.getResponseCode(), 10);
+      var data = null;
+      try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
+      return { statusCode: statusCode, data: data };
+    } catch (e) {
+      return { statusCode: 500, data: null };
+    }
   }
 
   // Node.js
-  var nodeResponse = await fetch(url, {
+  return fetch(url, {
     method: 'GET',
     headers: headers
+  }).then(function (nodeResponse) {
+    return nodeResponse.json().then(function (nodeData) {
+      return { statusCode: nodeResponse.status, data: nodeData };
+    }).catch(function () {
+      return { statusCode: nodeResponse.status, data: null };
+    });
+  }).catch(function () {
+    return { statusCode: 500, data: null };
   });
-  var nodeData = null;
-  try { nodeData = await nodeResponse.json(); } catch (e) { nodeData = null; }
-  return { statusCode: nodeResponse.status, data: nodeData };
 }
 
 /**
@@ -173,9 +189,9 @@ function _authHeaders() {
  * replyMessages — Send a reply message to LINE via the Reply API.
  * @param {string} replyToken - Reply token from the webhook event.
  * @param {Array<Object>} messages - Array of LINE message objects (text/flex/image/...).
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function replyMessages(replyToken, messages) {
+function replyMessages(replyToken, messages) {
   var headers = _authHeaders();
   var payload = {
     replyToken: replyToken,
@@ -188,9 +204,9 @@ async function replyMessages(replyToken, messages) {
  * replyText — Reply with a plain text message.
  * @param {string} replyToken - Reply token from the webhook event.
  * @param {string} text - Text content to send.
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function replyText(replyToken, text) {
+function replyText(replyToken, text) {
   return replyMessages(replyToken, [{
     type: 'text',
     text: text
@@ -202,9 +218,9 @@ async function replyText(replyToken, text) {
  * @param {string} replyToken - Reply token from the webhook event.
  * @param {string} altText - Alternative text shown on unsupported clients.
  * @param {Object} flexContents - Flex message contents object (type: bubble/carousel).
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function replyFlex(replyToken, altText, flexContents) {
+function replyFlex(replyToken, altText, flexContents) {
   return replyMessages(replyToken, [{
     type: 'flex',
     altText: altText,
@@ -218,45 +234,83 @@ async function replyFlex(replyToken, altText, flexContents) {
 
 /**
  * getUserProfile — Fetch a user's LINE profile (displayName, pictureUrl).
- * If groupId is provided, first try the group-member endpoint, then fall
- * back to the standard profile endpoint.
+ * Supports group member, room member, and 1-on-1 profile endpoints.
+ * Synchronous in Google Apps Script; returns Promise in Node.js.
  * @param {string} userId - LINE user ID.
- * @param {string} [groupId] - LINE group ID (optional; enables group-member lookup).
- * @returns {Promise<{displayName:string, pictureUrl:string, userId:string}>}
+ * @param {string} [groupId] - LINE group ID / room ID.
+ * @returns {Object|Promise<{displayName:string, pictureUrl:string, userId:string}>}
  */
-async function getUserProfile(userId, groupId) {
-  var headers = _authHeaders();
+function getUserProfile(userId, groupId) {
+  if (!userId) {
+    return { displayName: '成員', pictureUrl: '', userId: '' };
+  }
 
-  // Build candidate URLs: group-member first (when in a group), then standard profile.
+  var cacheKey = (groupId || 'direct') + ':' + userId;
+  if (_userProfileCache[cacheKey]) {
+    return _userProfileCache[cacheKey];
+  }
+
+  if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
+    return globalThis._mockProfiles[userId];
+  }
+
+  var headers = _authHeaders();
   var urls = [];
   if (groupId) {
-    urls.push(CONFIG.LINE_GROUP_MEMBER_URL + '/' + groupId + '/member/' + userId);
+    if (groupId.charAt(0) === 'R') {
+      urls.push('https://api.line.me/v2/bot/room/' + groupId + '/member/' + userId);
+    } else {
+      urls.push(CONFIG.LINE_GROUP_MEMBER_URL + '/' + groupId + '/member/' + userId);
+    }
   }
   urls.push(CONFIG.LINE_PROFILE_URL + '/' + userId);
 
-  var data = null;
-  for (var i = 0; i < urls.length; i++) {
-    var result = await _httpGetJson(urls[i], headers);
-    if (result.statusCode >= 200 && result.statusCode < 300 && result.data) {
-      data = result.data;
-      break;
+  if (_isGasRuntime()) {
+    for (var i = 0; i < urls.length; i++) {
+      var result = _httpGetJson(urls[i], headers);
+      if (result && result.statusCode >= 200 && result.statusCode < 300 && result.data && result.data.displayName) {
+        var profile = {
+          displayName: result.data.displayName,
+          pictureUrl: result.data.pictureUrl || '',
+          userId: userId
+        };
+        _userProfileCache[cacheKey] = profile;
+        if (typeof Logger !== 'undefined') {
+          Logger.log('✔ [LINE] 成功取得使用者名稱: ' + profile.displayName + ' (userId: ' + userId + ')');
+        }
+        return profile;
+      }
     }
+    if (typeof Logger !== 'undefined') {
+      Logger.log('⚠️ [LINE] 無法從 API 取得用戶暱稱，降級使用「成員」');
+    }
+    return { displayName: '成員', pictureUrl: '', userId: userId };
   }
 
-  if (data && data.displayName) {
-    return {
-      displayName: data.displayName,
-      pictureUrl: data.pictureUrl || '',
-      userId: userId
-    };
+  // Node.js runtime
+  var index = 0;
+  function tryNext() {
+    if (index >= urls.length) {
+      return Promise.resolve({ displayName: '成員', pictureUrl: '', userId: userId });
+    }
+    var u = urls[index++];
+    return _httpGetJson(u, headers).then(function (res) {
+      if (res && res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.displayName) {
+        var p = {
+          displayName: res.data.displayName,
+          pictureUrl: res.data.pictureUrl || '',
+          userId: userId
+        };
+        _userProfileCache[cacheKey] = p;
+        return p;
+      }
+      return tryNext();
+    }).catch(function () {
+      return tryNext();
+    });
   }
 
-  // Fallback object when the profile cannot be resolved.
-  return {
-    displayName: '成員',
-    pictureUrl: '',
-    userId: userId
-  };
+  return tryNext();
 }
 
 /* ------------------------------------------------------------------ *
