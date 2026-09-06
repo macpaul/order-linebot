@@ -900,12 +900,23 @@ console.log('  ✔ 今日統計 / 本日統計 / 統計 correctly aggregates adv
 // Test checkTimeZoneAndCurrentTime diagnostic tool
 var timeDiag = SheetModule.checkTimeZoneAndCurrentTime();
 assert.ok(timeDiag, 'timeDiag must return diagnostic object');
-assert.ok(timeDiag.taipeiTime.includes('2026-09-08'), 'Diagnosed Taipei time must match reference date');
+assert.ok(timeDiag.localTime.includes('2026-09-08'), 'Diagnosed local time must match reference date');
 assert.strictEqual(timeDiag.dayOfWeek, '週二', 'Diagnosed day of week must be 週二');
 assert.ok(timeDiag.formattedMessage.includes('【系統時區與時間診斷資訊】'), 'Diagnostic message formatted properly');
-console.log('  ✔ checkTimeZoneAndCurrentTime diagnostic tool verified.\n');
 
-// Clean up mock date
+// Test dynamic Spreadsheet TimeZone reading (verify absence of hardcoded timezone)
+assert.strictEqual(SheetModule.getSpreadsheetTimeZone(), 'Asia/Taipei', 'Default spreadsheet timezone is Asia/Taipei');
+globalThis._mockSpreadsheetTimeZone = 'America/New_York';
+assert.strictEqual(SheetModule.getSpreadsheetTimeZone(), 'America/New_York', 'Must read dynamically configured spreadsheet timezone');
+assert.strictEqual(OrderModule.getAppTimeZone(), 'America/New_York', 'OrderModule must honor spreadsheet timezone');
+var nyDiag = SheetModule.checkTimeZoneAndCurrentTime();
+assert.strictEqual(nyDiag.effectiveTimeZone, 'America/New_York');
+assert.strictEqual(nyDiag.spreadsheetTimeZone, 'America/New_York');
+assert.ok(nyDiag.formattedMessage.includes('• 系統運行採用時區 (Effective TimeZone): America/New_York'));
+
+// Clean up mock timezone and mock date
+globalThis._mockSpreadsheetTimeZone = null;
 globalThis._mockCurrentDate = null;
+console.log('  ✔ Dynamic spreadsheet timezone reading & diagnostic tool verified.\n');
 
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
