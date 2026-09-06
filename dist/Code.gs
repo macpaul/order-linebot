@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T03:31:49.037Z
+ * Automatically generated on: 2026-09-06T04:06:51.591Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -192,7 +192,9 @@ function _isGasRuntime() {
  * @param {Object} payload
  * @returns {Promise<{statusCode:number, data:Object|null}>}
  */
-async function _httpPostJson(url, headers, payload) {
+var _userProfileCache = {};
+
+function _httpPostJson(url, headers, payload) {
   if (_isGasRuntime()) {
     var response = UrlFetchApp.fetch(url, {
       method: 'post',
@@ -229,44 +231,58 @@ async function _httpPostJson(url, headers, payload) {
   }
 
   // Node.js
-  var nodeResponse = await fetch(url, {
+  return fetch(url, {
     method: 'POST',
     headers: headers,
     body: JSON.stringify(payload)
+  }).then(function (nodeResponse) {
+    return nodeResponse.json().then(function (nodeData) {
+      return { statusCode: nodeResponse.status, data: nodeData };
+    }).catch(function () {
+      return { statusCode: nodeResponse.status, data: null };
+    });
+  }).catch(function () {
+    return { statusCode: 500, data: null };
   });
-  var nodeData = null;
-  try { nodeData = await nodeResponse.json(); } catch (e) { nodeData = null; }
-  return { statusCode: nodeResponse.status, data: nodeData };
 }
 
 /**
  * _httpGetJson — GET url, return { statusCode, data }.
- * GAS: UrlFetchApp.fetch; Node.js: global fetch.
+ * GAS: UrlFetchApp.fetch (synchronous); Node.js: fetch (Promise).
  * @param {string} url
  * @param {Object<string,string>} headers
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function _httpGetJson(url, headers) {
+function _httpGetJson(url, headers) {
   if (_isGasRuntime()) {
-    var response = UrlFetchApp.fetch(url, {
-      method: 'get',
-      headers: headers,
-      muteHttpExceptions: true
-    });
-    var statusCode = parseInt(response.getResponseCode(), 10);
-    var data = null;
-    try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
-    return { statusCode: statusCode, data: data };
+    try {
+      var response = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: headers,
+        muteHttpExceptions: true
+      });
+      var statusCode = parseInt(response.getResponseCode(), 10);
+      var data = null;
+      try { data = JSON.parse(response.getContentText()); } catch (e) { data = null; }
+      return { statusCode: statusCode, data: data };
+    } catch (e) {
+      return { statusCode: 500, data: null };
+    }
   }
 
   // Node.js
-  var nodeResponse = await fetch(url, {
+  return fetch(url, {
     method: 'GET',
     headers: headers
+  }).then(function (nodeResponse) {
+    return nodeResponse.json().then(function (nodeData) {
+      return { statusCode: nodeResponse.status, data: nodeData };
+    }).catch(function () {
+      return { statusCode: nodeResponse.status, data: null };
+    });
+  }).catch(function () {
+    return { statusCode: 500, data: null };
   });
-  var nodeData = null;
-  try { nodeData = await nodeResponse.json(); } catch (e) { nodeData = null; }
-  return { statusCode: nodeResponse.status, data: nodeData };
 }
 
 /**
@@ -297,9 +313,9 @@ function _authHeaders() {
  * replyMessages — Send a reply message to LINE via the Reply API.
  * @param {string} replyToken - Reply token from the webhook event.
  * @param {Array<Object>} messages - Array of LINE message objects (text/flex/image/...).
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function replyMessages(replyToken, messages) {
+function replyMessages(replyToken, messages) {
   var headers = _authHeaders();
   var payload = {
     replyToken: replyToken,
@@ -312,9 +328,9 @@ async function replyMessages(replyToken, messages) {
  * replyText — Reply with a plain text message.
  * @param {string} replyToken - Reply token from the webhook event.
  * @param {string} text - Text content to send.
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function replyText(replyToken, text) {
+function replyText(replyToken, text) {
   return replyMessages(replyToken, [{
     type: 'text',
     text: text
@@ -326,9 +342,9 @@ async function replyText(replyToken, text) {
  * @param {string} replyToken - Reply token from the webhook event.
  * @param {string} altText - Alternative text shown on unsupported clients.
  * @param {Object} flexContents - Flex message contents object (type: bubble/carousel).
- * @returns {Promise<{statusCode:number, data:Object|null}>}
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
  */
-async function replyFlex(replyToken, altText, flexContents) {
+function replyFlex(replyToken, altText, flexContents) {
   return replyMessages(replyToken, [{
     type: 'flex',
     altText: altText,
@@ -342,45 +358,83 @@ async function replyFlex(replyToken, altText, flexContents) {
 
 /**
  * getUserProfile — Fetch a user's LINE profile (displayName, pictureUrl).
- * If groupId is provided, first try the group-member endpoint, then fall
- * back to the standard profile endpoint.
+ * Supports group member, room member, and 1-on-1 profile endpoints.
+ * Synchronous in Google Apps Script; returns Promise in Node.js.
  * @param {string} userId - LINE user ID.
- * @param {string} [groupId] - LINE group ID (optional; enables group-member lookup).
- * @returns {Promise<{displayName:string, pictureUrl:string, userId:string}>}
+ * @param {string} [groupId] - LINE group ID / room ID.
+ * @returns {Object|Promise<{displayName:string, pictureUrl:string, userId:string}>}
  */
-async function getUserProfile(userId, groupId) {
-  var headers = _authHeaders();
+function getUserProfile(userId, groupId) {
+  if (!userId) {
+    return { displayName: '成員', pictureUrl: '', userId: '' };
+  }
 
-  // Build candidate URLs: group-member first (when in a group), then standard profile.
+  var cacheKey = (groupId || 'direct') + ':' + userId;
+  if (_userProfileCache[cacheKey]) {
+    return _userProfileCache[cacheKey];
+  }
+
+  if (typeof globalThis !== 'undefined' && globalThis._mockProfiles && globalThis._mockProfiles[userId]) {
+    return globalThis._mockProfiles[userId];
+  }
+
+  var headers = _authHeaders();
   var urls = [];
   if (groupId) {
-    urls.push(CONFIG.LINE_GROUP_MEMBER_URL + '/' + groupId + '/member/' + userId);
+    if (groupId.charAt(0) === 'R') {
+      urls.push('https://api.line.me/v2/bot/room/' + groupId + '/member/' + userId);
+    } else {
+      urls.push(CONFIG.LINE_GROUP_MEMBER_URL + '/' + groupId + '/member/' + userId);
+    }
   }
   urls.push(CONFIG.LINE_PROFILE_URL + '/' + userId);
 
-  var data = null;
-  for (var i = 0; i < urls.length; i++) {
-    var result = await _httpGetJson(urls[i], headers);
-    if (result.statusCode >= 200 && result.statusCode < 300 && result.data) {
-      data = result.data;
-      break;
+  if (_isGasRuntime()) {
+    for (var i = 0; i < urls.length; i++) {
+      var result = _httpGetJson(urls[i], headers);
+      if (result && result.statusCode >= 200 && result.statusCode < 300 && result.data && result.data.displayName) {
+        var profile = {
+          displayName: result.data.displayName,
+          pictureUrl: result.data.pictureUrl || '',
+          userId: userId
+        };
+        _userProfileCache[cacheKey] = profile;
+        if (typeof Logger !== 'undefined') {
+          Logger.log('✔ [LINE] 成功取得使用者名稱: ' + profile.displayName + ' (userId: ' + userId + ')');
+        }
+        return profile;
+      }
     }
+    if (typeof Logger !== 'undefined') {
+      Logger.log('⚠️ [LINE] 無法從 API 取得用戶暱稱，降級使用「成員」');
+    }
+    return { displayName: '成員', pictureUrl: '', userId: userId };
   }
 
-  if (data && data.displayName) {
-    return {
-      displayName: data.displayName,
-      pictureUrl: data.pictureUrl || '',
-      userId: userId
-    };
+  // Node.js runtime
+  var index = 0;
+  function tryNext() {
+    if (index >= urls.length) {
+      return Promise.resolve({ displayName: '成員', pictureUrl: '', userId: userId });
+    }
+    var u = urls[index++];
+    return _httpGetJson(u, headers).then(function (res) {
+      if (res && res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.displayName) {
+        var p = {
+          displayName: res.data.displayName,
+          pictureUrl: res.data.pictureUrl || '',
+          userId: userId
+        };
+        _userProfileCache[cacheKey] = p;
+        return p;
+      }
+      return tryNext();
+    }).catch(function () {
+      return tryNext();
+    });
   }
 
-  // Fallback object when the profile cannot be resolved.
-  return {
-    displayName: '成員',
-    pictureUrl: '',
-    userId: userId
-  };
+  return tryNext();
 }
 
 /* ------------------------------------------------------------------ *
@@ -2516,12 +2570,12 @@ function createSummaryFlex(restaurantName, summaryData, isClosed) {
 }
 
 /**
- * createHelpFlex — Static instruction card listing all supported bot commands.
+ * createHelpFlex — Interactive instruction card with tappable command buttons.
  *
  * Layout:
- *   header  – title banner ("使用說明")
- *   body     – numbered command list (command + description)
- *   footer   – contact hint
+ *   header  – title banner ("便當點餐使用說明")
+ *   body     – list of commands, each with a quick-action button
+ *   footer   – usage hint
  *
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
@@ -2540,56 +2594,49 @@ function createHelpFlex() {
     backgroundColor: FLEX_COLORS.primary
   });
 
-  /* ---- body: command list ---- */
+  /* ---- body: buttonized command list ---- */
   var commands = [
-    { num: '1', label: '本週菜單',       desc: '查看週一至週五每日店家與排程' },
-    { num: '2', label: '週一菜單',       desc: '查看指定星期菜單（如：週二菜單）' },
-    { num: '3', label: '+1 餐點名',      desc: '點餐或加購（如：+1 排骨飯 或 雞腿+2）' },
-    { num: '4', label: '我的訂單',       desc: '查詢個人今日點餐紀錄與總額' },
-    { num: '5', label: '我的本週訂單',   desc: '查詢全週預約餐點與個人總金額' },
-    { num: '6', label: '取消 餐點',      desc: '取消餐點（如：取消 週二 全部）' },
-    { num: '7', label: '本週統計',       desc: '查看全週梯次訂餐統計與應付金額' },
-    { num: '8', label: '說明 / 幫助',   desc: '重新顯示本頁使用說明' }
+    { label: '📅 本週菜單', desc: '查看週一至週五排程', cmd: '本週菜單', btnText: '看本週' },
+    { label: '🍱 今日菜單', desc: '查看今日菜單並點餐', cmd: '菜單', btnText: '看菜單' },
+    { label: '📝 我的訂單', desc: '查詢個人今日點餐紀錄', cmd: '我的訂單', btnText: '查今日' },
+    { label: '📦 我的本週訂單', desc: '查詢本週全梯次預訂', cmd: '我的本週訂單', btnText: '查全週' },
+    { label: '🗑️ 取消餐點', desc: '自選退訂特定餐點', cmd: '取消餐點', btnText: '去取消' },
+    { label: '📊 本週統計', desc: '全週梯次訂購對帳總表', cmd: '本週統計', btnText: '本週統計' },
+    { label: '📈 今日統計', desc: '今日即時訂單統計與名冊', cmd: '統計', btnText: '今日統計' }
   ];
 
   var bodyContents = [];
   commands.forEach(function (cmd, i) {
     bodyContents.push(_flexBox([
-      // Number badge
-      _flexBox([
-        _flexText(cmd.num, {
-          size: 'sm',
-          weight: 'bold',
-          color: FLEX_COLORS.textOnColor,
-          align: 'center'
-        })
-      ], {
-        layout: 'vertical',
-        paddingAll: 'xs',
-        backgroundColor: FLEX_COLORS.primary,
-        cornerRadius: 'sm',
-        width: '24px'
-      }),
-      // Label + description
       _flexBox([
         _flexText(cmd.label, {
           size: 'sm',
           weight: 'bold',
-          color: FLEX_COLORS.textPrimary,
-          align: 'start'
+          color: FLEX_COLORS.textPrimary
         }),
         _flexText(cmd.desc, {
-          size: 'xs',
+          size: 'xxs',
           color: FLEX_COLORS.textSecondary,
-          align: 'start',
           margin: 'xs'
         })
       ], {
         layout: 'vertical',
         spacing: 'none',
-        margin: 'sm',
-        flex: 1
-      })
+        flex: 3,
+        justifyContent: 'center'
+      }),
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: cmd.btnText,
+          text: cmd.cmd
+        },
+        style: 'primary',
+        color: FLEX_COLORS.primary,
+        height: 'sm',
+        flex: 2
+      }
     ], {
       layout: 'horizontal',
       alignItems: 'center',
@@ -2608,9 +2655,10 @@ function createHelpFlex() {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 點餐或疑問請直接在群組發送指令 🙋', {
+    _flexText('💡 點擊上方任一按鈕，即可直接發送指令！', {
       size: 'xs',
-      color: FLEX_COLORS.textSecondary,
+      weight: 'bold',
+      color: FLEX_COLORS.primaryDark,
       align: 'center'
     })
   ], {
@@ -2622,6 +2670,165 @@ function createHelpFlex() {
   return {
     type: 'bubble',
     size: 'mega',
+    header: header,
+    body: body,
+    footer: footer
+  };
+}
+
+/**
+ * createCancelOrderFlex — Interactive cancel order menu with buttons.
+ * Grouped by dayOfWeek so the user can see and tap specific items or days to cancel.
+ *
+ * @param {string} userName - Display name of the user.
+ * @param {Array<Object>} activeOrders - Array of active order records.
+ * @returns {Object} LINE Flex bubble
+ */
+function createCancelOrderFlex(userName, activeOrders) {
+  var orders = activeOrders || [];
+
+  var dayMap = {};
+  var dayOrder = [];
+  orders.forEach(function (o) {
+    var d = o.dayOfWeek || '今日';
+    if (!dayMap[d]) {
+      dayMap[d] = [];
+      dayOrder.push(d);
+    }
+    dayMap[d].push(o);
+  });
+
+  var header = _flexBox([
+    _flexText('🗑️ 取消訂單選單', {
+      size: 'xl',
+      weight: 'bold',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start'
+    }),
+    _flexText((userName || '成員') + ' 的進行中訂單', {
+      size: 'sm',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start',
+      margin: 'xs'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'lg',
+    backgroundColor: FLEX_COLORS.danger
+  });
+
+  var bodyContents = [];
+  if (dayOrder.length === 0) {
+    bodyContents.push(_flexText('（目前沒有任何進行中的訂餐紀錄）', {
+      size: 'sm',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'lg'
+    }));
+  } else {
+    dayOrder.forEach(function (day, di) {
+      var dayItems = dayMap[day];
+
+      bodyContents.push(_flexText('【' + day + ' 預訂項目】', {
+        size: 'md',
+        weight: 'bold',
+        color: FLEX_COLORS.primaryDark,
+        align: 'start',
+        margin: di === 0 ? 'none' : 'md'
+      }));
+
+      dayItems.forEach(function (it) {
+        var itemText = it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
+        var cancelText = '取消 ' + day + ' ' + it.itemName;
+
+        bodyContents.push(_flexBox([
+          _flexBox([
+            _flexText(itemText, {
+              size: 'sm',
+              weight: 'bold',
+              color: FLEX_COLORS.textPrimary,
+              wrap: true
+            })
+          ], {
+            layout: 'vertical',
+            flex: 3,
+            justifyContent: 'center'
+          }),
+          {
+            type: 'button',
+            action: {
+              type: 'message',
+              label: '取消此項',
+              text: cancelText
+            },
+            style: 'primary',
+            color: FLEX_COLORS.danger,
+            height: 'sm',
+            flex: 2
+          }
+        ], {
+          layout: 'horizontal',
+          spacing: 'sm',
+          alignItems: 'center',
+          paddingAll: 'sm',
+          margin: 'xs',
+          backgroundColor: FLEX_COLORS.background,
+          cornerRadius: 'md'
+        }));
+      });
+
+      // Button to cancel all items for this day
+      bodyContents.push({
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '取消【' + day + '】所有餐點',
+          text: '取消 ' + day + ' 全部'
+        },
+        style: 'secondary',
+        height: 'sm',
+        margin: 'xs'
+      });
+    });
+
+    // Overall button to cancel all orders
+    if (dayOrder.length > 1 || orders.length > 1) {
+      bodyContents.push(_flexSeparator({ margin: 'md' }));
+      bodyContents.push({
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '❌ 取消全部所有預約訂單',
+          text: '取消 全部'
+        },
+        style: 'secondary',
+        height: 'sm',
+        margin: 'sm'
+      });
+    }
+  }
+
+  var body = _flexBox(bodyContents, {
+    layout: 'vertical',
+    paddingAll: 'md',
+    backgroundColor: FLEX_COLORS.surface
+  });
+
+  var footer = _flexBox([
+    _flexText('💡 點選按鈕後將立即退訂，或直接輸入「取消 週幾 菜名」', {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'sm',
+    backgroundColor: FLEX_COLORS.background
+  });
+
+  return {
+    type: 'bubble',
+    size: 'giga',
     header: header,
     body: body,
     footer: footer
@@ -2762,6 +2969,7 @@ function createWeeklySummaryFlex(weeklySummary) {
   g.createOrderReceiptFlex = createOrderReceiptFlex;
   g.createSummaryFlex = createSummaryFlex;
   g.createHelpFlex = createHelpFlex;
+  g.createCancelOrderFlex = createCancelOrderFlex;
   g.createWeeklyScheduleFlex = createWeeklyScheduleFlex;
   g.createWeeklySummaryFlex = createWeeklySummaryFlex;
 
@@ -2772,6 +2980,7 @@ function createWeeklySummaryFlex(weeklySummary) {
       createOrderReceiptFlex: createOrderReceiptFlex,
       createSummaryFlex: createSummaryFlex,
       createHelpFlex: createHelpFlex,
+      createCancelOrderFlex: createCancelOrderFlex,
       createWeeklyScheduleFlex: createWeeklyScheduleFlex,
       createWeeklySummaryFlex: createWeeklySummaryFlex,
       // Internal helpers exposed for Node.js testing.
@@ -2973,6 +3182,21 @@ function handleTextMessage(event) {
 
   if (!text) return null;
 
+  // Resolve user display name (nickname) early
+  var userDisplayName = '成員';
+  try {
+    if (LineModule && LineModule.getUserProfile) {
+      var prof = LineModule.getUserProfile(userId, groupId);
+      if (prof && typeof prof.then === 'function') {
+        prof.then(function (p) {
+          if (p && p.displayName) userDisplayName = p.displayName;
+        });
+      } else if (prof && prof.displayName) {
+        userDisplayName = prof.displayName;
+      }
+    }
+  } catch (e) {}
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
   if (/^(幫助|說明|指令|help|\/help)$/i.test(text)) {
     var helpFlex = FlexModule.createHelpFlex();
@@ -3091,14 +3315,27 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, msg);
   }
 
-  // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消 [品項]
-  var cancelMatch = text.match(/^(?:\/)?取消(?:\s+(週[一二三四五]))?(?:\s*(全部|.+))?$/);
+  // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消 [品項] / 取消餐點
+  var cancelMatch = text.match(/^(?:\/)?(?:取消餐點|取消)(?:\s+(週[一二三四五]))?(?:\s*(全部|全部訂單|所有訂單|.+))?$/);
   if (cancelMatch) {
     var cancelDay = cancelMatch[1] || null;
     var targetItem = cancelMatch[2] ? cancelMatch[2].trim() : '';
-    if (targetItem === '全部') targetItem = '';
+    if (targetItem === '餐點' || targetItem === '全部' || targetItem === '全部訂單' || targetItem === '所有訂單') {
+      targetItem = '';
+    }
 
-    var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, cancelDay ? null : todayDate, cancelDay);
+    // If user sent "取消" or "取消餐點" without specifying day or item: show interactive cancel menu
+    if (!cancelDay && !targetItem && text.trim().match(/^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/)) {
+      var activeOrders = SheetModule.getUserOrders(userId, groupId, null, null);
+      if (!activeOrders || activeOrders.length === 0) {
+        return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
+      }
+      var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders);
+      return LineModule.replyFlex(replyToken, '🗑️ 請選擇欲取消的餐點', cancelFlex);
+    }
+
+    var targetDate = cancelDay ? null : (targetItem ? todayDate : null);
+    var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, targetDate, cancelDay);
     if (cancelledCount > 0) {
       var dayText = cancelDay ? cancelDay + ' ' : '';
       return LineModule.replyText(replyToken, '✅ 已為您取消 ' + dayText + (targetItem ? '「' + targetItem + '」' : '全部餐點') + ' 共 ' + cancelledCount + ' 筆紀錄。');
@@ -3135,20 +3372,6 @@ function handleTextMessage(event) {
   // 13. ORDER PLACEMENT: +1 / +2 / 點餐語法解析 (支援單日與週一至週五梯次點餐)
   var orderItems = parseOrderText(text);
   if (orderItems.length > 0) {
-    var userDisplayName = '成員';
-    try {
-      if (LineModule.getUserProfile) {
-        var profilePromise = LineModule.getUserProfile(userId, groupId);
-        if (profilePromise && typeof profilePromise.then === 'function') {
-          profilePromise.then(function (prof) {
-            if (prof && prof.displayName) userDisplayName = prof.displayName;
-          });
-        } else if (profilePromise && profilePromise.displayName) {
-          userDisplayName = profilePromise.displayName;
-        }
-      }
-    } catch (e) {}
-
     var addedRecords = [];
     var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
 
