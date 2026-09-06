@@ -134,6 +134,8 @@ globalThis._mockProfiles = {
 
 // 4. Weekly Schedule & Batch Ordering Lifecycle Test
 console.log('▶ Test 4: Weekly Schedule & Mon-Fri Batch Ordering Simulation');
+globalThis._mockCurrentDate = new Date('2026-09-07T09:00:00+08:00'); // Monday 9:00 AM (Before cutoff)
+SheetModule.setConfigValue('IS_ORDERING_OPEN', 'true');
 const groupId = 'group_team_weekly';
 const today = OrderModule.getTodayDateString();
 
@@ -830,6 +832,78 @@ assert.ok(lastReply.text.includes('已由開單人為【小鮑伯】取消'));
 var bobOrdersFinal = SheetModule.getUserOrders('user_bob', groupId, null, '週五', '小鮑伯');
 assert.strictEqual(bobOrdersFinal.length, 0, 'Bob\'s chicken box is now cancelled by organizer targeted command');
 console.log('  ✔ Organizer cancel menu strictly isolates personal orders, and organizer uses command to cancel member items.\n');
+
+// 9. Daily Summary (今日統計) & Timezone Diagnostics
+console.log('▶ Test 9: Daily Summary (今日統計), Member Order Roster & TimeZone Diagnostics');
+globalThis._mockCurrentDate = new Date('2026-09-08T10:00:00+08:00'); // Tuesday 10:00 AM
+SheetModule.setConfigValue('IS_ORDERING_OPEN', 'true');
+
+// Add orders for Tuesday:
+// 1) An advance order placed yesterday (date: '2026-09-07', dayOfWeek: '週二') by Carol
+SheetModule.addOrder({
+  orderId: 'ORD_ADV_TUE',
+  date: '2026-09-07',
+  dayOfWeek: '週二',
+  groupId: groupId,
+  userId: 'user_carol',
+  userName: '卡蘿',
+  userNickname: '卡蘿',
+  itemName: '日式厚切豬排飯',
+  quantity: 1,
+  price: 120
+});
+
+// 2) An order placed today (date: '2026-09-08', dayOfWeek: '週二') by Alice
+SheetModule.addOrder({
+  orderId: 'ORD_TODAY_TUE',
+  date: '2026-09-08',
+  dayOfWeek: '週二',
+  groupId: groupId,
+  userId: 'user_alice',
+  userName: '愛麗絲',
+  userNickname: '愛麗絲',
+  itemName: '日式厚切豬排飯',
+  quantity: 2,
+  price: 120
+});
+
+// Test command: "今日統計"
+OrderModule.handleTextMessage({
+  replyToken: 'token_today_summary_1',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '今日統計' }
+});
+assert.strictEqual(lastReply.type, 'flex', '今日統計 command must reply with a Flex message');
+var todaySummaryJson = JSON.stringify(lastReply.flex);
+assert.ok(todaySummaryJson.includes('日式厚切豬排飯 x3'), 'Both advance booking and today order must be included (1 + 2 = 3)');
+assert.ok(todaySummaryJson.includes('卡蘿') && todaySummaryJson.includes('愛麗絲'), 'Item buyers must be displayed under dish');
+assert.ok(todaySummaryJson.includes('今日成員應付名冊'), 'Summary card must include member roster section');
+assert.ok(todaySummaryJson.includes('$120 元') && todaySummaryJson.includes('$240 元'), 'Member owed amounts must be displayed');
+
+// Test alias: "本日統計"
+OrderModule.handleTextMessage({
+  replyToken: 'token_today_summary_2',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '本日統計' }
+});
+assert.strictEqual(lastReply.type, 'flex', '本日統計 alias must also trigger summary');
+
+// Test alias: "統計"
+OrderModule.handleTextMessage({
+  replyToken: 'token_today_summary_3',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '統計' }
+});
+assert.strictEqual(lastReply.type, 'flex', '統計 command must trigger summary');
+console.log('  ✔ 今日統計 / 本日統計 / 統計 correctly aggregates advance + same-day orders and renders member roster.');
+
+// Test checkTimeZoneAndCurrentTime diagnostic tool
+var timeDiag = SheetModule.checkTimeZoneAndCurrentTime();
+assert.ok(timeDiag, 'timeDiag must return diagnostic object');
+assert.ok(timeDiag.taipeiTime.includes('2026-09-08'), 'Diagnosed Taipei time must match reference date');
+assert.strictEqual(timeDiag.dayOfWeek, '週二', 'Diagnosed day of week must be 週二');
+assert.ok(timeDiag.formattedMessage.includes('【系統時區與時間診斷資訊】'), 'Diagnostic message formatted properly');
+console.log('  ✔ checkTimeZoneAndCurrentTime diagnostic tool verified.\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
