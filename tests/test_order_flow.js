@@ -967,6 +967,63 @@ assert.strictEqual(nyDiag.effectiveTimeZone, 'America/New_York');
 assert.strictEqual(nyDiag.spreadsheetTimeZone, 'America/New_York');
 assert.ok(nyDiag.formattedMessage.includes('• 系統運行採用時區 (Effective TimeZone): America/New_York'));
 
+// Test DayOfWeek normalization, flexible header mapping, and date format robustness
+assert.strictEqual(SheetModule.normalizeDayOfWeek('週一'), '週一');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('星期一'), '週一');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('周一'), '週一');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('禮拜一'), '週一');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('1'), '週一');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('Mon'), '週一');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('Monday'), '週一');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('週日'), '週日');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('星期天'), '週日');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('ALL'), 'ALL');
+assert.strictEqual(SheetModule.normalizeDayOfWeek('今日'), '今日');
+
+// Test _matchOrderTiming with variations of DayOfWeek and Date
+assert.strictEqual(SheetModule._matchOrderTiming('2026-09-07', '星期一', '2026-09-07', '週一'), true, '星期一 must match 週一');
+assert.strictEqual(SheetModule._matchOrderTiming('2026-09-07', '周一', '2026-09-07', '週一'), true, '周一 must match 週一');
+assert.strictEqual(SheetModule._matchOrderTiming('2026-09-07', '禮拜一', '2026-09-07', '週一'), true, '禮拜一 must match 週一');
+assert.strictEqual(SheetModule._matchOrderTiming('2026-09-07', 'Mon', '2026-09-07', '週一'), true, 'Mon must match 週一');
+assert.strictEqual(SheetModule._matchOrderTiming('2026-09-07', '', '2026-09-07', '週一'), true, 'Empty day must match today date');
+assert.strictEqual(SheetModule._matchOrderTiming('2026-09-06', '', '2026-09-07', '週一'), false, 'Empty day with different date must not match');
+
+// Test _getOrderColumnIndexes with 12-column legacy headers (dayOfWeek must be -1, NOT 3)
+var legacy12 = ['OrderId', 'Timestamp', 'Date', 'GroupId', 'UserId', 'UserName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid'];
+var legacyColMap = SheetModule._getOrderColumnIndexes(legacy12);
+assert.strictEqual(legacyColMap.dayOfWeek, -1, 'dayOfWeek must be -1 when column is missing in headers, preventing GroupId collision');
+assert.strictEqual(legacyColMap.groupId, 3, 'groupId must be at index 3 in legacy sheet');
+
+// Test _getOrderColumnIndexes with various header naming styles
+var variations1 = ['OrderId', 'Timestamp', 'Date', '星期幾', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid'];
+assert.strictEqual(SheetModule._getOrderColumnIndexes(variations1).dayOfWeek, 3, '星期幾 must be recognized as dayOfWeek');
+
+var variations2 = ['OrderId', 'Timestamp', 'Date', 'Day of Week', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid'];
+assert.strictEqual(SheetModule._getOrderColumnIndexes(variations2).dayOfWeek, 3, 'Day of Week must be recognized as dayOfWeek');
+
+var variations3 = ['OrderId', 'Timestamp', 'Date', 'day_of_week', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid'];
+assert.strictEqual(SheetModule._getOrderColumnIndexes(variations3).dayOfWeek, 3, 'day_of_week must be recognized as dayOfWeek');
+
+var variations4 = ['OrderId', 'Timestamp', 'Date', '梯次/星期', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid'];
+assert.strictEqual(SheetModule._getOrderColumnIndexes(variations4).dayOfWeek, 3, '梯次/星期 must be recognized as dayOfWeek');
+
+// Test natural language command aliases for 今日統計
+OrderModule.handleTextMessage({
+  replyToken: 'token_alias_order_today_1',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '今日訂單' }
+});
+assert.strictEqual(lastReply.type, 'flex', '今日訂單 alias must trigger summary card');
+
+OrderModule.handleTextMessage({
+  replyToken: 'token_alias_order_today_2',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '今日訂餐統計' }
+});
+assert.strictEqual(lastReply.type, 'flex', '今日訂餐統計 alias must trigger summary card');
+
+console.log('  ✔ DayOfWeek normalization, header mapping robustness, and date formatting verified.');
+
 // Clean up mock timezone and mock date
 globalThis._mockSpreadsheetTimeZone = null;
 globalThis._mockCurrentDate = null;
