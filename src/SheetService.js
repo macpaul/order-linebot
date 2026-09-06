@@ -1185,8 +1185,8 @@ function getGroupOrders(groupId, date, dayOfWeek) {
     var rStatus = String(r[colMap.status]);
     if (rStatus !== 'ACTIVE') continue;
 
-    var rGroupId = String(r[colMap.groupId]);
-    if (groupId && rGroupId !== groupId) continue;
+    var rGroupId = String(r[colMap.groupId] || '').trim();
+    if (groupId && rGroupId && rGroupId !== groupId) continue;
 
     var rDate = _formatDateValue(r[colMap.date]);
     var rDay = colMap.dayOfWeek !== -1 ? String(r[colMap.dayOfWeek] || '').trim() : '';
@@ -1218,6 +1218,12 @@ function getGroupOrders(groupId, date, dayOfWeek) {
  */
 function getOrderSummary(groupId, date, dayOfWeek) {
   var orders = getGroupOrders(groupId, date, dayOfWeek);
+  if (orders.length === 0 && groupId) {
+    var allOrders = getGroupOrders('', date, dayOfWeek);
+    if (allOrders.length > 0) {
+      orders = allOrders;
+    }
+  }
   var itemMap = {};
   var userMap = {};
   var totalQuantity = 0;
@@ -1279,6 +1285,12 @@ function getWeeklyOrderSummary(groupId) {
   days.forEach(function (day) {
     var sched = getScheduleByDay(day) || { restaurantName: day + '店家' };
     var dayOrders = getGroupOrders(groupId, null, day);
+    if (dayOrders.length === 0 && groupId) {
+      var allDayOrders = getGroupOrders('', null, day);
+      if (allDayOrders.length > 0) {
+        dayOrders = allDayOrders;
+      }
+    }
     var itemMap = {};
     var dayTotalQty = 0;
     var dayTotalAmt = 0;
