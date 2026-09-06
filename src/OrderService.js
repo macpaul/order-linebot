@@ -566,24 +566,27 @@ function handleTextMessage(event) {
   // 9-6. 顯示取消訂單互動選單 (取消 / 取消餐點)
   if (text.trim().match(/^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/)) {
     var isOrgMenu = isUserOrganizer(userId, userDisplayName);
-    var activeOrders = [];
-    if (isOrgMenu) {
-      activeOrders = SheetModule.getGroupOrders ? SheetModule.getGroupOrders(groupId, null, null) : SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName);
-    } else {
-      activeOrders = SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName);
-      // Strictly guarantee that only orders belonging to current user appear for regular members
+    // CRITICAL: The cancellation interactive menu is STRICTLY a personal cancellation menu!
+    // It must NEVER show other members' orders, whether called by a regular member or the organizer.
+    var activeOrders = SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName);
+    if (activeOrders && activeOrders.length > 0) {
       activeOrders = activeOrders.filter(function (o) {
-        var isMatchUser = (userId && userId !== 'anonymous' && o.userId === userId);
-        var isMatchName = (userDisplayName && (o.userName === userDisplayName || o.userNickname === userDisplayName));
-        if (userDisplayName && o.userName && o.userName !== userDisplayName && o.userNickname !== userDisplayName && !isMatchUser) {
-          return false;
+        if (userDisplayName && userDisplayName !== '成員') {
+          if (o.userName && o.userName !== '成員' && o.userName !== userDisplayName && o.userNickname !== userDisplayName) {
+            return false;
+          }
         }
-        return isMatchUser || isMatchName;
+        if (userId && userId !== 'anonymous') {
+          if (o.userId && o.userId !== 'anonymous' && o.userId !== userId) {
+            return false;
+          }
+        }
+        return true;
       });
     }
 
     if (!activeOrders || activeOrders.length === 0) {
-      return LineModule.replyText(replyToken, isOrgMenu ? '本週目前全體無任何可取消的進行中訂單喔！' : '您目前沒有任何可取消的進行中訂單喔！');
+      return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
     }
     var lockMap = {};
     ['週一', '週二', '週三', '週四', '週五'].forEach(function (d) {
