@@ -14,6 +14,8 @@ var _mockStore = {
     'ORDER_RECEIPT_SCOPE': 'WEEKLY',
     'CLOSE_ORDER_SCOPE': 'WEEKLY',
     'PAYMENT_LINEPAY_URL': '',
+    'PAYMENT_LINEPAY_USER_NAME': '',
+    'PAYMENT_LINEPAY_USER_ID': '',
     'PAYMENT_BANK_CODE': '',
     'PAYMENT_BANK_NAME': '',
     'PAYMENT_BANK_ACCOUNT': '',
@@ -95,6 +97,8 @@ function initSheets() {
         ['ORDER_RECEIPT_SCOPE', 'WEEKLY', '點餐後收據顯示範圍 (WEEKLY: 本週訂單 / DAILY: 今日訂單)'],
         ['CLOSE_ORDER_SCOPE', 'WEEKLY', '結單結算範圍 (WEEKLY: 本週梯次結單 / DAILY: 今日結單)'],
         ['PAYMENT_LINEPAY_URL', '', 'LINE Pay 收款/轉帳連結或個人收款碼網址'],
+        ['PAYMENT_LINEPAY_USER_NAME', '', 'LINE Pay 受款人好友暱稱 (用於提示轉帳對象，留空則預設帶開單人姓名)'],
+        ['PAYMENT_LINEPAY_USER_ID', '', 'LINE Pay 受款人 LINE ID 或 User ID (選填，供轉帳搜尋與對照)'],
         ['PAYMENT_BANK_CODE', '', '收款銀行代碼 (例如: 822)'],
         ['PAYMENT_BANK_NAME', '', '收款銀行名稱 (例如: 中國信託)'],
         ['PAYMENT_BANK_ACCOUNT', '', '收款銀行帳號 (例如: 123456789012)'],
@@ -300,22 +304,42 @@ function normalizeImageUrl(url) {
 
 /**
  * Get payment configuration (LINE Pay & Bank Transfer + QR Codes)
- * @returns {{ linePayUrl: string, linePayQrUrl: string, bankCode: string, bankName: string, bankAccount: string, bankAccountName: string, bankQrUrl: string, hasPaymentInfo: boolean }}
+ * @returns {{ linePayUrl: string, linePayQrUrl: string, linePayUserName: string, linePayUserId: string, linePayRecipientName: string, isPersonalLinePay: boolean, bankCode: string, bankName: string, bankAccount: string, bankAccountName: string, bankQrUrl: string, hasPaymentInfo: boolean }}
  */
 function getPaymentConfig() {
   var linePayUrl = (getConfigValue('PAYMENT_LINEPAY_URL', '') || '').trim();
   var linePayQrUrl = normalizeImageUrl(getConfigValue('PAYMENT_LINEPAY_QR_URL', '') || '');
+  var linePayUserName = (getConfigValue('PAYMENT_LINEPAY_USER_NAME', '') || '').trim();
+  var linePayUserId = (getConfigValue('PAYMENT_LINEPAY_USER_ID', '') || '').trim();
+  var organizerName = (getConfigValue('ORGANIZER_NAME', '') || '').trim();
+
+  var isPersonalLinePay = false;
+  var linePayRecipientName = '';
+
+  // If no explicit commercial LINE Pay URL is configured, but personal user info is provided
+  if (!linePayUrl && (linePayUserName || linePayUserId)) {
+    isPersonalLinePay = true;
+    linePayRecipientName = linePayUserName || organizerName || '開單人';
+    linePayUrl = 'https://line.me/R/nv/wallet';
+  } else if (linePayUrl) {
+    linePayRecipientName = linePayUserName || organizerName || '';
+  }
+
   var bankCode = (getConfigValue('PAYMENT_BANK_CODE', '') || '').trim();
   var bankName = (getConfigValue('PAYMENT_BANK_NAME', '') || '').trim();
   var bankAccount = (getConfigValue('PAYMENT_BANK_ACCOUNT', '') || '').trim();
   var bankAccountName = (getConfigValue('PAYMENT_BANK_ACCOUNT_NAME', '') || '').trim();
   var bankQrUrl = normalizeImageUrl(getConfigValue('PAYMENT_BANK_QR_URL', '') || '');
 
-  var hasPaymentInfo = !!(linePayUrl || linePayQrUrl || bankAccount || bankCode || bankQrUrl);
+  var hasPaymentInfo = !!(linePayUrl || linePayQrUrl || linePayUserName || linePayUserId || bankAccount || bankCode || bankQrUrl);
 
   return {
     linePayUrl: linePayUrl,
     linePayQrUrl: linePayQrUrl,
+    linePayUserName: linePayUserName,
+    linePayUserId: linePayUserId,
+    linePayRecipientName: linePayRecipientName,
+    isPersonalLinePay: isPersonalLinePay,
     bankCode: bankCode,
     bankName: bankName,
     bankAccount: bankAccount,
