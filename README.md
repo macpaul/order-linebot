@@ -125,6 +125,8 @@ npm run bundle
   已於最新版解決變數覆蓋問題，請重新複製最新的 [`dist/Code.gs`](dist/Code.gs) 貼入 Apps Script 編輯器即可。
 - **純文字訊息可回覆，但「幫助」或「本週菜單」圖文卡片沒有反應？**
   Flex Message 卡片已全數重構對齊 LINE 官方最新嚴格規範（移除無效 CSS 屬性，改用 `paddingAll` 與標準 `mega` 尺寸），請更新部署最新 [`dist/Code.gs`](dist/Code.gs) 即可。
+- **取消訂單選單與防誤刪機制？**
+  一般成員輸入「`取消`」開啟的互動選單**僅會顯示其本人訂購的餐點**，絕不出現其他成員的餐點；即便手動輸入他人訂購的菜名，系統亦會比對 `UserName` 嚴格阻擋並提示原訂購人姓名。開單人則可看見全體成員餐點並具備二次確認警告機制。詳細說明請參閱 [docs/deployment_guide.md#q8退訂取消權限選單隔離與二次確認警告機制是如何運作的](docs/deployment_guide.md)。
 
 ---
 
