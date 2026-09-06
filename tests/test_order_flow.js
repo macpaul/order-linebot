@@ -129,8 +129,8 @@ assert.strictEqual(lastReply.type, 'flex');
 assert.strictEqual(lastReply.altText, '📅 本週訂餐排程表 (週一至週五)');
 console.log('  ✔ Weekly schedule flex card verified.');
 
-// Step B: Query Specific Day Menu
-console.log('  [Step B] Member queries Tuesday menu (週二菜單)');
+// Step B: Query Specific Day Menu & Verify Item Order Buttons
+console.log('  [Step B] Member queries Tuesday menu (週二菜單) & verifies order buttons');
 OrderModule.handleTextMessage({
   replyToken: 'token_tue_menu',
   source: { groupId: groupId, userId: 'user_alice' },
@@ -138,7 +138,43 @@ OrderModule.handleTextMessage({
 });
 assert.strictEqual(lastReply.type, 'flex');
 assert.ok(lastReply.altText.includes('週二'));
-console.log('  ✔ Day-specific menu flex card verified.');
+
+// Verify that the menu body contains interactive buttons
+const menuBody = lastReply.flex.body.contents;
+const itemBoxes = menuBody.filter(c => c.layout === 'horizontal' && Array.isArray(c.contents));
+assert.ok(itemBoxes.length >= 2, 'Menu should render at least 2 item rows');
+
+// Check first item button
+const firstItemRow = itemBoxes[0];
+const buttonComponent = firstItemRow.contents.find(c => c.type === 'button');
+assert.ok(buttonComponent, 'Each item row must have a button');
+assert.strictEqual(buttonComponent.action.type, 'message');
+assert.strictEqual(buttonComponent.action.label, '+1 點餐');
+assert.strictEqual(buttonComponent.action.text, '週二 日式厚切豬排飯+1');
+
+// Simulate user clicking the button (LINE client automatically sends buttonComponent.action.text)
+console.log('  [Step B-2] Member Carol clicks the "+1 點餐" button (simulating automated text message)');
+OrderModule.handleTextMessage({
+  replyToken: 'token_carol_btn_order',
+  source: { groupId: groupId, userId: 'user_carol' },
+  message: { type: 'text', text: buttonComponent.action.text }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastReply.altText.includes('日式厚切豬排飯'));
+
+const carolTueOrders = SheetModule.getUserOrders('user_carol', groupId, null, '週二');
+assert.strictEqual(carolTueOrders.length, 1);
+assert.strictEqual(carolTueOrders[0].itemName, '日式厚切豬排飯');
+assert.strictEqual(carolTueOrders[0].quantity, 1);
+
+// Carol cancels her test order
+OrderModule.handleTextMessage({
+  replyToken: 'token_carol_cancel',
+  source: { groupId: groupId, userId: 'user_carol' },
+  message: { type: 'text', text: '取消 週二 全部' }
+});
+assert.ok(lastReply.text.includes('已為您取消 週二'));
+console.log('  ✔ Menu item button verification, one-click order and cancel passed.');
 
 // Step C: Member Alice places multi-day batch order
 console.log('  [Step C] Alice orders across multiple weekdays in one command');
