@@ -16,7 +16,9 @@ var _mockStore = {
     'PAYMENT_BANK_CODE': '',
     'PAYMENT_BANK_NAME': '',
     'PAYMENT_BANK_ACCOUNT': '',
-    'PAYMENT_BANK_ACCOUNT_NAME': ''
+    'PAYMENT_BANK_ACCOUNT_NAME': '',
+    'PAYMENT_BANK_QR_URL': '',
+    'PAYMENT_LINEPAY_QR_URL': ''
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -102,7 +104,9 @@ function initSheets() {
         ['PAYMENT_BANK_CODE', '', '收款銀行代碼 (例如: 822)'],
         ['PAYMENT_BANK_NAME', '', '收款銀行名稱 (例如: 中國信託)'],
         ['PAYMENT_BANK_ACCOUNT', '', '收款銀行帳號 (例如: 123456789012)'],
-        ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)']
+        ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)'],
+        ['PAYMENT_BANK_QR_URL', '', '收款銀行 QR Code 圖片網址 (支援 Google Drive 分享連結或圖床)'],
+        ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)']
       ]
     },
     {
@@ -206,24 +210,50 @@ function setConfigValue(key, value) {
 }
 
 /**
- * Get payment configuration (LINE Pay & Bank Transfer)
- * @returns {{ linePayUrl: string, bankCode: string, bankName: string, bankAccount: string, bankAccountName: string, hasPaymentInfo: boolean }}
+ * Convert Google Drive sharing URL or any web link to direct image URL
+ * @param {string} url
+ * @returns {string} Direct image URL
+ */
+function normalizeImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  var trimmed = url.trim();
+  if (!trimmed) return '';
+
+  // Google Drive sharing patterns:
+  // 1) https://drive.google.com/file/d/{FILE_ID}/view...
+  // 2) https://drive.google.com/open?id={FILE_ID}
+  // 3) https://drive.google.com/uc?id={FILE_ID}
+  var gdMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+)|uc\?(?:[^&]+&)*id=([a-zA-Z0-9_-]+))/i);
+  if (gdMatch) {
+    var fileId = gdMatch[1] || gdMatch[2] || gdMatch[3];
+    return 'https://lh3.googleusercontent.com/d/' + fileId;
+  }
+  return trimmed;
+}
+
+/**
+ * Get payment configuration (LINE Pay & Bank Transfer + QR Codes)
+ * @returns {{ linePayUrl: string, linePayQrUrl: string, bankCode: string, bankName: string, bankAccount: string, bankAccountName: string, bankQrUrl: string, hasPaymentInfo: boolean }}
  */
 function getPaymentConfig() {
   var linePayUrl = (getConfigValue('PAYMENT_LINEPAY_URL', '') || '').trim();
+  var linePayQrUrl = normalizeImageUrl(getConfigValue('PAYMENT_LINEPAY_QR_URL', '') || '');
   var bankCode = (getConfigValue('PAYMENT_BANK_CODE', '') || '').trim();
   var bankName = (getConfigValue('PAYMENT_BANK_NAME', '') || '').trim();
   var bankAccount = (getConfigValue('PAYMENT_BANK_ACCOUNT', '') || '').trim();
   var bankAccountName = (getConfigValue('PAYMENT_BANK_ACCOUNT_NAME', '') || '').trim();
+  var bankQrUrl = normalizeImageUrl(getConfigValue('PAYMENT_BANK_QR_URL', '') || '');
 
-  var hasPaymentInfo = !!(linePayUrl || bankAccount || bankCode);
+  var hasPaymentInfo = !!(linePayUrl || linePayQrUrl || bankAccount || bankCode || bankQrUrl);
 
   return {
     linePayUrl: linePayUrl,
+    linePayQrUrl: linePayQrUrl,
     bankCode: bankCode,
     bankName: bankName,
     bankAccount: bankAccount,
     bankAccountName: bankAccountName,
+    bankQrUrl: bankQrUrl,
     hasPaymentInfo: hasPaymentInfo
   };
 }
@@ -836,6 +866,7 @@ function logToSheet(type, message, detail) {
   g.getOrderSummary = getOrderSummary;
   g.getWeeklyOrderSummary = getWeeklyOrderSummary;
   g.getPaymentConfig = getPaymentConfig;
+  g.normalizeImageUrl = normalizeImageUrl;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
   g.logToSheet = logToSheet;
   g._mockStore = _mockStore;
@@ -859,6 +890,7 @@ function logToSheet(type, message, detail) {
       getOrderSummary: getOrderSummary,
       getWeeklyOrderSummary: getWeeklyOrderSummary,
       getPaymentConfig: getPaymentConfig,
+      normalizeImageUrl: normalizeImageUrl,
       onOpenSpreadsheet: onOpenSpreadsheet,
       logToSheet: logToSheet,
       _mockStore: _mockStore
