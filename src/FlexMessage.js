@@ -1022,14 +1022,16 @@ function createHelpFlex() {
 }
 
 /**
- * createCancelOrderFlex — Interactive cancel order menu with buttons.
- * Grouped by dayOfWeek so the user can see and tap specific items or days to cancel.
+ * createCancelOrderFlex — Build interactive cancellation menu for a member's active orders
+ * Regular users can only cancel their own orders; organizers also get bulk cancel options.
  *
- * @param {string} userName - Display name of the user.
- * @param {Array<Object>} activeOrders - Array of active order records.
+ * @param {string} userName
+ * @param {Array} activeOrders
+ * @param {Object} lockMap - { '週一': { locked: true, reason: '已過期' }, ... }
+ * @param {boolean} [isOrganizer] - Whether the requester is the organizer
  * @returns {Object} LINE Flex bubble
  */
-function createCancelOrderFlex(userName, activeOrders, lockMap) {
+function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   var orders = activeOrders || [];
   var locks = lockMap || {};
 
@@ -1051,7 +1053,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap) {
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText((userName || '成員') + ' 的進行中訂單', {
+    _flexText((userName || '成員') + (isOrganizer ? ' (開單人) 進行中訂單' : ' 的個人進行中訂單'), {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -1148,14 +1150,14 @@ function createCancelOrderFlex(userName, activeOrders, lockMap) {
         }));
       });
 
-      // Button to cancel all items for this day (only if unlocked)
+      // Button to cancel user's own items for this day (only if unlocked)
       if (!isDayLocked) {
         bodyContents.push({
           type: 'button',
           action: {
             type: 'message',
-            label: '取消【' + day + '】所有餐點',
-            text: '取消 ' + day + ' 全部'
+            label: '取消我的【' + day + '】餐點',
+            text: '取消我的 ' + day + ' 全部'
           },
           style: 'secondary',
           height: 'sm',
@@ -1164,15 +1166,15 @@ function createCancelOrderFlex(userName, activeOrders, lockMap) {
       }
     });
 
-    // Overall button to cancel all orders
+    // Overall button to cancel user's own orders
     if (anyDayUnlocked && (dayOrder.length > 1 || orders.length > 1)) {
       bodyContents.push(_flexSeparator({ margin: 'md' }));
       bodyContents.push({
         type: 'button',
         action: {
           type: 'message',
-          label: '❌ 取消所有未截止預約訂單',
-          text: '取消 全部'
+          label: '❌ 取消我的所有未截止預訂',
+          text: '取消我的 全部'
         },
         style: 'secondary',
         height: 'sm',
@@ -1190,17 +1192,55 @@ function createCancelOrderFlex(userName, activeOrders, lockMap) {
     }
   }
 
+  // If user is organizer, provide full group management buttons with warning prompt
+  if (isOrganizer) {
+    bodyContents.push(_flexSeparator({ margin: 'lg' }));
+    bodyContents.push(_flexText('👑 開單人管理專區', {
+      size: 'sm',
+      weight: 'bold',
+      color: FLEX_COLORS.danger,
+      margin: 'sm'
+    }));
+    bodyContents.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '⚠️ 取消全體當日餐點 (需確認)',
+        text: '取消當日所有餐點'
+      },
+      style: 'secondary',
+      height: 'sm',
+      margin: 'xs'
+    });
+    bodyContents.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '🚨 取消全體未截止預訂 (需確認)',
+        text: '取消所有未截止預約訂單'
+      },
+      style: 'secondary',
+      height: 'sm',
+      margin: 'xs'
+    });
+  }
+
   var body = _flexBox(bodyContents, {
     layout: 'vertical',
     paddingAll: 'md',
     backgroundColor: FLEX_COLORS.surface
   });
 
+  var footerText = isOrganizer
+    ? '💡 開單人可協助管理訂單；全體取消操作將跳出警告確認卡，需再次確認。'
+    : '💡 您只能退訂自己訂購的餐點；如需退訂他人餐點或取消全體訂單，請洽開單人。';
+
   var footer = _flexBox([
-    _flexText('💡 點選按鈕後將立即退訂，或直接輸入「取消 週幾 菜名」', {
+    _flexText(footerText, {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
-      align: 'center'
+      align: 'center',
+      wrap: true
     })
   ], {
     layout: 'vertical',
@@ -1210,10 +1250,97 @@ function createCancelOrderFlex(userName, activeOrders, lockMap) {
 
   return {
     type: 'bubble',
-    size: 'giga',
     header: header,
     body: body,
     footer: footer
+  };
+}
+
+/**
+ * createConfirmCancelFlex — Warning confirmation card for organizer bulk cancel operations
+ * @param {string} title
+ * @param {string} warningDesc
+ * @param {string} targetActionText
+ * @param {string} targetButtonLabel
+ * @returns {Object} LINE Flex bubble
+ */
+function createConfirmCancelFlex(title, warningDesc, targetActionText, targetButtonLabel) {
+  var header = _flexBox([
+    _flexText('🚨 取消確認警告 (開單人專用)', {
+      size: 'md',
+      weight: 'bold',
+      color: '#FFFFFF'
+    })
+  ], {
+    layout: 'vertical',
+    backgroundColor: FLEX_COLORS.danger,
+    paddingAll: 'md'
+  });
+
+  var body = _flexBox([
+    _flexText(title, {
+      size: 'lg',
+      weight: 'bold',
+      color: FLEX_COLORS.danger,
+      wrap: true
+    }),
+    _flexSeparator({ margin: 'md' }),
+    _flexText(warningDesc, {
+      size: 'sm',
+      color: FLEX_COLORS.textPrimary,
+      margin: 'md',
+      wrap: true
+    }),
+    _flexBox([
+      _flexText('⚠️ 警告：此操作將影響全體成員且無法復原！', {
+        size: 'xs',
+        color: FLEX_COLORS.danger,
+        weight: 'bold',
+        wrap: true
+      })
+    ], {
+      layout: 'vertical',
+      backgroundColor: '#FCE8E6',
+      paddingAll: 'sm',
+      cornerRadius: 'sm',
+      margin: 'md'
+    }),
+    _flexBox([
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: targetButtonLabel,
+          text: targetActionText
+        },
+        style: 'primary',
+        color: FLEX_COLORS.danger,
+        height: 'sm'
+      },
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: '放棄取消 (保留所有訂單)',
+          text: '放棄取消'
+        },
+        style: 'secondary',
+        height: 'sm',
+        margin: 'sm'
+      }
+    ], {
+      layout: 'vertical',
+      margin: 'lg'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'lg'
+  });
+
+  return {
+    type: 'bubble',
+    header: header,
+    body: body
   };
 }
 
@@ -1381,6 +1508,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
   g.createSummaryFlex = createSummaryFlex;
   g.createHelpFlex = createHelpFlex;
   g.createCancelOrderFlex = createCancelOrderFlex;
+  g.createConfirmCancelFlex = createConfirmCancelFlex;
   g.createWeeklyScheduleFlex = createWeeklyScheduleFlex;
   g.createWeeklySummaryFlex = createWeeklySummaryFlex;
 
@@ -1392,6 +1520,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
       createSummaryFlex: createSummaryFlex,
       createHelpFlex: createHelpFlex,
       createCancelOrderFlex: createCancelOrderFlex,
+      createConfirmCancelFlex: createConfirmCancelFlex,
       createWeeklyScheduleFlex: createWeeklyScheduleFlex,
       createWeeklySummaryFlex: createWeeklySummaryFlex,
       // Internal helpers exposed for Node.js testing.
