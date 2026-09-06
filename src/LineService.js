@@ -228,6 +228,39 @@ function replyFlex(replyToken, altText, flexContents) {
   }]);
 }
 
+/**
+ * pushMessages — Send a push message to a user or group.
+ * @param {string} to - LINE User ID or Group ID.
+ * @param {Array<Object>} messages - Array of LINE message objects.
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
+ */
+function pushMessages(to, messages) {
+  if (!to) return null;
+  if (typeof globalThis !== 'undefined') {
+    globalThis._lastPush = { to: to, messages: messages };
+  }
+  var headers = _authHeaders();
+  var payload = {
+    to: to,
+    messages: messages
+  };
+  var pushUrl = (CONFIG && CONFIG.LINE_PUSH_URL) ? CONFIG.LINE_PUSH_URL : 'https://api.line.me/v2/bot/message/push';
+  return _httpPostJson(pushUrl, headers, payload);
+}
+
+/**
+ * pushText — Send a plain text push message to a user or group.
+ * @param {string} to - LINE User ID or Group ID.
+ * @param {string} text - Text content to send.
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
+ */
+function pushText(to, text) {
+  return pushMessages(to, [{
+    type: 'text',
+    text: text
+  }]);
+}
+
 /* ------------------------------------------------------------------ *
  * Public API — User profile
  * ------------------------------------------------------------------ */
@@ -390,6 +423,8 @@ function validateSignature(bodyString, signature, channelSecret) {
   g.replyMessages = replyMessages;
   g.replyText = replyText;
   g.replyFlex = replyFlex;
+  g.pushMessages = pushMessages;
+  g.pushText = pushText;
   g.getUserProfile = getUserProfile;
   g.validateSignature = validateSignature;
 
@@ -398,6 +433,8 @@ function validateSignature(bodyString, signature, channelSecret) {
       replyMessages: replyMessages,
       replyText: replyText,
       replyFlex: replyFlex,
+      pushMessages: pushMessages,
+      pushText: pushText,
       getUserProfile: getUserProfile,
       validateSignature: validateSignature,
       // Internal helpers exposed for Node.js testing.
