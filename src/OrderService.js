@@ -305,6 +305,49 @@ function isUserOrganizer(userId, userDisplayName) {
 }
 
 /**
+ * Format order summary data as readable plain text (including items, buyers, member breakdown and total)
+ * @param {string} restaurantName
+ * @param {Object} summaryData - { date, dayOfWeek, totalQuantity, totalAmount, items, users }
+ * @param {boolean} isClosed
+ * @returns {string}
+ */
+function formatOrderSummaryText(restaurantName, summaryData, isClosed) {
+  var s = summaryData || {};
+  var items = s.items || [];
+  var users = s.users || [];
+  var lines = [];
+  var status = isClosed ? '【已截止】' : '【開放中】';
+  lines.push('📊 今日訂餐統計 ' + status);
+  lines.push('🍱 店家：' + (restaurantName || '今日便當'));
+  if (s.date || s.dayOfWeek) {
+    lines.push('📅 日期：' + (s.date || '') + (s.dayOfWeek ? ' (' + s.dayOfWeek + ')' : ''));
+  }
+  lines.push('─────────────────');
+
+  lines.push('📋 餐點統計：');
+  if (items.length === 0) {
+    lines.push('  （今日尚無訂單）');
+  } else {
+    items.forEach(function (it) {
+      var buyers = (it.buyers && it.buyers.length > 0) ? ' (' + it.buyers.join(', ') + ')' : '';
+      lines.push('  • ' + it.itemName + ' x ' + it.quantity + ' ＝ $' + it.subtotal + buyers);
+    });
+  }
+  lines.push('─────────────────');
+  lines.push('💰 總計：' + (s.totalQuantity || 0) + ' 份 / $' + (s.totalAmount || 0) + ' 元');
+
+  if (users.length > 0) {
+    lines.push('─────────────────');
+    lines.push('👤 每人應付明細與點餐內容：');
+    users.forEach(function (u) {
+      var userItems = (u.items && u.items.length > 0) ? u.items.join('、') : '';
+      lines.push('  • ' + (u.userName || '成員') + '：' + userItems + ' ＝ $' + (u.total || 0) + ' 元');
+    });
+  }
+  return lines.join('\n');
+}
+
+/**
  * Parse ordering text lines
  * Supports daily and weekly batch ordering syntax:
  *   "+1 排骨飯" / "+2 雞腿飯"
@@ -939,6 +982,16 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
   }
 
+  // 10.5 TODAY SUMMARY (TEXT): 今日文字統計 / 今日統計文字 / 文字統計 / 統計文字 / 今日文字
+  if (/^(?:\/)?(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i.test(text)) {
+    var daySchedText = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
+    var restNameText = (daySchedText && daySchedText.restaurantName) ? daySchedText.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
+    var isOrderOpenText = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
+    var summaryTextData = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
+    var textOutput = formatOrderSummaryText(restNameText, summaryTextData, !isOrderOpenText);
+    return LineModule.replyText(replyToken, textOutput);
+  }
+
   // 11. TODAY SUMMARY: 今日統計 / 本日統計 / 統計 / 即時統計 / 今日訂單 / 今日訂餐
   if (/^(?:\/)?(?:今日統計|本日統計|統計|即時統計|今日訂單|今日訂餐|今日訂餐統計|今日訂單統計|本日訂單|本日訂餐|本日訂單統計)$/i.test(text)) {
     var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
@@ -947,7 +1000,18 @@ function handleTextMessage(event) {
     var summary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
     var payInfoTodaySum = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum);
-    return LineModule.replyFlex(replyToken, '【今日訂餐統計】' + restName, sumFlex);
+    var altText = '【今日訂餐統計】' + restName + ' (' + (summary.totalQuantity || 0) + '份 / $' + (summary.totalAmount || 0) + ')';
+    var replyRes = LineModule.replyFlex(replyToken, altText, sumFlex);
+    if (replyRes && replyRes.statusCode && replyRes.statusCode >= 400) {
+      // Fallback via push if Flex reply was rejected
+      var fallbackText = formatOrderSummaryText(restName, summary, !isOrderOpen);
+      if (groupId && LineModule.pushText) {
+        LineModule.pushText(groupId, fallbackText);
+      } else if (userId && LineModule.pushText) {
+        LineModule.pushText(userId, fallbackText);
+      }
+    }
+    return replyRes;
   }
 
   // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐 / 本週結單 / 今日結單
@@ -1102,6 +1166,7 @@ function handlePostbackEvent(event) {
   g.isDayPast = isDayPast;
   g.isTodayCutoffPassed = isTodayCutoffPassed;
   g.notifyOrganizer = notifyOrganizer;
+  g.formatOrderSummaryText = formatOrderSummaryText;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -1115,7 +1180,8 @@ function handlePostbackEvent(event) {
       getTodayDayOfWeek: getTodayDayOfWeek,
       isDayPast: isDayPast,
       isTodayCutoffPassed: isTodayCutoffPassed,
-      notifyOrganizer: notifyOrganizer
+      notifyOrganizer: notifyOrganizer,
+      formatOrderSummaryText: formatOrderSummaryText
     };
   }
 })();
