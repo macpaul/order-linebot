@@ -338,16 +338,20 @@ console.log('  [Step H] Organizer closes order (結單) with LINE Pay & Bank Tra
 
 // H-1: Configure payment information in Config
 SheetModule.setConfigValue('PAYMENT_LINEPAY_URL', 'https://line.me/ti/p/linepay_mock');
+SheetModule.setConfigValue('PAYMENT_LINEPAY_QR_URL', 'https://example.com/linepay_qr.png');
 SheetModule.setConfigValue('PAYMENT_BANK_CODE', '822');
 SheetModule.setConfigValue('PAYMENT_BANK_NAME', '中國信託');
 SheetModule.setConfigValue('PAYMENT_BANK_ACCOUNT', '123-456789-012');
 SheetModule.setConfigValue('PAYMENT_BANK_ACCOUNT_NAME', '王大明');
+SheetModule.setConfigValue('PAYMENT_BANK_QR_URL', 'https://drive.google.com/file/d/1XyZ_mockDriveFileId123/view?usp=sharing');
 SheetModule.setConfigValue('CLOSE_ORDER_SCOPE', 'WEEKLY');
 
 const payConfig = SheetModule.getPaymentConfig();
 assert.strictEqual(payConfig.hasPaymentInfo, true);
 assert.strictEqual(payConfig.bankCode, '822');
 assert.strictEqual(payConfig.linePayUrl, 'https://line.me/ti/p/linepay_mock');
+assert.strictEqual(payConfig.linePayQrUrl, 'https://example.com/linepay_qr.png');
+assert.strictEqual(payConfig.bankQrUrl, 'https://lh3.googleusercontent.com/d/1XyZ_mockDriveFileId123');
 
 // H-2: Trigger 結單 (defaults to WEEKLY scope)
 OrderModule.handleTextMessage({
@@ -363,8 +367,11 @@ assert.ok(closeFlexJson.includes('822 中國信託'));
 assert.ok(closeFlexJson.includes('123-456789-012'));
 assert.ok(closeFlexJson.includes('王大明'));
 assert.ok(closeFlexJson.includes('https://line.me/ti/p/linepay_mock'));
+assert.ok(closeFlexJson.includes('https://lh3.googleusercontent.com/d/1XyZ_mockDriveFileId123'));
+assert.ok(closeFlexJson.includes('點擊 QR Code 可放大檢視'));
+assert.ok(closeFlexJson.includes('https://example.com/linepay_qr.png'));
 assert.strictEqual(SheetModule.getConfigValue('IS_ORDERING_OPEN'), 'false');
-console.log('  ✔ Weekly close order (結單) verified with LINE Pay button and Bank Transfer info.');
+console.log('  ✔ Weekly close order (結單) verified with Bank QR code, LINE Pay button and Bank Transfer info.');
 
 // H-3: Member checks personal weekly orders and receives payment instructions
 OrderModule.handleTextMessage({
@@ -374,8 +381,9 @@ OrderModule.handleTextMessage({
 });
 assert.strictEqual(lastReply.type, 'text');
 assert.ok(lastReply.text.includes('822 中國信託 帳號 123-456789-012 (王大明)'));
+assert.ok(lastReply.text.includes('https://lh3.googleusercontent.com/d/1XyZ_mockDriveFileId123'));
 assert.ok(lastReply.text.includes('https://line.me/ti/p/linepay_mock'));
-console.log('  ✔ Personal orders view includes payment info.');
+console.log('  ✔ Personal orders view includes payment and QR info.');
 
 // H-4: Test explicit '今日結單' or CLOSE_ORDER_SCOPE = 'DAILY'
 console.log('  [Step H-4] Organizer triggers 今日結單');
