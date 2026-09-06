@@ -7,6 +7,9 @@ var CONFIG = {
   /** LINE Messaging API — Reply to a user's message */
   LINE_REPLY_URL: 'https://api.line.me/v2/bot/message/reply',
 
+  /** LINE Messaging API — Push a message to a user or group */
+  LINE_PUSH_URL: 'https://api.line.me/v2/bot/message/push',
+
   /** LINE Messaging API — Fetch a user's profile (displayName, pictureUrl) */
   LINE_PROFILE_URL: 'https://api.line.me/v2/bot/profile',
 
