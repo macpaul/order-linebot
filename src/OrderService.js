@@ -197,7 +197,7 @@ function handleTextMessage(event) {
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
     var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
-    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu);
+    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay);
     return LineModule.replyFlex(replyToken, targetDay + ' ' + restName + ' 菜單', dayMenuFlex);
   }
 
@@ -239,7 +239,7 @@ function handleTextMessage(event) {
     SheetModule.setConfigValue('ORGANIZER_ID', userId);
 
     var menuList = SheetModule.getMenuItems(todayDay, restaurant);
-    var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList);
+    var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList, todayDay);
     return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
   }
 
@@ -248,7 +248,7 @@ function handleTextMessage(event) {
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
-    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu);
+    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay);
     return LineModule.replyFlex(replyToken, curRestaurant + ' 菜單', curMenuFlex);
   }
 
