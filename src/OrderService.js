@@ -271,12 +271,20 @@ function handleTextMessage(event) {
   function _formatPaymentText(payInfo) {
     if (!payInfo || !payInfo.hasPaymentInfo) return '';
     var pLines = ['\n💳【付款資訊】'];
-    if (payInfo.bankAccount || payInfo.bankCode) {
+    if (payInfo.bankAccount || payInfo.bankCode || payInfo.bankQrUrl) {
       var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || '');
-      pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+      if (payInfo.bankAccount) {
+        pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+      }
+      if (payInfo.bankQrUrl) {
+        pLines.push('• 銀行轉帳 QR Code：' + payInfo.bankQrUrl);
+      }
     }
     if (payInfo.linePayUrl) {
       pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+    }
+    if (payInfo.linePayQrUrl) {
+      pLines.push('• LINE Pay 收款碼：' + payInfo.linePayQrUrl);
     }
     return pLines.join('\n');
   }
