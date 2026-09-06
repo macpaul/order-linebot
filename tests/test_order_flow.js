@@ -561,7 +561,21 @@ assert.strictEqual(colIndices13.status, 11);
 const bobOrdersInStore = SheetModule._mockStore.Orders.filter(function (o) { return o.userId === 'user_bob'; });
 assert.ok(bobOrdersInStore.length > 0);
 assert.strictEqual(bobOrdersInStore[0].userNickname, '小鮑伯');
-console.log('  ✔ Orders sheet UserNickname column and dynamic header mapping verified.\n');
+console.log('  ✔ Orders sheet UserNickname column and dynamic header mapping verified.');
+
+// 7-5: Verify initSheets backfills all recently added Config variables
+delete SheetModule._mockStore.Config['ORGANIZER_ID'];
+delete SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'];
+assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], undefined);
+assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], undefined);
+
+const initRes = SheetModule.initSheets();
+assert.strictEqual(initRes, true);
+assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], '');
+assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], '');
+assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_NAME'), '小幫手');
+assert.strictEqual(SheetModule.getConfigValue('CLOSE_ORDER_SCOPE'), 'WEEKLY');
+console.log('  ✔ initSheets automatically backfills all recently added Config variables.\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
