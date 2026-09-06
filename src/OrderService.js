@@ -267,6 +267,20 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, curRestaurant + ' 菜單', curMenuFlex);
   }
 
+  // Helper to format payment text for personal order queries
+  function _formatPaymentText(payInfo) {
+    if (!payInfo || !payInfo.hasPaymentInfo) return '';
+    var pLines = ['\n💳【付款資訊】'];
+    if (payInfo.bankAccount || payInfo.bankCode) {
+      var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || '');
+      pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+    }
+    if (payInfo.linePayUrl) {
+      pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+    }
+    return pLines.join('\n');
+  }
+
   // 7. MY WEEKLY ORDERS: 我的本週訂單 / 本週訂單
   if (/^(?:\/)?(?:我的本週訂單|本週訂單)$/.test(text)) {
     var allDays = ['週一', '週二', '週三', '週四', '週五'];
@@ -290,7 +304,9 @@ function handleTextMessage(event) {
       return LineModule.replyText(replyToken, '您本週（週一至週五）尚未有任何預訂紀錄喔！');
     }
 
-    var weeklyMsg = '🍱【您的本週梯次訂單】\n' + lines.join('\n') + '\n─────\n本週總計：$' + grandTotal + ' 元';
+    var payInfoWeekly = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
+    var payTextWeekly = _formatPaymentText(payInfoWeekly);
+    var weeklyMsg = '🍱【您的本週梯次訂單】\n' + lines.join('\n') + '\n─────\n本週總計：$' + grandTotal + ' 元' + payTextWeekly;
     return LineModule.replyText(replyToken, weeklyMsg);
   }
 
@@ -305,7 +321,9 @@ function handleTextMessage(event) {
       total += o.subtotal;
       return '• ' + o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')';
     });
-    var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元';
+    var payInfoToday = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
+    var payTextToday = _formatPaymentText(payInfoToday);
+    var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + payTextToday;
     return LineModule.replyText(replyToken, msg);
   }
 
@@ -341,7 +359,8 @@ function handleTextMessage(event) {
   // 10. WEEKLY SUMMARY: 本週統計 / 梯次統計
   if (/^(?:\/)?(?:本週統計|梯次統計)$/.test(text)) {
     var weeklySummary = SheetModule.getWeeklyOrderSummary(groupId);
-    var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary);
+    var payInfo = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
+    var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary, false, payInfo);
     return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
   }
 
@@ -350,17 +369,28 @@ function handleTextMessage(event) {
     var restName = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
     var summary = SheetModule.getOrderSummary(groupId, todayDate);
-    var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen);
+    var payInfoTodaySum = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
+    var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum);
     return LineModule.replyFlex(replyToken, '【訂餐統計】' + restName, sumFlex);
   }
 
-  // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐
-  if (/^(?:\/)?(?:結單|截止|截止訂餐)$/.test(text)) {
+  // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐 / 本週結單 / 今日結單
+  if (/^(?:\/)?(?:結單|截止|截止訂餐|本週結單|今日結單)$/.test(text)) {
     SheetModule.setConfigValue('IS_ORDERING_OPEN', 'false');
-    var finalRest = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
-    var finalSummary = SheetModule.getOrderSummary(groupId, todayDate);
-    var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true);
-    return LineModule.replyFlex(replyToken, '【已結單】' + finalRest + ' 訂購名單總計', finalFlex);
+    var closeScope = (SheetModule.getConfigValue('CLOSE_ORDER_SCOPE', 'WEEKLY') || 'WEEKLY').trim().toUpperCase();
+    var isWeeklyClose = text.indexOf('本週') !== -1 || (text.indexOf('今日') === -1 && (closeScope !== 'DAILY' && closeScope !== 'TODAY' && closeScope !== '今日'));
+    var payInfoClose = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
+
+    if (isWeeklyClose) {
+      var weeklySummaryClose = SheetModule.getWeeklyOrderSummary(groupId);
+      var weeklyCloseFlex = FlexModule.createWeeklySummaryFlex(weeklySummaryClose, true, payInfoClose);
+      return LineModule.replyFlex(replyToken, '【已結單】本週梯次訂餐總表與收費清單', weeklyCloseFlex);
+    } else {
+      var finalRest = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
+      var finalSummary = SheetModule.getOrderSummary(groupId, todayDate);
+      var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true, payInfoClose);
+      return LineModule.replyFlex(replyToken, '【已結單】' + finalRest + ' 訂購名單總計', finalFlex);
+    }
   }
 
   // 13. ORDER PLACEMENT: +1 / +2 / 點餐語法解析 (支援單日與週一至週五梯次點餐)
