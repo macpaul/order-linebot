@@ -1017,8 +1017,9 @@ function createHelpFlex() {
  * @param {Array<Object>} activeOrders - Array of active order records.
  * @returns {Object} LINE Flex bubble
  */
-function createCancelOrderFlex(userName, activeOrders) {
+function createCancelOrderFlex(userName, activeOrders, lockMap) {
   var orders = activeOrders || [];
+  var locks = lockMap || {};
 
   var dayMap = {};
   var dayOrder = [];
@@ -1059,13 +1060,23 @@ function createCancelOrderFlex(userName, activeOrders) {
       margin: 'lg'
     }));
   } else {
+    var anyDayUnlocked = false;
+
     dayOrder.forEach(function (day, di) {
       var dayItems = dayMap[day];
+      var dayLock = locks[day];
+      var isDayLocked = dayLock && dayLock.locked;
+      var lockReason = isDayLocked ? (dayLock.reason || '已截止') : '';
+      if (!isDayLocked) {
+        anyDayUnlocked = true;
+      }
 
-      bodyContents.push(_flexText('【' + day + ' 預訂項目】', {
+      var dayHeaderTitle = '【' + day + ' 預訂項目】' + (isDayLocked ? ' 🔒[' + lockReason + '無法取消]' : '');
+
+      bodyContents.push(_flexText(dayHeaderTitle, {
         size: 'md',
         weight: 'bold',
-        color: FLEX_COLORS.primaryDark,
+        color: isDayLocked ? FLEX_COLORS.textSecondary : FLEX_COLORS.primaryDark,
         align: 'start',
         margin: di === 0 ? 'none' : 'md'
       }));
@@ -1074,12 +1085,38 @@ function createCancelOrderFlex(userName, activeOrders) {
         var itemText = it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
         var cancelText = '取消 ' + day + ' ' + it.itemName;
 
+        var actionComponent = isDayLocked
+          ? _flexBox([
+              _flexText('🔒 ' + lockReason, {
+                size: 'xs',
+                color: FLEX_COLORS.textSecondary,
+                align: 'center'
+              })
+            ], {
+              layout: 'vertical',
+              flex: 2,
+              justifyContent: 'center',
+              alignItems: 'center'
+            })
+          : {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '取消此項',
+                text: cancelText
+              },
+              style: 'primary',
+              color: FLEX_COLORS.danger,
+              height: 'sm',
+              flex: 2
+            };
+
         bodyContents.push(_flexBox([
           _flexBox([
             _flexText(itemText, {
               size: 'sm',
               weight: 'bold',
-              color: FLEX_COLORS.textPrimary,
+              color: isDayLocked ? FLEX_COLORS.textSecondary : FLEX_COLORS.textPrimary,
               wrap: true
             })
           ], {
@@ -1087,18 +1124,7 @@ function createCancelOrderFlex(userName, activeOrders) {
             flex: 3,
             justifyContent: 'center'
           }),
-          {
-            type: 'button',
-            action: {
-              type: 'message',
-              label: '取消此項',
-              text: cancelText
-            },
-            style: 'primary',
-            color: FLEX_COLORS.danger,
-            height: 'sm',
-            flex: 2
-          }
+          actionComponent
         ], {
           layout: 'horizontal',
           spacing: 'sm',
@@ -1110,34 +1136,45 @@ function createCancelOrderFlex(userName, activeOrders) {
         }));
       });
 
-      // Button to cancel all items for this day
-      bodyContents.push({
-        type: 'button',
-        action: {
-          type: 'message',
-          label: '取消【' + day + '】所有餐點',
-          text: '取消 ' + day + ' 全部'
-        },
-        style: 'secondary',
-        height: 'sm',
-        margin: 'xs'
-      });
+      // Button to cancel all items for this day (only if unlocked)
+      if (!isDayLocked) {
+        bodyContents.push({
+          type: 'button',
+          action: {
+            type: 'message',
+            label: '取消【' + day + '】所有餐點',
+            text: '取消 ' + day + ' 全部'
+          },
+          style: 'secondary',
+          height: 'sm',
+          margin: 'xs'
+        });
+      }
     });
 
     // Overall button to cancel all orders
-    if (dayOrder.length > 1 || orders.length > 1) {
+    if (anyDayUnlocked && (dayOrder.length > 1 || orders.length > 1)) {
       bodyContents.push(_flexSeparator({ margin: 'md' }));
       bodyContents.push({
         type: 'button',
         action: {
           type: 'message',
-          label: '❌ 取消全部所有預約訂單',
+          label: '❌ 取消所有未截止預約訂單',
           text: '取消 全部'
         },
         style: 'secondary',
         height: 'sm',
         margin: 'sm'
       });
+    } else if (!anyDayUnlocked && dayOrder.length > 0) {
+      bodyContents.push(_flexSeparator({ margin: 'md' }));
+      bodyContents.push(_flexText('⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。', {
+        size: 'xs',
+        color: FLEX_COLORS.warning,
+        align: 'center',
+        wrap: true,
+        margin: 'sm'
+      }));
     }
   }
 
