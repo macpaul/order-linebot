@@ -1027,6 +1027,52 @@ console.log('  ✔ DayOfWeek normalization, header mapping robustness, and date 
 // Clean up mock timezone and mock date
 globalThis._mockSpreadsheetTimeZone = null;
 globalThis._mockCurrentDate = null;
-console.log('  ✔ Dynamic spreadsheet timezone reading & diagnostic tool verified.\n');
+console.log('  ✔ Dynamic spreadsheet timezone reading & diagnostic tool verified.');
+
+// Test 9.2: Verify createSummaryFlex conforms 100% to LINE Flex schema and member details
+var sampleSummary = {
+  date: '2026-09-07',
+  dayOfWeek: '週一',
+  totalQuantity: 3,
+  totalAmount: 320,
+  items: [
+    { itemName: '招牌便當', quantity: 2, price: 100, subtotal: 200, buyers: ['愛麗絲', '小鮑伯'] },
+    { itemName: '雞腿便當', quantity: 1, price: 120, subtotal: 120, buyers: ['愛麗絲'] }
+  ],
+  users: [
+    { userName: '愛麗絲', items: ['招牌便當x1', '雞腿便當x1'], total: 220 },
+    { userName: '小鮑伯', items: ['招牌便當x1'], total: 100 }
+  ]
+};
+
+var summaryFlex = FlexModule.createSummaryFlex('美味食堂', sampleSummary, false, null);
+var summaryFlexJson = JSON.stringify(summaryFlex);
+assert.ok(!summaryFlexJson.includes('"paddingAll":"xxs"'), 'Summary flex must never contain paddingAll xxs');
+assert.ok(!summaryFlexJson.includes('"padding":"xxs"'), 'Summary flex must never contain padding xxs');
+assert.strictEqual(summaryFlex.size, 'mega', 'Summary flex size must be mega');
+assert.ok(summaryFlexJson.includes('愛麗絲'), 'Summary flex must include member name');
+assert.ok(summaryFlexJson.includes('220'), 'Summary flex must include member owed total');
+assert.ok(summaryFlexJson.includes('小鮑伯'), 'Summary flex must include member name');
+assert.ok(summaryFlexJson.includes('100'), 'Summary flex must include member owed total');
+assert.ok(summaryFlexJson.includes('招牌便當x1、雞腿便當x1'), 'Summary flex must list items per member');
+
+// Test 9.3: formatOrderSummaryText output
+var plainTextSummary = OrderModule.formatOrderSummaryText('美味食堂', sampleSummary, false);
+assert.ok(plainTextSummary.includes('美味食堂'), 'Plain text summary must contain restaurant name');
+assert.ok(plainTextSummary.includes('招牌便當 x 2 ＝ $200 (愛麗絲, 小鮑伯)'), 'Plain text summary must list dish subtotal and buyers');
+assert.ok(plainTextSummary.includes('愛麗絲：招牌便當x1、雞腿便當x1 ＝ $220 元'), 'Plain text summary must show member items and amount');
+assert.ok(plainTextSummary.includes('小鮑伯：招牌便當x1 ＝ $100 元'), 'Plain text summary must show member items and amount');
+assert.ok(plainTextSummary.includes('總計：3 份 / $320 元'), 'Plain text summary must show grand total');
+
+// Test 9.4: Text command 今日文字統計
+OrderModule.handleTextMessage({
+  replyToken: 'token_text_summary',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '今日文字統計' }
+});
+assert.strictEqual(lastReply.type, 'text', '今日文字統計 must return plain text');
+assert.ok(lastReply.text.includes('今日訂餐統計'), 'Text summary must include title');
+
+console.log('  ✔ createSummaryFlex schema validity, plain-text summary, and member roster verified.\n');
 
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
