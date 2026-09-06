@@ -613,7 +613,7 @@ function _buildPaymentContents(paymentInfo) {
   }));
 
   // Bank transfer block
-  if (paymentInfo.bankAccount || paymentInfo.bankCode) {
+  if (paymentInfo.bankAccount || paymentInfo.bankCode || paymentInfo.bankQrUrl) {
     var bankTitle = (paymentInfo.bankCode ? paymentInfo.bankCode + ' ' : '') + (paymentInfo.bankName || '銀行跨行匯款');
     var bankRows = [
       _flexText('🏦 ' + bankTitle, {
@@ -640,6 +640,30 @@ function _buildPaymentContents(paymentInfo) {
       }));
     }
 
+    // Bank QR Code image
+    if (paymentInfo.bankQrUrl) {
+      bankRows.push({
+        type: 'image',
+        url: paymentInfo.bankQrUrl,
+        size: 'md',
+        aspectRatio: '1:1',
+        aspectMode: 'fit',
+        margin: 'sm',
+        align: 'center',
+        action: {
+          type: 'uri',
+          label: '放大檢視',
+          uri: paymentInfo.bankQrUrl
+        }
+      });
+      bankRows.push(_flexText('🔍 點擊 QR Code 可放大檢視或截圖掃碼轉帳', {
+        size: 'xxs',
+        color: FLEX_COLORS.textSecondary,
+        align: 'center',
+        margin: 'xs'
+      }));
+    }
+
     bankRows.push(_flexText('💡 轉帳完成後請私訊或於群組告知主揪以利對帳', {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
@@ -655,20 +679,39 @@ function _buildPaymentContents(paymentInfo) {
     }));
   }
 
-  // LINE Pay button
-  if (paymentInfo.linePayUrl) {
-    contents.push({
-      type: 'button',
-      action: {
-        type: 'uri',
-        label: '🟢 前往 LINE Pay 轉帳',
-        uri: paymentInfo.linePayUrl
-      },
-      style: 'primary',
-      color: '#06C755',
-      height: 'sm',
-      margin: 'sm'
-    });
+  // LINE Pay button & QR
+  if (paymentInfo.linePayUrl || paymentInfo.linePayQrUrl) {
+    if (paymentInfo.linePayUrl) {
+      contents.push({
+        type: 'button',
+        action: {
+          type: 'uri',
+          label: '🟢 前往 LINE Pay 轉帳',
+          uri: paymentInfo.linePayUrl
+        },
+        style: 'primary',
+        color: '#06C755',
+        height: 'sm',
+        margin: 'sm'
+      });
+    }
+
+    if (paymentInfo.linePayQrUrl) {
+      contents.push({
+        type: 'image',
+        url: paymentInfo.linePayQrUrl,
+        size: 'md',
+        aspectRatio: '1:1',
+        aspectMode: 'fit',
+        margin: 'sm',
+        align: 'center',
+        action: {
+          type: 'uri',
+          label: 'LINE Pay 收款碼',
+          uri: paymentInfo.linePayQrUrl
+        }
+      });
+    }
   }
 
   return contents;
