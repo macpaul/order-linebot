@@ -19,7 +19,8 @@ function onOpen(e) {
 function refreshDailySummary() {
   if (typeof isGasRuntime === 'function' && !isGasRuntime()) return;
   var todayDate = getTodayDateString ? getTodayDateString() : '';
-  var summary = getOrderSummary('', todayDate);
+  var todayDay = getTodayDayOfWeek ? getTodayDayOfWeek() : '';
+  var summary = getOrderSummary('', todayDate, todayDay);
   var ss = getSpreadsheet();
   if (ss) {
     var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.SUMMARY);
@@ -27,9 +28,10 @@ function refreshDailySummary() {
       sheet.clear();
       sheet.appendRow(['DayOfWeek', 'RestaurantName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']);
       sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#EFEFEF');
-      var rest = getConfigValue('RESTAURANT_NAME', '今日便當');
+      var daySched = getScheduleByDay ? getScheduleByDay(todayDay) : null;
+      var rest = (daySched && daySched.restaurantName) ? daySched.restaurantName : getConfigValue('RESTAURANT_NAME', '今日便當');
       summary.items.forEach(function (it) {
-        sheet.appendRow(['今日', rest, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
+        sheet.appendRow([todayDay || '今日', rest, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
       });
       sheet.appendRow(['【今日總計】', '', '', summary.totalQuantity, '', summary.totalAmount, '']);
       ss.toast('今日訂單統計表已更新完畢！', '成功', 3);
