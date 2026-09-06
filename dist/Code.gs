@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T10:52:41.376Z
+ * Automatically generated on: 2026-09-06T16:56:40.069Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -1181,6 +1181,40 @@ function _getOrderColumnIndexes(headers) {
 }
 
 /**
+ * Format and normalize date values from Google Sheet cells or Date objects to YYYY-MM-DD
+ * @param {*} val
+ * @returns {string}
+ */
+function _formatDateValue(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+      try {
+        var tz = Session.getScriptTimeZone() || 'Asia/Taipei';
+        return Utilities.formatDate(val, tz, 'yyyy-MM-dd');
+      } catch (e) {}
+    }
+    var utc = val.getTime() + (val.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    var y = twDate.getFullYear();
+    var m = ('0' + (twDate.getMonth() + 1)).slice(-2);
+    var d = ('0' + twDate.getDate()).slice(-2);
+    return y + '-' + m + '-' + d;
+  }
+  var s = String(val).trim();
+  if (s.length >= 10 && /^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(s)) {
+    var parts = s.slice(0, 10).replace(/\//g, '-').split('-');
+    if (parts.length === 3) {
+      var y = parts[0];
+      var m = ('0' + parts[1]).slice(-2);
+      var d = ('0' + parts[2]).slice(-2);
+      return y + '-' + m + '-' + d;
+    }
+  }
+  return s;
+}
+
+/**
  * Record an order
  */
 function addOrder(orderData) {
@@ -1281,8 +1315,16 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     return _mockStore.Orders.filter(function (o) {
       if (o.status !== 'ACTIVE') return false;
       if (groupId && o.groupId !== groupId) return false;
-      if (date && o.date !== date) return false;
-      if (dayOfWeek && o.dayOfWeek !== dayOfWeek) return false;
+
+      var matchTiming = true;
+      if (date && dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
+      } else if (date) {
+        matchTiming = (o.date === date);
+      } else if (dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek);
+      }
+      if (!matchTiming) return false;
 
       // Strict user matching:
       // If userName is provided and not fallback '成員', order MUST match userName or userNickname
@@ -1336,11 +1378,18 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     var rGroupId = String(r[colMap.groupId]);
     if (groupId && rGroupId !== groupId) continue;
 
-    var rDate = String(r[colMap.date]);
-    if (date && rDate !== date) continue;
+    var rDate = _formatDateValue(r[colMap.date]);
+    var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
 
-    var rDayOfWeek = String(r[colMap.dayOfWeek]);
-    if (dayOfWeek && rDayOfWeek !== dayOfWeek) continue;
+    var matchTiming = true;
+    if (date && dayOfWeek) {
+      matchTiming = (rDayOfWeek === dayOfWeek || rDate === date);
+    } else if (date) {
+      matchTiming = (rDate === date);
+    } else if (dayOfWeek) {
+      matchTiming = (rDayOfWeek === dayOfWeek);
+    }
+    if (!matchTiming) continue;
 
     var rUserId = String(r[colMap.userId]);
     var rUserName = String(r[colMap.userName]);
@@ -1403,8 +1452,16 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
     _mockStore.Orders.forEach(function (o) {
       if (o.status !== 'ACTIVE') return;
       if (groupId && o.groupId !== groupId) return;
-      if (date && o.date !== date) return;
-      if (dayOfWeek && o.dayOfWeek !== dayOfWeek) return;
+
+      var matchTiming = true;
+      if (date && dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
+      } else if (date) {
+        matchTiming = (o.date === date);
+      } else if (dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek);
+      }
+      if (!matchTiming) return;
       if (itemName && o.itemName.indexOf(itemName) === -1) return;
 
       // Strict user matching
@@ -1445,11 +1502,18 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
     var rGroupId = String(r[colMap.groupId]);
     if (groupId && rGroupId !== groupId) continue;
 
-    var rDate = String(r[colMap.date]);
-    if (date && rDate !== date) continue;
+    var rDate = _formatDateValue(r[colMap.date]);
+    var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
 
-    var rDayOfWeek = String(r[colMap.dayOfWeek]);
-    if (dayOfWeek && rDayOfWeek !== dayOfWeek) continue;
+    var matchTiming = true;
+    if (date && dayOfWeek) {
+      matchTiming = (rDayOfWeek === dayOfWeek || rDate === date);
+    } else if (date) {
+      matchTiming = (rDate === date);
+    } else if (dayOfWeek) {
+      matchTiming = (rDayOfWeek === dayOfWeek);
+    }
+    if (!matchTiming) continue;
 
     var rItem = String(r[colMap.itemName]);
     if (itemName && rItem.indexOf(itemName) === -1) continue;
@@ -1489,14 +1553,21 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
   var count = 0;
   if (!isGasRuntime()) {
     _mockStore.Orders.forEach(function (o) {
-      if ((!groupId || o.groupId === groupId) &&
-        (!date || o.date === date) &&
-        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
-        (!itemName || o.itemName.indexOf(itemName) !== -1) &&
-        o.status === 'ACTIVE') {
-        o.status = 'CANCELLED';
-        count++;
+      if (o.status !== 'ACTIVE') return;
+      if (groupId && o.groupId !== groupId) return;
+      var matchTiming = true;
+      if (date && dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
+      } else if (date) {
+        matchTiming = (o.date === date);
+      } else if (dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek);
       }
+      if (!matchTiming) return;
+      if (itemName && o.itemName.indexOf(itemName) === -1) return;
+
+      o.status = 'CANCELLED';
+      count++;
     });
     return count;
   }
@@ -1513,19 +1584,28 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
-    var rGroupId = String(r[colMap.groupId]);
-    var rDate = String(r[colMap.date]);
-    var rDayOfWeek = String(r[colMap.dayOfWeek]);
-    var rItem = String(r[colMap.itemName]);
+    if (rStatus !== 'ACTIVE') continue;
 
-    if (rStatus === 'ACTIVE' &&
-        (!groupId || rGroupId === groupId) &&
-        (!date || rDate === date) &&
-        (!dayOfWeek || rDayOfWeek === dayOfWeek)) {
-      if (!itemName || rItem.indexOf(itemName) !== -1) {
-        sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
-        count++;
-      }
+    var rGroupId = String(r[colMap.groupId]);
+    if (groupId && rGroupId !== groupId) continue;
+
+    var rDate = _formatDateValue(r[colMap.date]);
+    var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
+
+    var matchTiming = true;
+    if (date && dayOfWeek) {
+      matchTiming = (rDayOfWeek === dayOfWeek || rDate === date);
+    } else if (date) {
+      matchTiming = (rDate === date);
+    } else if (dayOfWeek) {
+      matchTiming = (rDayOfWeek === dayOfWeek);
+    }
+    if (!matchTiming) continue;
+
+    var rItem = String(r[colMap.itemName]);
+    if (!itemName || rItem.indexOf(itemName) !== -1) {
+      sheet.getRange(i + 1, colMap.status + 1).setValue('CANCELLED');
+      count++;
     }
   }
   return count;
@@ -1565,10 +1645,16 @@ function findUserInGroup(groupId, query) {
 function getGroupOrders(groupId, date, dayOfWeek) {
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
-      return (!groupId || o.groupId === groupId) &&
-        (!date || o.date === date) &&
-        (!dayOfWeek || o.dayOfWeek === dayOfWeek) &&
-        o.status === 'ACTIVE';
+      var matchGroup = (!groupId || o.groupId === groupId);
+      var matchTiming = true;
+      if (date && dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
+      } else if (date) {
+        matchTiming = (o.date === date);
+      } else if (dayOfWeek) {
+        matchTiming = (o.dayOfWeek === dayOfWeek);
+      }
+      return matchGroup && matchTiming && o.status === 'ACTIVE';
     });
   }
 
@@ -1584,31 +1670,40 @@ function getGroupOrders(groupId, date, dayOfWeek) {
   for (var i = 1; i < rows.length; i++) {
     var r = rows[i];
     var rStatus = String(r[colMap.status]);
-    var rGroupId = String(r[colMap.groupId]);
-    var rDate = String(r[colMap.date]);
-    var rDay = String(r[colMap.dayOfWeek]);
+    if (rStatus !== 'ACTIVE') continue;
 
-    if (rStatus === 'ACTIVE' &&
-        (!groupId || rGroupId === groupId) &&
-        (!date || rDate === date) &&
-        (!dayOfWeek || rDay === dayOfWeek)) {
-      orders.push({
-        orderId: r[colMap.orderId],
-        timestamp: r[colMap.timestamp],
-        date: rDate,
-        dayOfWeek: rDay,
-        groupId: rGroupId,
-        userId: r[colMap.userId],
-        userName: r[colMap.userName],
-        userNickname: colMap.userNickname !== -1 ? r[colMap.userNickname] : (r[colMap.userName] || ''),
-        itemName: r[colMap.itemName],
-        quantity: Number(r[colMap.quantity]),
-        price: Number(r[colMap.price]),
-        subtotal: Number(r[colMap.subtotal]),
-        status: rStatus,
-        paid: r[colMap.paid]
-      });
+    var rGroupId = String(r[colMap.groupId]);
+    if (groupId && rGroupId !== groupId) continue;
+
+    var rDate = _formatDateValue(r[colMap.date]);
+    var rDay = String(r[colMap.dayOfWeek] || '').trim();
+
+    var matchTiming = true;
+    if (date && dayOfWeek) {
+      matchTiming = (rDay === dayOfWeek || rDate === date);
+    } else if (date) {
+      matchTiming = (rDate === date);
+    } else if (dayOfWeek) {
+      matchTiming = (rDay === dayOfWeek);
     }
+    if (!matchTiming) continue;
+
+    orders.push({
+      orderId: r[colMap.orderId],
+      timestamp: r[colMap.timestamp],
+      date: rDate,
+      dayOfWeek: rDay,
+      groupId: rGroupId,
+      userId: r[colMap.userId],
+      userName: r[colMap.userName],
+      userNickname: colMap.userNickname !== -1 ? r[colMap.userNickname] : (r[colMap.userName] || ''),
+      itemName: r[colMap.itemName],
+      quantity: Number(r[colMap.quantity]),
+      price: Number(r[colMap.price]),
+      subtotal: Number(r[colMap.subtotal]),
+      status: rStatus,
+      paid: r[colMap.paid]
+    });
   }
   return orders;
 }
@@ -1624,6 +1719,7 @@ function getOrderSummary(groupId, date, dayOfWeek) {
   var totalAmount = 0;
 
   orders.forEach(function (o) {
+    var uName = o.userNickname || o.userName || '成員';
     if (!itemMap[o.itemName]) {
       itemMap[o.itemName] = {
         itemName: o.itemName,
@@ -1635,17 +1731,17 @@ function getOrderSummary(groupId, date, dayOfWeek) {
     }
     itemMap[o.itemName].quantity += o.quantity;
     itemMap[o.itemName].subtotal += o.subtotal;
-    itemMap[o.itemName].buyers.push(o.userName + (o.quantity > 1 ? 'x' + o.quantity : ''));
+    itemMap[o.itemName].buyers.push(uName + (o.quantity > 1 ? 'x' + o.quantity : ''));
 
-    if (!userMap[o.userName]) {
-      userMap[o.userName] = {
-        userName: o.userName,
+    if (!userMap[uName]) {
+      userMap[uName] = {
+        userName: uName,
         items: [],
         total: 0
       };
     }
-    userMap[o.userName].items.push(o.itemName + 'x' + o.quantity);
-    userMap[o.userName].total += o.subtotal;
+    userMap[uName].items.push(o.itemName + 'x' + o.quantity);
+    userMap[uName].total += o.subtotal;
 
     totalQuantity += o.quantity;
     totalAmount += o.subtotal;
@@ -1753,6 +1849,8 @@ function onOpenSpreadsheet() {
       .addItem('📊 重新產生今日統計表', 'refreshDailySummary')
       .addItem('📈 重新產生本週梯次統計表', 'refreshWeeklySummary')
       .addSeparator()
+      .addItem('🕒 檢查 Apps Script 時區與系統時間', 'checkTimeZoneAndCurrentTime')
+      .addSeparator()
       .addItem('🍔 從 Uber Eats 網址匯入菜單', 'showUberEatsImportDialog')
       .addSeparator()
       .addItem('🔍 診斷測試：Uber Eats 菜單抓取', 'testUberEatsImport')
@@ -1760,6 +1858,89 @@ function onOpenSpreadsheet() {
       .addItem('🔍 診斷測試：幫助卡片訊息', 'testHelpMessage')
       .addToUi();
   } catch (e) {}
+}
+
+/**
+ * Diagnostic tool to check Google Apps Script project timezone, spreadsheet timezone, and current time
+ */
+function checkTimeZoneAndCurrentTime() {
+  var ssTz = 'N/A';
+  if (isGasRuntime()) {
+    try {
+      var ss = getSpreadsheet();
+      if (ss) ssTz = ss.getSpreadsheetTimeZone();
+    } catch (e) {}
+  }
+
+  var scriptTz = 'N/A';
+  if (typeof Session !== 'undefined' && Session.getScriptTimeZone) {
+    try {
+      scriptTz = Session.getScriptTimeZone();
+    } catch (e) {}
+  }
+
+  var now = (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var serverRawTime = now.toString();
+  var isoTime = now.toISOString ? now.toISOString() : String(now);
+  var taipeiTime = 'N/A';
+  var dateStr = 'N/A';
+  var dayOfWeekStr = 'N/A';
+
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      taipeiTime = Utilities.formatDate(now, 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
+      dateStr = Utilities.formatDate(now, 'Asia/Taipei', 'yyyy-MM-dd');
+      var u = parseInt(Utilities.formatDate(now, 'Asia/Taipei', 'u'), 10);
+      var dayMapU = { 1: '週一', 2: '週二', 3: '週三', 4: '週四', 5: '週五', 6: '週六', 7: '週日' };
+      dayOfWeekStr = dayMapU[u] || '週一';
+    } catch (e) {}
+  } else {
+    var utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    var y = twDate.getFullYear();
+    var m = ('0' + (twDate.getMonth() + 1)).slice(-2);
+    var d = ('0' + twDate.getDate()).slice(-2);
+    var hh = ('0' + twDate.getHours()).slice(-2);
+    var mm = ('0' + twDate.getMinutes()).slice(-2);
+    var ss = ('0' + twDate.getSeconds()).slice(-2);
+    dateStr = y + '-' + m + '-' + d;
+    taipeiTime = dateStr + ' ' + hh + ':' + mm + ':' + ss;
+    var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    dayOfWeekStr = dayMap[twDate.getDay()];
+  }
+
+  var msg = '【系統時區與時間診斷資訊】\n' +
+            '----------------------------------------\n' +
+            '• 試算表時區 (Spreadsheet TimeZone): ' + ssTz + '\n' +
+            '• 專案腳本時區 (Script TimeZone): ' + scriptTz + '\n' +
+            '• 台北標準時間 (Asia/Taipei UTC+8): ' + taipeiTime + '\n' +
+            '• 當前判定日期: ' + dateStr + '\n' +
+            '• 當前判定星期: ' + dayOfWeekStr + '\n' +
+            '• 伺服器原始時間 (Raw Date): ' + serverRawTime + '\n' +
+            '• ISO UTC 時間: ' + isoTime + '\n' +
+            '----------------------------------------\n' +
+            (ssTz !== 'N/A' && ssTz !== 'Asia/Taipei' ? '⚠️ 注意：試算表時區非 Asia/Taipei，請至「檔案 -> 設定」修改時區！\n' : '✅ 試算表時區正常 (Asia/Taipei)！\n') +
+            (scriptTz !== 'N/A' && scriptTz !== 'Asia/Taipei' ? '⚠️ 注意：Apps Script 專案時區非 Asia/Taipei，請至專案設定檢查 appsscript.json！' : '✅ 專案腳本時區正常！');
+
+  if (typeof Logger !== 'undefined') {
+    Logger.log(msg);
+  }
+  if (isGasRuntime()) {
+    try {
+      SpreadsheetApp.getUi().alert('🕒 時區與時間診斷', msg, SpreadsheetApp.getUi().ButtonSet.OK);
+    } catch (e) {}
+  }
+
+  return {
+    spreadsheetTimeZone: ssTz,
+    scriptTimeZone: scriptTz,
+    taipeiTime: taipeiTime,
+    dateStr: dateStr,
+    dayOfWeek: dayOfWeekStr,
+    serverRawTime: serverRawTime,
+    isoTime: isoTime,
+    formattedMessage: msg
+  };
 }
 
 /**
@@ -1813,6 +1994,7 @@ function logToSheet(type, message, detail) {
   g.getPaymentConfig = getPaymentConfig;
   g.normalizeImageUrl = normalizeImageUrl;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
+  g.checkTimeZoneAndCurrentTime = checkTimeZoneAndCurrentTime;
   g.findUserInGroup = findUserInGroup;
   g.logToSheet = logToSheet;
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
@@ -1841,6 +2023,7 @@ function logToSheet(type, message, detail) {
       getPaymentConfig: getPaymentConfig,
       normalizeImageUrl: normalizeImageUrl,
       onOpenSpreadsheet: onOpenSpreadsheet,
+      checkTimeZoneAndCurrentTime: checkTimeZoneAndCurrentTime,
       logToSheet: logToSheet,
       _getOrderColumnIndexes: _getOrderColumnIndexes,
       _mockStore: _mockStore
@@ -3115,6 +3298,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   var statusColor = isClosed ? FLEX_COLORS.danger : FLEX_COLORS.success;
 
   /* ---- header ---- */
+  var headerDateText = dateStr + (data.dayOfWeek ? ' (' + data.dayOfWeek + ')' : '');
   var header = _flexBox([
     _flexText(restaurantName || '訂單統計', {
       size: 'xl',
@@ -3123,7 +3307,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       align: 'start'
     }),
     _flexBox([
-      _flexText(dateStr || '', {
+      _flexText(headerDateText || '', {
         size: 'sm',
         color: FLEX_COLORS.textOnColor,
         align: 'start'
@@ -3169,23 +3353,47 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       var name = item.itemName || '';
       var qty = item.quantity || 0;
       var sub = _formatPrice(item.subtotal);
+      var buyersText = (item.buyers && item.buyers.length > 0)
+        ? '👤 ' + item.buyers.join('、')
+        : '';
 
-      bodyContents.push(_flexBox([
-        _flexText(name + ' x' + qty, {
-          size: 'md',
-          color: FLEX_COLORS.textPrimary,
-          align: 'start'
-        }),
-        _flexFiller(),
-        _flexText(sub, {
-          size: 'md',
-          color: FLEX_COLORS.textSecondary,
-          align: 'end'
+      var itemBoxChildren = [
+        _flexBox([
+          _flexText(name + ' x' + qty, {
+            size: 'md',
+            weight: 'bold',
+            color: FLEX_COLORS.textPrimary,
+            align: 'start'
+          }),
+          _flexFiller(),
+          _flexText(sub, {
+            size: 'md',
+            weight: 'bold',
+            color: FLEX_COLORS.primaryDark,
+            align: 'end'
+          })
+        ], {
+          layout: 'horizontal',
+          spacing: 'sm'
         })
-      ], {
-        layout: 'horizontal',
-        spacing: 'sm',
-        padding: 'xs'
+      ];
+
+      if (buyersText) {
+        itemBoxChildren.push(_flexText(buyersText, {
+          size: 'xs',
+          color: FLEX_COLORS.textSecondary,
+          margin: 'xs',
+          wrap: true
+        }));
+      }
+
+      bodyContents.push(_flexBox(itemBoxChildren, {
+        layout: 'vertical',
+        spacing: 'none',
+        paddingAll: 'sm',
+        margin: 'xs',
+        backgroundColor: FLEX_COLORS.background,
+        cornerRadius: 'sm'
       }));
     });
   }
@@ -3200,7 +3408,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       align: 'start'
     }),
     _flexFiller(),
-    _flexText(totalQty + ' 項 / ' + _formatPrice(totalAmt), {
+    _flexText(totalQty + ' 份 / ' + _formatPrice(totalAmt), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.primary,
@@ -3211,6 +3419,54 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
     spacing: 'sm',
     padding: 'sm'
   }));
+
+  // Member billing & order roster (今日成員應付明細與點餐名冊)
+  if (data.users && data.users.length > 0) {
+    bodyContents.push(_flexSeparator({ margin: 'md' }));
+    bodyContents.push(_flexText('👤 今日成員應付名冊', {
+      weight: 'bold',
+      size: 'sm',
+      color: FLEX_COLORS.textPrimary,
+      margin: 'md'
+    }));
+
+    data.users.forEach(function (u) {
+      var userItemsStr = (u.items && u.items.length > 0) ? u.items.join('、') : '';
+      bodyContents.push(_flexBox([
+        _flexBox([
+          _flexText(u.userName || '成員', {
+            size: 'sm',
+            weight: 'bold',
+            color: FLEX_COLORS.textPrimary
+          }),
+          _flexText(userItemsStr, {
+            size: 'xxs',
+            color: FLEX_COLORS.textSecondary,
+            margin: 'xxs',
+            wrap: true
+          })
+        ], {
+          layout: 'vertical',
+          flex: 3
+        }),
+        _flexFiller(),
+        _flexText('$' + u.total + ' 元', {
+          size: 'sm',
+          weight: 'bold',
+          color: FLEX_COLORS.danger,
+          align: 'end',
+          flex: 2
+        })
+      ], {
+        layout: 'horizontal',
+        alignItems: 'center',
+        margin: 'xs',
+        paddingAll: 'xs',
+        backgroundColor: FLEX_COLORS.background,
+        cornerRadius: 'sm'
+      }));
+    });
+  }
 
   // Append payment contents if available
   if (paymentInfo && paymentInfo.hasPaymentInfo) {
@@ -3955,6 +4211,11 @@ var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 
  */
 function getTodayDateString(refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      return Utilities.formatDate(d, 'Asia/Taipei', 'yyyy-MM-dd');
+    } catch (e) {}
+  }
   var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
   var twDate = new Date(utc + (3600000 * 8));
   var year = twDate.getFullYear();
@@ -3968,12 +4229,22 @@ function getTodayDateString(refDate) {
  */
 function getTodayDayOfWeek(refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
-  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-  var twDate = new Date(utc + (3600000 * 8));
-  var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
-  var day = dayMap[twDate.getDay()];
-  if (day === '週六' || day === '週日') return '週一';
-  return day;
+  var dayOfWeekStr = '';
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      var dayMapU = { 1: '週一', 2: '週二', 3: '週三', 4: '週四', 5: '週五', 6: '週六', 7: '週日' };
+      dayOfWeekStr = dayMapU[u];
+    } catch (e) {}
+  }
+  if (!dayOfWeekStr) {
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    dayOfWeekStr = dayMap[twDate.getDay()];
+  }
+  if (dayOfWeekStr === '週六' || dayOfWeekStr === '週日') return '週一';
+  return dayOfWeekStr;
 }
 
 /**
@@ -3984,9 +4255,18 @@ function getTodayDayOfWeek(refDate) {
  */
 function isDayPast(targetDay, refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
-  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-  var twDate = new Date(utc + (3600000 * 8));
-  var currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  var currentDayIndex = -1;
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      currentDayIndex = u === 7 ? 0 : u; // convert Sunday 7 to 0
+    } catch (e) {}
+  }
+  if (currentDayIndex === -1) {
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  }
   var targetDayIndex = DAY_ORDER[targetDay];
   if (!targetDayIndex) return false;
 
@@ -4010,10 +4290,25 @@ function isDayPast(targetDay, refDate) {
  */
 function isTodayCutoffPassed(day, refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
-  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-  var twDate = new Date(utc + (3600000 * 8));
-  var currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  var currentDayIndex = -1;
+  var currentMinutes = -1;
   var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      currentDayIndex = u === 7 ? 0 : u;
+      var hh = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'HH'), 10);
+      var mm = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'mm'), 10);
+      currentMinutes = hh * 60 + mm;
+    } catch (e) {}
+  }
+  if (currentDayIndex === -1) {
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    var twDate = new Date(utc + (3600000 * 8));
+    currentDayIndex = twDate.getDay();
+    currentMinutes = twDate.getHours() * 60 + twDate.getMinutes();
+  }
   var actualTodayStr = dayMap[currentDayIndex];
 
   // If today is weekend (Sun or Sat), weekdays Mon-Fri are not today
@@ -4046,7 +4341,6 @@ function isTodayCutoffPassed(day, refDate) {
   var parts = cutoffStr.split(':');
   if (parts.length < 2) return false;
   var cutoffMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-  var currentMinutes = twDate.getHours() * 60 + twDate.getMinutes();
 
   return currentMinutes >= cutoffMinutes;
 }
@@ -4723,14 +5017,15 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
   }
 
-  // 11. TODAY SUMMARY: 統計 / 即時統計
-  if (/^(?:\/)?(?:統計|即時統計)$/.test(text)) {
-    var restName = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
+  // 11. TODAY SUMMARY: 今日統計 / 本日統計 / 統計 / 即時統計
+  if (/^(?:\/)?(?:今日統計|本日統計|統計|即時統計)$/.test(text)) {
+    var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
+    var restName = (daySched && daySched.restaurantName) ? daySched.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
-    var summary = SheetModule.getOrderSummary(groupId, todayDate);
+    var summary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
     var payInfoTodaySum = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum);
-    return LineModule.replyFlex(replyToken, '【訂餐統計】' + restName, sumFlex);
+    return LineModule.replyFlex(replyToken, '【今日訂餐統計】' + restName, sumFlex);
   }
 
   // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐 / 本週結單 / 今日結單
@@ -4745,8 +5040,9 @@ function handleTextMessage(event) {
       var weeklyCloseFlex = FlexModule.createWeeklySummaryFlex(weeklySummaryClose, true, payInfoClose);
       return LineModule.replyFlex(replyToken, '【已結單】本週梯次訂餐總表與收費清單', weeklyCloseFlex);
     } else {
-      var finalRest = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
-      var finalSummary = SheetModule.getOrderSummary(groupId, todayDate);
+      var daySchedFinal = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
+      var finalRest = (daySchedFinal && daySchedFinal.restaurantName) ? daySchedFinal.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
+      var finalSummary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
       var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true, payInfoClose);
       return LineModule.replyFlex(replyToken, '【已結單】' + finalRest + ' 訂購名單總計', finalFlex);
     }
@@ -4924,7 +5220,8 @@ function onOpen(e) {
 function refreshDailySummary() {
   if (typeof isGasRuntime === 'function' && !isGasRuntime()) return;
   var todayDate = getTodayDateString ? getTodayDateString() : '';
-  var summary = getOrderSummary('', todayDate);
+  var todayDay = getTodayDayOfWeek ? getTodayDayOfWeek() : '';
+  var summary = getOrderSummary('', todayDate, todayDay);
   var ss = getSpreadsheet();
   if (ss) {
     var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.SUMMARY);
@@ -4932,9 +5229,10 @@ function refreshDailySummary() {
       sheet.clear();
       sheet.appendRow(['DayOfWeek', 'RestaurantName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']);
       sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#EFEFEF');
-      var rest = getConfigValue('RESTAURANT_NAME', '今日便當');
+      var daySched = getScheduleByDay ? getScheduleByDay(todayDay) : null;
+      var rest = (daySched && daySched.restaurantName) ? daySched.restaurantName : getConfigValue('RESTAURANT_NAME', '今日便當');
       summary.items.forEach(function (it) {
-        sheet.appendRow(['今日', rest, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
+        sheet.appendRow([todayDay || '今日', rest, it.itemName, it.quantity, it.price, it.subtotal, it.buyers.join(', ')]);
       });
       sheet.appendRow(['【今日總計】', '', '', summary.totalQuantity, '', summary.totalAmount, '']);
       ss.toast('今日訂單統計表已更新完畢！', '成功', 3);
