@@ -399,9 +399,16 @@ function handleTextMessage(event) {
     }
 
     var lastAdded = addedRecords[addedRecords.length - 1];
-    var allMyOrders = SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek);
-    var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders);
-    return LineModule.replyFlex(replyToken, '訂單已記錄：' + lastAdded.dayOfWeek + ' ' + lastAdded.itemName, receiptFlex);
+    var receiptScope = (SheetModule.getConfigValue('ORDER_RECEIPT_SCOPE', 'WEEKLY') || 'WEEKLY').trim().toUpperCase();
+    var isWeekly = (receiptScope !== 'DAILY' && receiptScope !== 'TODAY' && receiptScope !== '今日');
+
+    var allMyOrders = isWeekly
+      ? SheetModule.getUserOrders(userId, groupId, null, null)
+      : SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek);
+
+    var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly });
+    var altSuffix = isWeekly ? '（本週）' : '';
+    return LineModule.replyFlex(replyToken, '訂單已記錄' + (altSuffix ? altSuffix + '：' : '：') + lastAdded.dayOfWeek + ' ' + lastAdded.itemName, receiptFlex);
   }
 
   return null;
