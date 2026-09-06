@@ -9,7 +9,8 @@ var _mockStore = {
     'IS_ORDERING_OPEN': 'false',
     'RESTAURANT_NAME': '老王便當',
     'CUTOFF_TIME': '11:00',
-    'ORGANIZER_NAME': '小幫手'
+    'ORGANIZER_NAME': '小幫手',
+    'ORDER_RECEIPT_SCOPE': 'WEEKLY'
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -88,7 +89,8 @@ function initSheets() {
         ['RESTAURANT_NAME', '老王便當', '今日配合訂購店家名稱'],
         ['CUTOFF_TIME', '11:00', '今日點餐截止時間'],
         ['ORGANIZER_ID', '', '發起開單人 LINE User ID'],
-        ['ORGANIZER_NAME', '', '發起開單人姓名']
+        ['ORGANIZER_NAME', '', '發起開單人姓名'],
+        ['ORDER_RECEIPT_SCOPE', 'WEEKLY', '點餐後收據顯示範圍 (WEEKLY: 本週訂單 / DAILY: 今日訂單)']
       ]
     },
     {
