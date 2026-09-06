@@ -594,11 +594,92 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
 }
 
 /**
+ * Helper to build payment info flex contents (LINE Pay button + Bank Transfer info)
+ * @param {Object} paymentInfo
+ * @returns {Array<Object>} Flex component array
+ */
+function _buildPaymentContents(paymentInfo) {
+  if (!paymentInfo || !paymentInfo.hasPaymentInfo) {
+    return [];
+  }
+
+  var contents = [];
+  contents.push(_flexSeparator({ margin: 'md' }));
+  contents.push(_flexText('💳 付款方式與匯款資訊', {
+    weight: 'bold',
+    size: 'sm',
+    color: FLEX_COLORS.primaryDark,
+    margin: 'md'
+  }));
+
+  // Bank transfer block
+  if (paymentInfo.bankAccount || paymentInfo.bankCode) {
+    var bankTitle = (paymentInfo.bankCode ? paymentInfo.bankCode + ' ' : '') + (paymentInfo.bankName || '銀行跨行匯款');
+    var bankRows = [
+      _flexText('🏦 ' + bankTitle, {
+        size: 'sm',
+        weight: 'bold',
+        color: FLEX_COLORS.textPrimary
+      })
+    ];
+
+    if (paymentInfo.bankAccount) {
+      bankRows.push(_flexText('帳號：' + paymentInfo.bankAccount, {
+        size: 'sm',
+        weight: 'bold',
+        color: FLEX_COLORS.textPrimary,
+        margin: 'xs'
+      }));
+    }
+
+    if (paymentInfo.bankAccountName) {
+      bankRows.push(_flexText('戶名：' + paymentInfo.bankAccountName, {
+        size: 'xs',
+        color: FLEX_COLORS.textSecondary,
+        margin: 'xs'
+      }));
+    }
+
+    bankRows.push(_flexText('💡 轉帳完成後請私訊或於群組告知主揪以利對帳', {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      margin: 'xs'
+    }));
+
+    contents.push(_flexBox(bankRows, {
+      layout: 'vertical',
+      paddingAll: 'sm',
+      margin: 'sm',
+      backgroundColor: FLEX_COLORS.background,
+      cornerRadius: 'md'
+    }));
+  }
+
+  // LINE Pay button
+  if (paymentInfo.linePayUrl) {
+    contents.push({
+      type: 'button',
+      action: {
+        type: 'uri',
+        label: '🟢 前往 LINE Pay 轉帳',
+        uri: paymentInfo.linePayUrl
+      },
+      style: 'primary',
+      color: '#06C755',
+      height: 'sm',
+      margin: 'sm'
+    });
+  }
+
+  return contents;
+}
+
+/**
  * createSummaryFlex — Daily aggregated order summary for the organizer.
  *
  * Layout:
  *   header  – restaurant name + date + open/closed status badge
- *   body     – per-item totals (name xQty … $Subtotal) + grand total
+ *   body     – per-item totals (name xQty … $Subtotal) + grand total + payment info + action buttons
  *   footer   – status line
  *
  * @param {string} restaurantName - Restaurant display name.
@@ -610,9 +691,10 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
  *     items: Array<{ itemName: string, quantity: number, price: number, subtotal: number, buyers: string[] }>
  *   }
  * @param {boolean} isClosed - True when the ordering window has ended.
+ * @param {Object} [paymentInfo] - Optional payment configuration (LINE Pay & Bank Transfer).
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createSummaryFlex(restaurantName, summaryData, isClosed) {
+function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   var data = summaryData || {};
   var items = data.items || [];
   var totalQty = data.totalQuantity || 0;
@@ -720,6 +802,29 @@ function createSummaryFlex(restaurantName, summaryData, isClosed) {
     padding: 'sm'
   }));
 
+  // Append payment contents if available
+  if (paymentInfo && paymentInfo.hasPaymentInfo) {
+    var payBoxes = _buildPaymentContents(paymentInfo);
+    for (var p = 0; p < payBoxes.length; p++) {
+      bodyContents.push(payBoxes[p]);
+    }
+  }
+
+  // Quick close order button if still open
+  if (!isClosed) {
+    bodyContents.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '🔒 截止今日訂餐（結單）',
+        text: '今日結單'
+      },
+      style: 'secondary',
+      height: 'sm',
+      margin: 'md'
+    });
+  }
+
   var body = _flexBox(bodyContents, {
     layout: 'vertical',
     spacing: 'none',
@@ -729,7 +834,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed) {
 
   /* ---- footer ---- */
   var footerMsg = isClosed
-    ? '⏰ 已截止，不再接受新訂單'
+    ? '⏰ 已截止，請各成員儘速完成付款'
     : '🟢 目前開放點餐中';
 
   var footer = _flexBox([
@@ -786,7 +891,8 @@ function createHelpFlex() {
     { label: '📦 我的本週訂單', desc: '查詢本週全梯次預訂', cmd: '我的本週訂單', btnText: '查全週' },
     { label: '🗑️ 取消餐點', desc: '自選退訂特定餐點', cmd: '取消餐點', btnText: '去取消' },
     { label: '📊 本週統計', desc: '全週梯次訂購對帳總表', cmd: '本週統計', btnText: '本週統計' },
-    { label: '📈 今日統計', desc: '今日即時訂單統計與名冊', cmd: '統計', btnText: '今日統計' }
+    { label: '📈 今日統計', desc: '今日即時訂單統計與名冊', cmd: '統計', btnText: '今日統計' },
+    { label: '🔒 結單截止', desc: '截止訂餐並顯示收款資訊', cmd: '結單', btnText: '去結單' }
   ];
 
   var bodyContents = [];
@@ -1081,9 +1187,11 @@ function createWeeklyScheduleFlex(schedule) {
 /**
  * createWeeklySummaryFlex — Build a Flex card displaying the weekly batch summary
  * @param {Object} weeklySummary - { daySummaries, grandTotalQuantity, grandTotalAmount, users }
+ * @param {boolean} [isClosed] - Whether weekly ordering has ended.
+ * @param {Object} [paymentInfo] - Optional payment configuration (LINE Pay & Bank Transfer).
  * @returns {Object} LINE Flex bubble
  */
-function createWeeklySummaryFlex(weeklySummary) {
+function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
   var summary = weeklySummary || { daySummaries: [], users: [] };
   var bodyContents = [];
 
@@ -1123,18 +1231,45 @@ function createWeeklySummaryFlex(weeklySummary) {
     bodyContents.push(_flexText('尚無成員訂購紀錄', { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
   }
 
+  // Append payment contents if provided
+  if (paymentInfo && paymentInfo.hasPaymentInfo) {
+    var weeklyPayBoxes = _buildPaymentContents(paymentInfo);
+    for (var wp = 0; wp < weeklyPayBoxes.length; wp++) {
+      bodyContents.push(weeklyPayBoxes[wp]);
+    }
+  }
+
+  // Quick close order button if not closed
+  if (!isClosed) {
+    bodyContents.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: '🔒 截止本週預訂（結單）',
+        text: '本週結單'
+      },
+      style: 'secondary',
+      height: 'sm',
+      margin: 'md'
+    });
+  }
+
+  var titleText = isClosed ? '📊 本週梯次結單總表' : '📊 本週梯次訂餐統計總表';
+  var headerBg = isClosed ? FLEX_COLORS.primaryDark : FLEX_COLORS.primary;
+  var footerMsg = isClosed ? '⏰ 本週預訂已截止，請各成員依此表金額完成付款' : '📋 請各成員依此表金額完成對帳與付款';
+
   return {
     type: 'bubble',
     size: 'mega',
     header: _flexBox([
-      _flexText('📊 本週梯次訂餐統計總表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
+      _flexText(titleText, { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
       _flexText('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元', {
         size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs'
       })
-    ], { backgroundColor: FLEX_COLORS.primary, paddingAll: 'lg' }),
+    ], { backgroundColor: headerBg, paddingAll: 'lg' }),
     body: _flexBox(bodyContents, { layout: 'vertical', paddingAll: 'md' }),
     footer: _flexBox([
-      _flexText('📋 請各成員依此表金額完成對帳與付款', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
+      _flexText(footerMsg, { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
     ], { backgroundColor: FLEX_COLORS.background, paddingAll: 'sm' })
   };
 }
