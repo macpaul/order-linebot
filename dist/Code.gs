@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T17:17:04.917Z
+ * Automatically generated on: 2026-09-06T17:32:46.151Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -812,18 +812,45 @@ function initSheets() {
         }
       });
     } else if (def.name === CONFIG.SHEET_NAMES.ORDERS) {
-      // Ensure UserNickname column exists in existing Orders sheet
+      // Ensure DayOfWeek and UserNickname columns exist in existing Orders sheet
       var headerRow = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+      var hasDayOfWeek = false;
       var hasNickname = false;
+      var dateColIndex = -1;
+      var userNameColIndex = -1;
       for (var h = 0; h < headerRow.length; h++) {
-        if (String(headerRow[h]).trim().toLowerCase() === 'usernickname') {
+        var hName = String(headerRow[h]).trim().toLowerCase().replace(/[\s_\-/（）()]/g, '');
+        if (hName === 'dayofweek' || hName === '星期' || hName === '星期幾' || hName === '梯次' || hName === 'day' || hName === 'weekday' || hName === '週幾' || hName === '禮拜' || hName === '週' || hName === '周') {
+          hasDayOfWeek = true;
+        }
+        if (hName === 'usernickname' || hName === '使用者暱稱' || hName === '暱稱') {
           hasNickname = true;
-          break;
+        }
+        if (hName === 'date' || hName === '日期') {
+          dateColIndex = h + 1; // 1-based column
+        }
+        if (hName === 'username' || hName === '姓名' || hName === '使用者名稱' || hName === '訂購人') {
+          userNameColIndex = h + 1; // 1-based column
         }
       }
-      if (!hasNickname && headerRow.length >= 13) {
-        sheet.insertColumnAfter(7);
-        sheet.getRange(1, 8).setValue('UserNickname').setFontWeight('bold').setBackground('#EFEFEF');
+      if (!hasDayOfWeek) {
+        var insertAfterCol = dateColIndex > 0 ? dateColIndex : 3;
+        sheet.insertColumnAfter(insertAfterCol);
+        sheet.getRange(1, insertAfterCol + 1).setValue('DayOfWeek').setFontWeight('bold').setBackground('#EFEFEF');
+        // Refresh header row
+        headerRow = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+        for (var h2 = 0; h2 < headerRow.length; h2++) {
+          var hName2 = String(headerRow[h2]).trim().toLowerCase().replace(/[\s_\-/（）()]/g, '');
+          if (hName2 === 'username' || hName2 === '姓名' || hName2 === '使用者名稱' || hName2 === '訂購人') {
+            userNameColIndex = h2 + 1;
+            break;
+          }
+        }
+      }
+      if (!hasNickname) {
+        var insertNickAfterCol = userNameColIndex > 0 ? userNameColIndex : 7;
+        sheet.insertColumnAfter(insertNickAfterCol);
+        sheet.getRange(1, insertNickAfterCol + 1).setValue('UserNickname').setFontWeight('bold').setBackground('#EFEFEF');
       }
     } else if (def.name === CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE && def.initData) {
       // Ensure all Mon-Fri schedule days exist
@@ -1187,25 +1214,25 @@ function _getOrderColumnIndexes(headers) {
     orderId: 0,
     timestamp: 1,
     date: 2,
-    dayOfWeek: 3,
-    groupId: 4,
-    userId: 5,
-    userName: 6,
+    dayOfWeek: -1,
+    groupId: 3,
+    userId: 4,
+    userName: 5,
     userNickname: -1,
-    itemName: 7,
-    quantity: 8,
-    price: 9,
-    subtotal: 10,
-    status: 11,
-    paid: 12
+    itemName: 6,
+    quantity: 7,
+    price: 8,
+    subtotal: 9,
+    status: 10,
+    paid: 11
   };
   if (!headers || headers.length === 0) return colMap;
   for (var c = 0; c < headers.length; c++) {
-    var h = String(headers[c]).trim().toLowerCase();
+    var h = String(headers[c]).trim().toLowerCase().replace(/[\s_\-/（）()]/g, '');
     if (h === 'orderid' || h === '訂單編號' || h === '訂單id') colMap.orderId = c;
     else if (h === 'timestamp' || h === '時間' || h === '建立時間') colMap.timestamp = c;
     else if (h === 'date' || h === '日期') colMap.date = c;
-    else if (h === 'dayofweek' || h === '星期' || h === '梯次') colMap.dayOfWeek = c;
+    else if (h === 'dayofweek' || h === '星期' || h === '星期幾' || h === '梯次' || h === '梯次星期' || h === 'day' || h === 'weekday' || h === '週幾' || h === '禮拜' || h === '週' || h === '周' || h === '梯次別') colMap.dayOfWeek = c;
     else if (h === 'groupid' || h === '群組id' || h === '群組') colMap.groupId = c;
     else if (h === 'userid' || h === '使用者id' || h === '用戶id' || h === 'lineid') colMap.userId = c;
     else if (h === 'username' || h === '使用者名稱' || h === '姓名' || h === '訂購人') colMap.userName = c;
@@ -1218,6 +1245,46 @@ function _getOrderColumnIndexes(headers) {
     else if (h === 'paid' || h === '付款狀態' || h === '付款') colMap.paid = c;
   }
   return colMap;
+}
+
+/**
+ * Normalize day-of-week string into standard format ('週一' ~ '週日', 'ALL', '今日')
+ * @param {string} day
+ * @returns {string}
+ */
+function normalizeDayOfWeek(day) {
+  if (!day) return '';
+  var s = String(day).trim();
+  if (!s) return '';
+  if (s === 'ALL' || s === '通用' || s === '全部') return 'ALL';
+  if (s === '今日' || s === '本日' || s === '今天') return '今日';
+
+  var match = s.match(/(?:週|星期|禮拜|周)?([一二三四五六日天1-7])/);
+  if (match) {
+    var char = match[1];
+    var map = {
+      '一': '週一', '1': '週一',
+      '二': '週二', '2': '週二',
+      '三': '週三', '3': '週三',
+      '四': '週四', '4': '週四',
+      '五': '週五', '5': '週五',
+      '六': '週六', '6': '週六',
+      '日': '週日', '天': '週日', '7': '週日'
+    };
+    if (map[char]) return map[char];
+  }
+  var enMap = {
+    'mon': '週一', 'monday': '週一',
+    'tue': '週二', 'tuesday': '週二',
+    'wed': '週三', 'wednesday': '週三',
+    'thu': '週四', 'thursday': '週四',
+    'fri': '週五', 'friday': '週五',
+    'sat': '週六', 'saturday': '週六',
+    'sun': '週日', 'sunday': '週日'
+  };
+  var lower = s.toLowerCase();
+  if (enMap[lower]) return enMap[lower];
+  return s;
 }
 
 /**
@@ -1247,14 +1314,12 @@ function _formatDateValue(val) {
     return y + '-' + m + '-' + d;
   }
   var s = String(val).trim();
-  if (s.length >= 10 && /^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(s)) {
-    var parts = s.slice(0, 10).replace(/\//g, '-').split('-');
-    if (parts.length === 3) {
-      var y = parts[0];
-      var m = ('0' + parts[1]).slice(-2);
-      var d = ('0' + parts[2]).slice(-2);
-      return y + '-' + m + '-' + d;
-    }
+  var match = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (match) {
+    var y = match[1];
+    var m = ('0' + match[2]).slice(-2);
+    var d = ('0' + match[3]).slice(-2);
+    return y + '-' + m + '-' + d;
   }
   return s;
 }
@@ -1270,8 +1335,8 @@ function _formatDateValue(val) {
  * @returns {boolean}
  */
 function _matchOrderTiming(orderDate, orderDayOfWeek, queryDate, queryDayOfWeek) {
-  var oDay = (orderDayOfWeek || '').trim();
-  var qDay = (queryDayOfWeek || '').trim();
+  var oDay = normalizeDayOfWeek(orderDayOfWeek);
+  var qDay = normalizeDayOfWeek(queryDayOfWeek);
   var oDate = (orderDate || '').trim();
   var qDate = (queryDate || '').trim();
 
@@ -1454,7 +1519,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     if (groupId && rGroupId !== groupId) continue;
 
     var rDate = _formatDateValue(r[colMap.date]);
-    var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
+    var rDayOfWeek = colMap.dayOfWeek !== -1 ? String(r[colMap.dayOfWeek] || '').trim() : '';
 
     if (!_matchOrderTiming(rDate, rDayOfWeek, date, dayOfWeek)) continue;
 
@@ -1562,7 +1627,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
     if (groupId && rGroupId !== groupId) continue;
 
     var rDate = _formatDateValue(r[colMap.date]);
-    var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
+    var rDayOfWeek = colMap.dayOfWeek !== -1 ? String(r[colMap.dayOfWeek] || '').trim() : '';
 
     if (!_matchOrderTiming(rDate, rDayOfWeek, date, dayOfWeek)) continue;
 
@@ -1633,7 +1698,7 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
     if (groupId && rGroupId !== groupId) continue;
 
     var rDate = _formatDateValue(r[colMap.date]);
-    var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
+    var rDayOfWeek = colMap.dayOfWeek !== -1 ? String(r[colMap.dayOfWeek] || '').trim() : '';
 
     if (!_matchOrderTiming(rDate, rDayOfWeek, date, dayOfWeek)) continue;
 
@@ -1703,7 +1768,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
     if (groupId && rGroupId !== groupId) continue;
 
     var rDate = _formatDateValue(r[colMap.date]);
-    var rDay = String(r[colMap.dayOfWeek] || '').trim();
+    var rDay = colMap.dayOfWeek !== -1 ? String(r[colMap.dayOfWeek] || '').trim() : '';
 
     if (!_matchOrderTiming(rDate, rDay, date, dayOfWeek)) continue;
 
@@ -2052,6 +2117,7 @@ function logToSheet(type, message, detail) {
   g.logToSheet = logToSheet;
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
   g._matchOrderTiming = _matchOrderTiming;
+  g.normalizeDayOfWeek = normalizeDayOfWeek;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -2082,6 +2148,7 @@ function logToSheet(type, message, detail) {
       logToSheet: logToSheet,
       _getOrderColumnIndexes: _getOrderColumnIndexes,
       _matchOrderTiming: _matchOrderTiming,
+      normalizeDayOfWeek: normalizeDayOfWeek,
       _mockStore: _mockStore
     };
   }
@@ -5162,8 +5229,8 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
   }
 
-  // 11. TODAY SUMMARY: 今日統計 / 本日統計 / 統計 / 即時統計
-  if (/^(?:\/)?(?:今日統計|本日統計|統計|即時統計)$/.test(text)) {
+  // 11. TODAY SUMMARY: 今日統計 / 本日統計 / 統計 / 即時統計 / 今日訂單 / 今日訂餐
+  if (/^(?:\/)?(?:今日統計|本日統計|統計|即時統計|今日訂單|今日訂餐|今日訂餐統計|今日訂單統計|本日訂單|本日訂餐|本日訂單統計)$/i.test(text)) {
     var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
     var restName = (daySched && daySched.restaurantName) ? daySched.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
