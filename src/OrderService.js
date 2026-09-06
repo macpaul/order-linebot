@@ -37,11 +37,13 @@ var UberEatsModule = null;
   }
 })();
 
+var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5 };
+
 /**
  * Helper to get today's date in YYYY-MM-DD format (Taiwan time UTC+8)
  */
-function getTodayDateString() {
-  var d = new Date();
+function getTodayDateString(refDate) {
+  var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
   var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
   var twDate = new Date(utc + (3600000 * 8));
   var year = twDate.getFullYear();
@@ -53,14 +55,107 @@ function getTodayDateString() {
 /**
  * Helper to get today's day of week in Chinese (週一~週五, fallback to 週一 on weekends)
  */
-function getTodayDayOfWeek() {
-  var d = new Date();
+function getTodayDayOfWeek(refDate) {
+  var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
   var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
   var twDate = new Date(utc + (3600000 * 8));
   var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
   var day = dayMap[twDate.getDay()];
   if (day === '週六' || day === '週日') return '週一';
   return day;
+}
+
+/**
+ * Check if a weekday has already passed compared to current Taiwan date
+ * @param {string} targetDay - e.g. '週一'
+ * @param {Date} [refDate] - Optional reference date for testing
+ * @returns {boolean}
+ */
+function isDayPast(targetDay, refDate) {
+  var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  var twDate = new Date(utc + (3600000 * 8));
+  var currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  var targetDayIndex = DAY_ORDER[targetDay];
+  if (!targetDayIndex) return false;
+
+  // Saturday (6): whole week Mon-Fri (1-5) has passed
+  if (currentDayIndex === 6) {
+    return true;
+  }
+  // Mon-Fri (1-5): any day index strictly less than today is past
+  if (currentDayIndex >= 1 && currentDayIndex <= 5) {
+    return targetDayIndex < currentDayIndex;
+  }
+  // Sunday (0): orders apply to the upcoming week, not past
+  return false;
+}
+
+/**
+ * Check if today's order cutoff has passed
+ * @param {string} day - Day to check (only checks if day === actualTodayStr)
+ * @param {Date} [refDate] - Optional reference date for testing
+ * @returns {boolean}
+ */
+function isTodayCutoffPassed(day, refDate) {
+  var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  var twDate = new Date(utc + (3600000 * 8));
+  var currentDayIndex = twDate.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+  var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+  var actualTodayStr = dayMap[currentDayIndex];
+
+  // If today is weekend (Sun or Sat), weekdays Mon-Fri are not today
+  if (currentDayIndex < 1 || currentDayIndex > 5) {
+    return false;
+  }
+
+  // Only applies to today's meal
+  if (day && day !== actualTodayStr) {
+    return false;
+  }
+
+  // 1. If ordering is closed by organizer (IS_ORDERING_OPEN === 'false')
+  var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'true');
+  if (isOpen === 'false') {
+    return true;
+  }
+
+  // 2. Check cutoff time against current Taiwan time
+  var cutoffStr = '';
+  var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(actualTodayStr) : null;
+  if (daySched && daySched.cutoffTime) {
+    cutoffStr = daySched.cutoffTime;
+  } else {
+    cutoffStr = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
+  }
+
+  if (!cutoffStr) return false;
+
+  var parts = cutoffStr.split(':');
+  if (parts.length < 2) return false;
+  var cutoffMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  var currentMinutes = twDate.getHours() * 60 + twDate.getMinutes();
+
+  return currentMinutes >= cutoffMinutes;
+}
+
+/**
+ * Send LINE push notification to the organizer if ORGANIZER_ID is configured
+ * @param {string} notificationText
+ */
+function notifyOrganizer(notificationText) {
+  if (!SheetModule || !LineModule || !LineModule.pushText) return;
+  try {
+    var organizerId = SheetModule.getConfigValue('ORGANIZER_ID', '');
+    if (organizerId && String(organizerId).trim() !== '') {
+      LineModule.pushText(String(organizerId).trim(), notificationText);
+    }
+  } catch (e) {
+    if (typeof console !== 'undefined') {
+      console.error('Failed to notify organizer:', e);
+    }
+  }
 }
 
 /**
@@ -299,12 +394,15 @@ function handleTextMessage(event) {
       var dOrders = SheetModule.getUserOrders(userId, groupId, null, d);
       if (dOrders && dOrders.length > 0) {
         var daySub = 0;
+        var isPast = isDayPast(d);
+        var isCutoff = (d === todayDay) && isTodayCutoffPassed(d);
+        var lockTag = isPast ? ' 🔒[已過期]' : (isCutoff ? ' 🔒[已截止]' : '');
         var itemsText = dOrders.map(function (o) {
           daySub += o.subtotal;
           return o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')';
         }).join('、');
         grandTotal += daySub;
-        lines.push('【' + d + '】' + itemsText + ' (小計 $' + daySub + ')');
+        lines.push('【' + d + lockTag + '】' + itemsText + ' (小計 $' + daySub + ')');
       }
     });
 
@@ -320,18 +418,24 @@ function handleTextMessage(event) {
 
   // 8. MY TODAY ORDERS: 我的訂單 / 查詢訂單 / 查單
   if (/^(?:\/)?(?:我的訂單|查詢訂單|查單)$/.test(text)) {
-    var myOrders = SheetModule.getUserOrders(userId, groupId, todayDate);
+    var myOrders = SheetModule.getUserOrders(userId, groupId, null, todayDay);
+    if (!myOrders || myOrders.length === 0) {
+      myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null);
+    }
     if (!myOrders || myOrders.length === 0) {
       return LineModule.replyText(replyToken, '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。');
     }
+    var isCutoff = isTodayCutoffPassed(todayDay);
+    var statusTag = isCutoff ? ' 🔒[已截止]' : '';
     var total = 0;
     var myLines = myOrders.map(function (o) {
       total += o.subtotal;
-      return '• ' + o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')';
+      return '• ' + o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')' + statusTag;
     });
     var payInfoToday = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var payTextToday = _formatPaymentText(payInfoToday);
-    var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + payTextToday;
+    var cutoffNotice = isCutoff ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : '';
+    var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + cutoffNotice + payTextToday;
     return LineModule.replyText(replyToken, msg);
   }
 
@@ -350,15 +454,71 @@ function handleTextMessage(event) {
       if (!activeOrders || activeOrders.length === 0) {
         return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
       }
-      var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders);
+      var lockMap = {};
+      ['週一', '週二', '週三', '週四', '週五'].forEach(function (d) {
+        if (isDayPast(d)) {
+          lockMap[d] = { locked: true, reason: '已過期' };
+        } else if (d === todayDay && isTodayCutoffPassed(d)) {
+          lockMap[d] = { locked: true, reason: '已截止' };
+        }
+      });
+      var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap);
       return LineModule.replyFlex(replyToken, '🗑️ 請選擇欲取消的餐點', cancelFlex);
+    }
+
+    // Validation checks for past days or cutoff
+    if (cancelDay) {
+      if (isDayPast(cancelDay)) {
+        return LineModule.replyText(replyToken, '⚠️ 【' + cancelDay + '】已超過日期，過去梯次的餐點無法修改或取消喔！');
+      }
+      if (cancelDay === todayDay && isTodayCutoffPassed(cancelDay)) {
+        return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
+      }
+    } else if (targetItem) {
+      // Default to today if day not specified
+      if (isTodayCutoffPassed(todayDay)) {
+        return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
+      }
+    } else {
+      // Cancel 全部 (all orders across all days)
+      var allUserOrders = SheetModule.getUserOrders(userId, groupId, null, null);
+      var cancellableOrders = allUserOrders.filter(function (o) {
+        if (isDayPast(o.dayOfWeek)) return false;
+        if (o.dayOfWeek === todayDay && isTodayCutoffPassed(o.dayOfWeek)) return false;
+        return true;
+      });
+      if (cancellableOrders.length === 0) {
+        return LineModule.replyText(replyToken, '⚠️ 目前所有訂單均已超過截止時間或日期，無法修改或取消囉！若需異動請洽開單人。');
+      }
+      var totalCancelled = 0;
+      var cancelledItemsSummary = [];
+      cancellableOrders.forEach(function (co) {
+        var c = SheetModule.cancelOrder(userId, groupId, co.itemName, null, co.dayOfWeek);
+        if (c > 0) {
+          totalCancelled += c;
+          cancelledItemsSummary.push('• 【' + co.dayOfWeek + '】' + co.itemName + ' x' + co.quantity);
+        }
+      });
+      if (totalCancelled > 0) {
+        var nowTw = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+        var pushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + userDisplayName + '\n🗑️ 取消內容：未截止梯次全部餐點 (共 ' + totalCancelled + ' 筆)\n' + cancelledItemsSummary.join('\n') + '\n⏰ 時間：' + nowTw;
+        notifyOrganizer(pushMsg);
+
+        return LineModule.replyText(replyToken, '✅ 已為您取消所有未截止梯次餐點，共 ' + totalCancelled + ' 筆紀錄。已通知開單人！');
+      } else {
+        return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
+      }
     }
 
     var targetDate = cancelDay ? null : (targetItem ? todayDate : null);
     var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, targetDate, cancelDay);
     if (cancelledCount > 0) {
       var dayText = cancelDay ? cancelDay + ' ' : '';
-      return LineModule.replyText(replyToken, '✅ 已為您取消 ' + dayText + (targetItem ? '「' + targetItem + '」' : '全部餐點') + ' 共 ' + cancelledCount + ' 筆紀錄。');
+      var nowTwCancel = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      var cancelPushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + userDisplayName + '\n📅 梯次：' + (cancelDay || '今日') + '\n🗑️ 取消內容：' + (targetItem ? targetItem : '全部餐點') + ' (共 ' + cancelledCount + ' 筆)\n⏰ 時間：' + nowTwCancel;
+      notifyOrganizer(cancelPushMsg);
+
+      return LineModule.replyText(replyToken, '✅ 已為您取消 ' + dayText + (targetItem ? '「' + targetItem + '」' : '全部餐點') + ' 共 ' + cancelledCount + ' 筆紀錄。已通知開單人！');
     } else {
       return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
     }
@@ -413,6 +573,14 @@ function handleTextMessage(event) {
       if (!oi.dayOfWeek && !isOpen) {
         return;
       }
+      // Check if day is past
+      if (isDayPast(day)) {
+        return;
+      }
+      // Check if today and cutoff passed
+      if (day === todayDay && isTodayCutoffPassed(day)) {
+        return;
+      }
 
       var daySched = SheetModule.getScheduleByDay(day);
       var dayRest = daySched ? daySched.restaurantName : '';
@@ -425,6 +593,7 @@ function handleTextMessage(event) {
         groupId: groupId,
         userId: userId,
         userName: userDisplayName,
+        userNickname: userDisplayName,
         itemName: matched.itemName,
         quantity: oi.quantity,
         price: matched.price
@@ -435,6 +604,15 @@ function handleTextMessage(event) {
     if (addedRecords.length === 0) {
       return LineModule.replyText(replyToken, '⚠️ 目前尚未開放點餐或已經截止囉！若要開單請傳送「開單 [店家名] [時間]」或使用「週一+1 [餐點]」預定梯次。');
     }
+
+    // Send push notification to organizer if configured
+    var orderSummaryLines = addedRecords.map(function (r) {
+      return '• 【' + r.dayOfWeek + '】' + r.itemName + ' x' + r.quantity + ' ($' + r.subtotal + ')';
+    });
+    var orderTotalAmt = addedRecords.reduce(function (sum, r) { return sum + r.subtotal; }, 0);
+    var nowTwOrder = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+    var orderPushMsg = '📢【訂餐通知 - 新增加訂】\n👤 訂餐人：' + userDisplayName + '\n🍱 預訂項目：\n' + orderSummaryLines.join('\n') + '\n💰 總計：$' + orderTotalAmt + ' 元\n⏰ 時間：' + nowTwOrder;
+    notifyOrganizer(orderPushMsg);
 
     var lastAdded = addedRecords[addedRecords.length - 1];
     var receiptScope = (SheetModule.getConfigValue('ORDER_RECEIPT_SCOPE', 'WEEKLY') || 'WEEKLY').trim().toUpperCase();
@@ -458,6 +636,9 @@ function handleTextMessage(event) {
 function handlePostbackEvent(event) {
   var replyToken = event.replyToken;
   var dataStr = (event.postback && event.postback.data) || '';
+
+  if (!dataStr) return null;
+
   var params = {};
   dataStr.split('&').forEach(function (pair) {
     var parts = pair.split('=');
@@ -466,26 +647,26 @@ function handlePostbackEvent(event) {
     }
   });
 
-  if (params.action === 'order' && params.item) {
-    var dayPrefix = params.day ? params.day + ' ' : '';
-    var pseudoMessageEvent = {
+  var action = params.action;
+  if (action === 'order') {
+    var orderText = (params.day ? params.day + ' ' : '') + params.item + '+' + (params.qty || '1');
+    var pseudoEvent = {
       replyToken: replyToken,
       source: event.source,
       message: {
-        type: 'text',
-        text: dayPrefix + '+1 ' + params.item
+        text: orderText
       }
     };
-    return handleTextMessage(pseudoMessageEvent);
+    return handleTextMessage(pseudoEvent);
   }
 
-  if (params.action === 'cancel' && params.item) {
+  if (action === 'cancel') {
+    var cancelText = '取消 ' + (params.day ? params.day + ' ' : '') + (params.item || '全部');
     var pseudoCancelEvent = {
       replyToken: replyToken,
       source: event.source,
       message: {
-        type: 'text',
-        text: '取消 ' + params.item
+        text: cancelText
       }
     };
     return handleTextMessage(pseudoCancelEvent);
@@ -507,6 +688,9 @@ function handlePostbackEvent(event) {
   g.handlePostbackEvent = handlePostbackEvent;
   g.getTodayDateString = getTodayDateString;
   g.getTodayDayOfWeek = getTodayDayOfWeek;
+  g.isDayPast = isDayPast;
+  g.isTodayCutoffPassed = isTodayCutoffPassed;
+  g.notifyOrganizer = notifyOrganizer;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -515,7 +699,10 @@ function handlePostbackEvent(event) {
       handleTextMessage: handleTextMessage,
       handlePostbackEvent: handlePostbackEvent,
       getTodayDateString: getTodayDateString,
-      getTodayDayOfWeek: getTodayDayOfWeek
+      getTodayDayOfWeek: getTodayDayOfWeek,
+      isDayPast: isDayPast,
+      isTodayCutoffPassed: isTodayCutoffPassed,
+      notifyOrganizer: notifyOrganizer
     };
   }
 })();
