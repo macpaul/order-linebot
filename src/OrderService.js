@@ -159,6 +159,25 @@ function notifyOrganizer(notificationText) {
 }
 
 /**
+ * Check if the given user is the organizer
+ * @param {string} userId
+ * @param {string} [userDisplayName]
+ * @returns {boolean}
+ */
+function isUserOrganizer(userId, userDisplayName) {
+  if (!userId) return false;
+  var organizerId = (SheetModule.getConfigValue('ORGANIZER_ID', '') || '').trim();
+  if (organizerId && organizerId === userId) {
+    return true;
+  }
+  var organizerName = (SheetModule.getConfigValue('ORGANIZER_NAME', '') || '').trim();
+  if (organizerName && organizerName !== '小幫手' && userDisplayName && organizerName === userDisplayName) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Parse ordering text lines
  * Supports daily and weekly batch ordering syntax:
  *   "+1 排骨飯" / "+2 雞腿飯"
@@ -445,31 +464,216 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, msg);
   }
 
-  // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消 [品項] / 取消餐點
-  var cancelMatch = text.match(/^(?:\/)?(?:取消餐點|取消)(?:\s+(週[一二三四五]))?(?:\s*(全部|全部訂單|所有訂單|.+))?$/);
-  if (cancelMatch) {
-    var cancelDay = cancelMatch[1] || null;
-    var targetItem = cancelMatch[2] ? cancelMatch[2].trim() : '';
-    if (targetItem === '餐點' || targetItem === '全部' || targetItem === '全部訂單' || targetItem === '所有訂單') {
-      targetItem = '';
-    }
+  // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消餐點 / 開單人全體取消與二次確認
+  // 9-1. 放棄取消
+  if (/^(?:\/)?(?:放棄取消|取消操作)$/.test(text.trim())) {
+    return LineModule.replyText(replyToken, '👌 已放棄取消操作，現有訂單均完整保留。');
+  }
 
-    // If user sent "取消" or "取消餐點" without specifying day or item: show interactive cancel menu
-    if (!cancelDay && !targetItem && text.trim().match(/^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/)) {
-      var activeOrders = SheetModule.getUserOrders(userId, groupId, null, null);
-      if (!activeOrders || activeOrders.length === 0) {
-        return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
+  // 9-2. 開單人二次確認執行：確認取消全體 [週幾] / 確認取消今日全部
+  var confirmDayCancelMatch = text.match(/^(?:\/)?(?:確認取消全體(?:\s*(週[一二三四五]|今日))?|確認取消今日全部)$/);
+  if (confirmDayCancelMatch) {
+    var isOrgDayConfirm = isUserOrganizer(userId, userDisplayName);
+    if (!isOrgDayConfirm) {
+      return LineModule.replyText(replyToken, '⚠️ 權限不足：只有開單人可以取消當日所有餐點。');
+    }
+    var dayArg = confirmDayCancelMatch[1] || todayDay;
+    if (dayArg === '今日') dayArg = todayDay;
+    if (isDayPast(dayArg)) {
+      return LineModule.replyText(replyToken, '⚠️ 【' + dayArg + '】已超過日期，過去梯次的餐點無法修改或取消喔！');
+    }
+    if (dayArg === todayDay && isTodayCutoffPassed(dayArg)) {
+      return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法取消餐點。');
+    }
+    var cCount = SheetModule.cancelOrder(null, groupId, null, null, dayArg);
+    if (cCount > 0) {
+      var nowTw = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      var notifMsg = '📢【訂餐通知 - 開單人取消當日全體餐點】\n👤 執行開單人：' + userDisplayName + '\n📅 梯次：' + dayArg + '\n🗑️ 已取消該日全體成員訂單共 ' + cCount + ' 筆紀錄。\n⏰ 時間：' + nowTw;
+      notifyOrganizer(notifMsg);
+      return LineModule.replyText(replyToken, '✅ 已由開單人成功取消【' + dayArg + '】全體成員的所有餐點紀錄，共 ' + cCount + ' 筆。');
+    } else {
+      return LineModule.replyText(replyToken, '【' + dayArg + '】目前無任何未取消的有效訂單。');
+    }
+  }
+
+  // 9-3. 開單人二次確認執行：確認取消所有未截止預約訂單
+  var confirmAllAdvanceMatch = text.match(/^(?:\/)?(?:確認取消所有未截止(?:預約)?訂單|確認取消全體未截止預約(?:訂單)?)$/);
+  if (confirmAllAdvanceMatch) {
+    var isOrgAllConfirm = isUserOrganizer(userId, userDisplayName);
+    if (!isOrgAllConfirm) {
+      return LineModule.replyText(replyToken, '⚠️ 權限不足：只有開單人可以取消所有未截止預約訂單。');
+    }
+    var allDays = ['週一', '週二', '週三', '週四', '週五'];
+    var validDays = allDays.filter(function (d) {
+      if (isDayPast(d)) return false;
+      if (d === todayDay && isTodayCutoffPassed(d)) return false;
+      return true;
+    });
+    var totalAdvCancelled = 0;
+    validDays.forEach(function (d) {
+      totalAdvCancelled += SheetModule.cancelOrder(null, groupId, null, null, d);
+    });
+    if (totalAdvCancelled > 0) {
+      var nowTwAdv = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      var notifAdvMsg = '📢【訂餐通知 - 開單人取消所有未截止預約訂單】\n👤 執行開單人：' + userDisplayName + '\n🗑️ 已取消全體成員未截止預約共 ' + totalAdvCancelled + ' 筆。\n⏰ 時間：' + nowTwAdv;
+      notifyOrganizer(notifAdvMsg);
+      return LineModule.replyText(replyToken, '✅ 已由開單人成功取消全體成員所有未截止梯次的預約訂單，共 ' + totalAdvCancelled + ' 筆紀錄。');
+    } else {
+      return LineModule.replyText(replyToken, '本週目前無任何未截止的有效預約訂單。');
+    }
+  }
+
+  // 9-4. 開單人請求取消當日全體餐點 (跳出二次確認警告卡)
+  var reqDayCancelMatch = text.match(/^(?:\/)?(?:取消(?:當日|今日|全體今日)所有餐點|取消全體\s*(週[一二三四五]|今日)?|取消當日全部)$/);
+  if (reqDayCancelMatch) {
+    var isOrgDayReq = isUserOrganizer(userId, userDisplayName);
+    if (!isOrgDayReq) {
+      return LineModule.replyText(replyToken, '⚠️ 權限不足：只有開單人可以取消當日所有餐點。您只能取消自己訂購的餐點喔！');
+    }
+    var targetDayReq = reqDayCancelMatch[1] || todayDay;
+    if (targetDayReq === '今日') targetDayReq = todayDay;
+    if (isDayPast(targetDayReq)) {
+      return LineModule.replyText(replyToken, '⚠️ 【' + targetDayReq + '】已超過日期，過去梯次的餐點無法取消喔！');
+    }
+    if (targetDayReq === todayDay && isTodayCutoffPassed(targetDayReq)) {
+      return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法取消餐點。');
+    }
+    var warnFlex = FlexModule.createConfirmCancelFlex(
+      '⚠️ 確認取消【' + targetDayReq + '】當日全體餐點？',
+      '此操作將會取消【' + targetDayReq + '】所有成員已訂購的餐點紀錄，並清空該梯次訂單。',
+      '確認取消全體 ' + targetDayReq,
+      '⚠️ 確認取消【' + targetDayReq + '】全體餐點'
+    );
+    return LineModule.replyFlex(replyToken, '⚠️ 開單人取消當日全體餐點確認', warnFlex);
+  }
+
+  // 9-5. 開單人請求取消全體未截止預約訂單 (跳出二次確認警告卡)
+  var reqAllAdvanceMatch = text.match(/^(?:\/)?(?:取消所有未截止(?:預約)?訂單|取消全體\s*未截止預約訂單|取消全體預約)$/);
+  if (reqAllAdvanceMatch) {
+    var isOrgAllReq = isUserOrganizer(userId, userDisplayName);
+    if (!isOrgAllReq) {
+      return LineModule.replyText(replyToken, '⚠️ 權限不足：只有開單人可以取消所有未截止預約訂單。您只能取消自己訂購的餐點喔！若要取消個人全部預約，請輸入「取消我的 全部」。');
+    }
+    var warnFlexAll = FlexModule.createConfirmCancelFlex(
+      '🚨 確認取消全體所有未截止預約訂單？',
+      '此操作將會取消本週所有未截止梯次中【全體成員】的所有預約訂單紀錄。',
+      '確認取消所有未截止預約訂單',
+      '🚨 確認取消全體未截止預約'
+    );
+    return LineModule.replyFlex(replyToken, '🚨 開單人取消全體預約訂單確認', warnFlexAll);
+  }
+
+  // 9-6. 顯示取消訂單互動選單 (取消 / 取消餐點)
+  if (text.trim().match(/^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/)) {
+    var isOrgMenu = isUserOrganizer(userId, userDisplayName);
+    var activeOrders = SheetModule.getUserOrders(userId, groupId, null, null);
+    if (!activeOrders || activeOrders.length === 0) {
+      return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
+    }
+    var lockMap = {};
+    ['週一', '週二', '週三', '週四', '週五'].forEach(function (d) {
+      if (isDayPast(d)) {
+        lockMap[d] = { locked: true, reason: '已過期' };
+      } else if (d === todayDay && isTodayCutoffPassed(d)) {
+        lockMap[d] = { locked: true, reason: '已截止' };
       }
-      var lockMap = {};
-      ['週一', '週二', '週三', '週四', '週五'].forEach(function (d) {
-        if (isDayPast(d)) {
-          lockMap[d] = { locked: true, reason: '已過期' };
-        } else if (d === todayDay && isTodayCutoffPassed(d)) {
-          lockMap[d] = { locked: true, reason: '已截止' };
+    });
+    var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap, isOrgMenu);
+    return LineModule.replyFlex(replyToken, '🗑️ 請選擇欲取消的餐點', cancelFlex);
+  }
+
+  // 9-7. 取消 全部 (未加 "我的" 關鍵字)
+  if (/^(?:\/)?取消\s*(?:全部|全部訂單|所有訂單)$/.test(text.trim())) {
+    var isOrgAllPlain = isUserOrganizer(userId, userDisplayName);
+    if (!isOrgAllPlain) {
+      return LineModule.replyText(replyToken, '⚠️ 權限不足：只有開單人可以取消全體預約訂單。若要取消您個人的所有預約，請輸入「取消我的 全部」或輸入「取消」開啟個人退訂選單。');
+    }
+    var warnFlexPlain = FlexModule.createConfirmCancelFlex(
+      '🚨 確認取消全體所有未截止預約訂單？',
+      '此操作將會取消本週所有未截止梯次中【全體成員】的所有預約訂單紀錄。',
+      '確認取消所有未截止預約訂單',
+      '🚨 確認取消全體未截止預約'
+    );
+    return LineModule.replyFlex(replyToken, '🚨 開單人取消全體預約訂單確認', warnFlexPlain);
+  }
+
+  // 9-8. 取消指定餐點 / 取消他人餐點 / 取消個人全部餐點
+  var cancelGeneralMatch = text.match(/^(?:\/)?(?:取消我的|取消)\s+(.+)$/);
+  if (cancelGeneralMatch) {
+    var isOrgGen = isUserOrganizer(userId, userDisplayName);
+    var remainder = cancelGeneralMatch[1].trim();
+    var isExplicitMy = text.indexOf('取消我的') !== -1;
+
+    // Check if remainder is "全部" or "所有預約" -> 取消我的 全部
+    if (remainder === '全部' || remainder === '全部訂單' || remainder === '所有預約' || remainder === '所有訂單') {
+      var allUserOrders = SheetModule.getUserOrders(userId, groupId, null, null);
+      var cancellableOrders = allUserOrders.filter(function (o) {
+        if (isDayPast(o.dayOfWeek)) return false;
+        if (o.dayOfWeek === todayDay && isTodayCutoffPassed(o.dayOfWeek)) return false;
+        return true;
+      });
+      if (cancellableOrders.length === 0) {
+        return LineModule.replyText(replyToken, '⚠️ 目前所有訂單均已超過截止時間或日期，無法修改或取消囉！若需異動請洽開單人。');
+      }
+      var totalMyCancelled = 0;
+      var myCancelledSummary = [];
+      cancellableOrders.forEach(function (co) {
+        var c = SheetModule.cancelOrder(userId, groupId, co.itemName, null, co.dayOfWeek);
+        if (c > 0) {
+          totalMyCancelled += c;
+          myCancelledSummary.push('• 【' + co.dayOfWeek + '】' + co.itemName + ' x' + co.quantity);
         }
       });
-      var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap);
-      return LineModule.replyFlex(replyToken, '🗑️ 請選擇欲取消的餐點', cancelFlex);
+      if (totalMyCancelled > 0) {
+        var nowTwMy = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+        var pushMsgMy = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + userDisplayName + '\n🗑️ 取消內容：未截止梯次個人全部餐點 (共 ' + totalMyCancelled + ' 筆)\n' + myCancelledSummary.join('\n') + '\n⏰ 時間：' + nowTwMy;
+        notifyOrganizer(pushMsgMy);
+        return LineModule.replyText(replyToken, '✅ 已為您取消個人所有未截止梯次餐點，共 ' + totalMyCancelled + ' 筆紀錄。已通知開單人！');
+      } else {
+        return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
+      }
+    }
+
+    // Check if remainder specifies another user: e.g. "@Carol 舒肥嫩雞胸餐盒" or "小鮑伯 舒肥嫩雞胸餐盒" or "小鮑伯 全部"
+    var targetUserObj = null;
+    var targetUserId = userId;
+    var targetDisplayName = userDisplayName;
+    var cancelDay = null;
+    var targetItem = '';
+
+    if (!isExplicitMy) {
+      var tokens = remainder.split(/\s+/);
+      var firstToken = tokens[0];
+      // If first token is not a weekday and starts with @ or matches another user in group
+      if (!/^(?:週[一二三四五]|今日)$/.test(firstToken)) {
+        var userInGroup = SheetModule.findUserInGroup ? SheetModule.findUserInGroup(groupId, firstToken) : null;
+        if (firstToken.indexOf('@') === 0 || (userInGroup && userInGroup.userId !== userId)) {
+          if (!isOrgGen) {
+            return LineModule.replyText(replyToken, '⚠️ 權限不足：除了開單人，不能取消其他使用者的餐點。您只能取消自己訂購的餐點喔！');
+          }
+          if (userInGroup) {
+            targetUserObj = userInGroup;
+            targetUserId = userInGroup.userId;
+            targetDisplayName = userInGroup.userNickname || userInGroup.userName;
+          } else {
+            return LineModule.replyText(replyToken, '查無成員「' + firstToken + '」或該成員目前無進行中訂單。');
+          }
+          remainder = tokens.slice(1).join(' ').trim();
+        }
+      }
+    }
+
+    // Parse [day] and [item] from remainder
+    var dayMatch = remainder.match(/^(週[一二三四五]|今日)(?:\s+(.+))?$/);
+    if (dayMatch) {
+      cancelDay = dayMatch[1] === '今日' ? todayDay : dayMatch[1];
+      targetItem = dayMatch[2] ? dayMatch[2].trim() : '';
+    } else {
+      targetItem = remainder;
+    }
+
+    if (targetItem === '全部' || targetItem === '全部訂單' || targetItem === '所有訂單') {
+      targetItem = '';
     }
 
     // Validation checks for past days or cutoff
@@ -481,50 +685,31 @@ function handleTextMessage(event) {
         return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
       }
     } else if (targetItem) {
-      // Default to today if day not specified
       if (isTodayCutoffPassed(todayDay)) {
         return LineModule.replyText(replyToken, '⚠️ 今日點餐已超過結單時間，無法修改或取消餐點囉！若需異動請洽開單人。');
       }
-    } else {
-      // Cancel 全部 (all orders across all days)
-      var allUserOrders = SheetModule.getUserOrders(userId, groupId, null, null);
-      var cancellableOrders = allUserOrders.filter(function (o) {
-        if (isDayPast(o.dayOfWeek)) return false;
-        if (o.dayOfWeek === todayDay && isTodayCutoffPassed(o.dayOfWeek)) return false;
-        return true;
-      });
-      if (cancellableOrders.length === 0) {
-        return LineModule.replyText(replyToken, '⚠️ 目前所有訂單均已超過截止時間或日期，無法修改或取消囉！若需異動請洽開單人。');
-      }
-      var totalCancelled = 0;
-      var cancelledItemsSummary = [];
-      cancellableOrders.forEach(function (co) {
-        var c = SheetModule.cancelOrder(userId, groupId, co.itemName, null, co.dayOfWeek);
-        if (c > 0) {
-          totalCancelled += c;
-          cancelledItemsSummary.push('• 【' + co.dayOfWeek + '】' + co.itemName + ' x' + co.quantity);
-        }
-      });
-      if (totalCancelled > 0) {
-        var nowTw = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-        var pushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + userDisplayName + '\n🗑️ 取消內容：未截止梯次全部餐點 (共 ' + totalCancelled + ' 筆)\n' + cancelledItemsSummary.join('\n') + '\n⏰ 時間：' + nowTw;
-        notifyOrganizer(pushMsg);
-
-        return LineModule.replyText(replyToken, '✅ 已為您取消所有未截止梯次餐點，共 ' + totalCancelled + ' 筆紀錄。已通知開單人！');
-      } else {
-        return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
-      }
     }
 
-    var targetDate = cancelDay ? null : (targetItem ? todayDate : null);
-    var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, targetDate, cancelDay);
+    var targetDate = null;
+    if (cancelDay) {
+      targetDate = null;
+    } else if (targetItem) {
+      var userTodayOrders = SheetModule.getUserOrders(targetUserId, groupId, todayDate, null);
+      var hasTodayOrder = userTodayOrders && userTodayOrders.some(function (o) { return o.itemName.indexOf(targetItem) !== -1; });
+      if (hasTodayOrder) {
+        targetDate = todayDate;
+      }
+    }
+    var cancelledCount = SheetModule.cancelOrder(targetUserId, groupId, targetItem, targetDate, cancelDay);
     if (cancelledCount > 0) {
       var dayText = cancelDay ? cancelDay + ' ' : '';
+      var itemDesc = targetItem ? '「' + targetItem + '」' : '全部餐點';
       var nowTwCancel = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-      var cancelPushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + userDisplayName + '\n📅 梯次：' + (cancelDay || '今日') + '\n🗑️ 取消內容：' + (targetItem ? targetItem : '全部餐點') + ' (共 ' + cancelledCount + ' 筆)\n⏰ 時間：' + nowTwCancel;
+      var cancelPushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + targetDisplayName + '\n📅 梯次：' + (cancelDay || '今日') + '\n🗑️ 取消內容：' + itemDesc + ' (共 ' + cancelledCount + ' 筆)\n⏰ 時間：' + nowTwCancel;
       notifyOrganizer(cancelPushMsg);
 
-      return LineModule.replyText(replyToken, '✅ 已為您取消 ' + dayText + (targetItem ? '「' + targetItem + '」' : '全部餐點') + ' 共 ' + cancelledCount + ' 筆紀錄。已通知開單人！');
+      var replyPrefix = targetUserObj ? '✅ 已由開單人為【' + targetDisplayName + '】取消 ' : '✅ 已為您取消 ';
+      return LineModule.replyText(replyToken, replyPrefix + dayText + itemDesc + ' 共 ' + cancelledCount + ' 筆紀錄。已通知開單人！');
     } else {
       return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
     }
