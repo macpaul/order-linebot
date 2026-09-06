@@ -212,6 +212,14 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '週一 排骨飯+1, 週二 日式厚切豬排飯+1, 週三 招牌鍋貼+2' }
 });
 assert.strictEqual(lastReply.type, 'flex');
+// Verify that default receipt displays weekly orders
+const receiptTitle = lastReply.flex.body.contents[0].text;
+assert.ok(receiptTitle.includes('愛麗絲 的本週訂單'), 'Receipt title should default to weekly orders');
+const receiptTexts = JSON.stringify(lastReply.flex.body.contents);
+assert.ok(receiptTexts.includes('【週一】'));
+assert.ok(receiptTexts.includes('【週二】'));
+assert.ok(receiptTexts.includes('【週三】'));
+assert.ok(receiptTexts.includes('本週合計'));
 
 const aliceMonOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週一');
 assert.strictEqual(aliceMonOrders.length, 1);
@@ -227,7 +235,24 @@ const aliceWedOrders = SheetModule.getUserOrders('user_alice', groupId, null, '�
 assert.strictEqual(aliceWedOrders.length, 1);
 assert.strictEqual(aliceWedOrders[0].quantity, 2);
 assert.strictEqual(aliceWedOrders[0].userName, '愛麗絲');
-console.log('  ✔ Alice multi-day batch order recorded with nickname (愛麗絲).');
+console.log('  ✔ Alice multi-day batch order recorded with nickname (愛麗絲) and weekly receipt verified.');
+
+// Step C-2: Verify ORDER_RECEIPT_SCOPE config can switch receipt to daily mode
+console.log('  [Step C-2] Verify ORDER_RECEIPT_SCOPE config toggles receipt between DAILY and WEEKLY');
+SheetModule.setConfigValue('ORDER_RECEIPT_SCOPE', 'DAILY');
+assert.strictEqual(SheetModule.getConfigValue('ORDER_RECEIPT_SCOPE'), 'DAILY');
+OrderModule.handleTextMessage({
+  replyToken: 'token_daily_test',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '週四 招牌三寶飯+1' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastReply.flex.body.contents[0].text.includes('老闆 的今日訂單'), 'Receipt should show daily orders when scope is DAILY');
+// Clean up boss test order and restore config
+SheetModule.cancelOrder('user_boss', groupId, '招牌三寶飯', null, '週四');
+SheetModule.setConfigValue('ORDER_RECEIPT_SCOPE', 'WEEKLY');
+assert.strictEqual(SheetModule.getConfigValue('ORDER_RECEIPT_SCOPE'), 'WEEKLY');
+console.log('  ✔ ORDER_RECEIPT_SCOPE config toggle verified.');
 
 // Step D: Member Bob orders for Friday
 console.log('  [Step D] Bob orders for Friday (週五 舒肥嫩雞胸餐盒+2)');
