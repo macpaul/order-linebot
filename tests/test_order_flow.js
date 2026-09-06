@@ -113,10 +113,37 @@ assert.ok(Array.isArray(diagResults));
 assert.strictEqual(diagResults.length, 2);
 console.log('  ✔ Uber Eats URL parser, Base64 UUID converter, and diagnostics passed.\n');
 
+// Mock user profiles for testing real user nicknames
+globalThis._mockProfiles = {
+  'user_alice': { displayName: '愛麗絲', userId: 'user_alice' },
+  'user_bob': { displayName: '小鮑伯', userId: 'user_bob' },
+  'user_carol': { displayName: '卡蘿', userId: 'user_carol' },
+  'user_boss': { displayName: '老闆', userId: 'user_boss' }
+};
+
 // 4. Weekly Schedule & Batch Ordering Lifecycle Test
 console.log('▶ Test 4: Weekly Schedule & Mon-Fri Batch Ordering Simulation');
 const groupId = 'group_team_weekly';
 const today = OrderModule.getTodayDateString();
+
+// Step A-0: View Help Card and verify interactive command buttons
+console.log('  [Step A-0] Member queries help (幫助) and verifies command buttons');
+OrderModule.handleTextMessage({
+  replyToken: 'token_help',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '幫助' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, '便當點餐指令說明');
+const helpBody = lastReply.flex.body.contents;
+const helpButtons = helpBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
+assert.strictEqual(helpButtons.length, 7);
+assert.strictEqual(helpButtons[0].action.text, '本週菜單');
+assert.strictEqual(helpButtons[1].action.text, '菜單');
+assert.strictEqual(helpButtons[2].action.text, '我的訂單');
+assert.strictEqual(helpButtons[3].action.text, '我的本週訂單');
+assert.strictEqual(helpButtons[4].action.text, '取消餐點');
+console.log('  ✔ Buttonized Help card verified with 7 quick-action buttons.');
 
 // Step A: View Weekly Schedule
 console.log('  [Step A] Member queries weekly schedule (本週菜單)');
@@ -165,6 +192,7 @@ assert.ok(lastReply.altText.includes('日式厚切豬排飯'));
 const carolTueOrders = SheetModule.getUserOrders('user_carol', groupId, null, '週二');
 assert.strictEqual(carolTueOrders.length, 1);
 assert.strictEqual(carolTueOrders[0].itemName, '日式厚切豬排飯');
+assert.strictEqual(carolTueOrders[0].userName, '卡蘿');
 assert.strictEqual(carolTueOrders[0].quantity, 1);
 
 // Carol cancels her test order
@@ -188,15 +216,18 @@ assert.strictEqual(lastReply.type, 'flex');
 const aliceMonOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週一');
 assert.strictEqual(aliceMonOrders.length, 1);
 assert.strictEqual(aliceMonOrders[0].quantity, 1);
+assert.strictEqual(aliceMonOrders[0].userName, '愛麗絲');
 
 const aliceTueOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週二');
 assert.strictEqual(aliceTueOrders.length, 1);
 assert.strictEqual(aliceTueOrders[0].itemName, '日式厚切豬排飯');
+assert.strictEqual(aliceTueOrders[0].userName, '愛麗絲');
 
 const aliceWedOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週三');
 assert.strictEqual(aliceWedOrders.length, 1);
 assert.strictEqual(aliceWedOrders[0].quantity, 2);
-console.log('  ✔ Alice multi-day batch order recorded.');
+assert.strictEqual(aliceWedOrders[0].userName, '愛麗絲');
+console.log('  ✔ Alice multi-day batch order recorded with nickname (愛麗絲).');
 
 // Step D: Member Bob orders for Friday
 console.log('  [Step D] Bob orders for Friday (週五 舒肥嫩雞胸餐盒+2)');
@@ -208,7 +239,8 @@ OrderModule.handleTextMessage({
 const bobFriOrders = SheetModule.getUserOrders('user_bob', groupId, null, '週五');
 assert.strictEqual(bobFriOrders.length, 1);
 assert.strictEqual(bobFriOrders[0].quantity, 2);
-console.log('  ✔ Bob Friday order recorded.');
+assert.strictEqual(bobFriOrders[0].userName, '小鮑伯');
+console.log('  ✔ Bob Friday order recorded with nickname (小鮑伯).');
 
 // Step E: Alice checks her weekly orders
 console.log('  [Step E] Alice checks her weekly orders (我的本週訂單)');
@@ -223,8 +255,21 @@ assert.ok(lastReply.text.includes('【週二】'));
 assert.ok(lastReply.text.includes('【週三】'));
 console.log('  ✔ Alice weekly orders verified.');
 
-// Step F: Alice cancels Tuesday order
-console.log('  [Step F] Alice cancels Tuesday order (取消 週二 全部)');
+// Step F-1: Alice requests cancel menu by clicking or typing "取消餐點"
+console.log('  [Step F-1] Alice opens interactive cancel menu (取消餐點)');
+OrderModule.handleTextMessage({
+  replyToken: 'token_cancel_menu',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消餐點' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, '🗑️ 請選擇欲取消的餐點');
+const cancelBody = lastReply.flex.body.contents;
+assert.ok(cancelBody.length > 0);
+console.log('  ✔ Interactive cancel menu card verified.');
+
+// Step F-2: Alice cancels Tuesday order
+console.log('  [Step F-2] Alice cancels Tuesday order (取消 週二 全部)');
 OrderModule.handleTextMessage({
   replyToken: 'token_cancel_tue',
   source: { groupId: groupId, userId: 'user_alice' },
@@ -251,7 +296,16 @@ const weeklySummary = SheetModule.getWeeklyOrderSummary(groupId);
 // Grand total = 460, 5 items.
 assert.strictEqual(weeklySummary.grandTotalQuantity, 5);
 assert.strictEqual(weeklySummary.grandTotalAmount, 460);
-console.log('  ✔ Weekly batch summary verified (Grand Total: 5 items, $460).\n');
+
+// Verify that users in summary are accurately identified by their nicknames
+const aliceSum = weeklySummary.users.find(u => u.userName === '愛麗絲');
+assert.ok(aliceSum, 'Alice should be found in weekly summary with her nickname');
+assert.strictEqual(aliceSum.total, 240);
+
+const bobSum = weeklySummary.users.find(u => u.userName === '小鮑伯');
+assert.ok(bobSum, 'Bob should be found in weekly summary with his nickname');
+assert.strictEqual(bobSum.total, 220);
+console.log('  ✔ Weekly batch summary verified with member nicknames (Grand Total: 5 items, $460).\n');
 
 // 5. Google Sheets Admin Editing & Management Methods
 console.log('▶ Test 5: Google Sheets Admin Schedule Editing');
