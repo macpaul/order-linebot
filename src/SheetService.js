@@ -10,7 +10,13 @@ var _mockStore = {
     'RESTAURANT_NAME': '老王便當',
     'CUTOFF_TIME': '11:00',
     'ORGANIZER_NAME': '小幫手',
-    'ORDER_RECEIPT_SCOPE': 'WEEKLY'
+    'ORDER_RECEIPT_SCOPE': 'WEEKLY',
+    'CLOSE_ORDER_SCOPE': 'WEEKLY',
+    'PAYMENT_LINEPAY_URL': '',
+    'PAYMENT_BANK_CODE': '',
+    'PAYMENT_BANK_NAME': '',
+    'PAYMENT_BANK_ACCOUNT': '',
+    'PAYMENT_BANK_ACCOUNT_NAME': ''
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -90,7 +96,13 @@ function initSheets() {
         ['CUTOFF_TIME', '11:00', '今日點餐截止時間'],
         ['ORGANIZER_ID', '', '發起開單人 LINE User ID'],
         ['ORGANIZER_NAME', '', '發起開單人姓名'],
-        ['ORDER_RECEIPT_SCOPE', 'WEEKLY', '點餐後收據顯示範圍 (WEEKLY: 本週訂單 / DAILY: 今日訂單)']
+        ['ORDER_RECEIPT_SCOPE', 'WEEKLY', '點餐後收據顯示範圍 (WEEKLY: 本週訂單 / DAILY: 今日訂單)'],
+        ['CLOSE_ORDER_SCOPE', 'WEEKLY', '結單結算範圍 (WEEKLY: 本週梯次結單 / DAILY: 今日結單)'],
+        ['PAYMENT_LINEPAY_URL', '', 'LINE Pay 收款/轉帳連結或個人收款碼網址'],
+        ['PAYMENT_BANK_CODE', '', '收款銀行代碼 (例如: 822)'],
+        ['PAYMENT_BANK_NAME', '', '收款銀行名稱 (例如: 中國信託)'],
+        ['PAYMENT_BANK_ACCOUNT', '', '收款銀行帳號 (例如: 123456789012)'],
+        ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)']
       ]
     },
     {
@@ -191,6 +203,29 @@ function setConfigValue(key, value) {
   }
   sheet.appendRow([key, String(value), '']);
   return true;
+}
+
+/**
+ * Get payment configuration (LINE Pay & Bank Transfer)
+ * @returns {{ linePayUrl: string, bankCode: string, bankName: string, bankAccount: string, bankAccountName: string, hasPaymentInfo: boolean }}
+ */
+function getPaymentConfig() {
+  var linePayUrl = (getConfigValue('PAYMENT_LINEPAY_URL', '') || '').trim();
+  var bankCode = (getConfigValue('PAYMENT_BANK_CODE', '') || '').trim();
+  var bankName = (getConfigValue('PAYMENT_BANK_NAME', '') || '').trim();
+  var bankAccount = (getConfigValue('PAYMENT_BANK_ACCOUNT', '') || '').trim();
+  var bankAccountName = (getConfigValue('PAYMENT_BANK_ACCOUNT_NAME', '') || '').trim();
+
+  var hasPaymentInfo = !!(linePayUrl || bankAccount || bankCode);
+
+  return {
+    linePayUrl: linePayUrl,
+    bankCode: bankCode,
+    bankName: bankName,
+    bankAccount: bankAccount,
+    bankAccountName: bankAccountName,
+    hasPaymentInfo: hasPaymentInfo
+  };
 }
 
 /**
@@ -800,6 +835,7 @@ function logToSheet(type, message, detail) {
   g.getGroupOrders = getGroupOrders;
   g.getOrderSummary = getOrderSummary;
   g.getWeeklyOrderSummary = getWeeklyOrderSummary;
+  g.getPaymentConfig = getPaymentConfig;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
   g.logToSheet = logToSheet;
   g._mockStore = _mockStore;
@@ -822,6 +858,7 @@ function logToSheet(type, message, detail) {
       getGroupOrders: getGroupOrders,
       getOrderSummary: getOrderSummary,
       getWeeklyOrderSummary: getWeeklyOrderSummary,
+      getPaymentConfig: getPaymentConfig,
       onOpenSpreadsheet: onOpenSpreadsheet,
       logToSheet: logToSheet,
       _mockStore: _mockStore
