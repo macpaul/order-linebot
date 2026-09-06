@@ -128,8 +128,8 @@ npm run bundle
   Flex Message 卡片已全數重構對齊 LINE 官方最新嚴格規範（移除無效 CSS 屬性，改用 `paddingAll` 與標準 `mega` 尺寸），請更新部署最新 [`dist/Code.gs`](dist/Code.gs) 即可。
 - **取消訂單選單與防誤刪機制？**
   一般成員輸入「`取消`」開啟的互動選單**僅會顯示其本人訂購的餐點**，絕不出現其他成員的餐點；即便手動輸入他人訂購的菜名，系統亦會比對 `UserName` 嚴格阻擋並提示原訂購人姓名。開單人則可看見全體成員餐點並具備二次確認警告機制。詳細說明請參閱 [docs/deployment_guide.md#q8退訂取消權限選單隔離與二次確認警告機制是如何運作的](docs/deployment_guide.md)。
-- **「今日統計」看不到訂餐名單或無回應？如何設定與確認 Apps Script 時區？**
-  系統支援 `今日統計`、`本日統計`、`統計`、`即時統計`，並自動涵蓋提早預約與當日訂單。**程式碼已全面移除 hardcode 寫死的時區，直接動態讀取試算表檔案設定之時區**。請至試算表「檔案 ➡️ 設定」確認時區為 `(GMT+08:00) 台北時間`，並在 Apps Script 專案設定中同步設定 [`appsscript.json`](appsscript.json)。亦可在試算表上方選單點擊「`🍱 便當訂餐管理` ➡️ `🕒 檢查 Apps Script 時區與系統時間`」一鍵診斷。詳情參閱 [docs/deployment_guide.md#q9今日統計訂餐名單匯總原理與-apps-script-時區時間確認方式](docs/deployment_guide.md)。
+- **「今日統計」查詢範圍與時區設定？是否受結單方式或收據範圍影響？**
+  **「今日統計」/「統計」完全獨立於 `CLOSE_ORDER_SCOPE`（結單範圍）與 `ORDER_RECEIPT_SCOPE`（收據範圍）設定**。無論何時呼叫、無論是在開單中或結單截止後，系統一律只會嚴格查詢屬於今日梯次的訂單資料，並排除其他星期的預約。**程式碼已全面移除 hardcode 寫死的時區，直接動態讀取試算表檔案設定之時區**。請至試算表「檔案 ➡️ 設定」確認時區為 `(GMT+08:00) 台北時間`，並在 Apps Script 專案設定中同步設定 [`appsscript.json`](appsscript.json)。亦可在試算表上方選單點擊「`🍱 便當訂餐管理` ➡️ `🕒 檢查 Apps Script 時區與系統時間`」一鍵診斷。詳情參閱 [docs/deployment_guide.md#q9今日統計訂餐名單匯總原理與-apps-script-時區時間確認方式](docs/deployment_guide.md)。
 
 ---
 
