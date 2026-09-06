@@ -410,9 +410,10 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
  *   Each record shape: { itemName: string, quantity: number, price: number, subtotal?: number }
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createOrderReceiptFlex(userName, addedItem, userOrders) {
+function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
   var orders = userOrders || [];
   var total = _calcOrderTotal(orders);
+  var isWeekly = options && options.isWeekly !== undefined ? !!options.isWeekly : true;
 
   /* ---- header ---- */
   var header = _flexBox([
@@ -433,7 +434,8 @@ function createOrderReceiptFlex(userName, addedItem, userOrders) {
   var bodyContents = [];
 
   // User label
-  bodyContents.push(_flexText((userName || '成員') + ' 的訂單', {
+  var titleSuffix = isWeekly ? ' 的本週訂單' : ' 的今日訂單';
+  bodyContents.push(_flexText((userName || '成員') + titleSuffix, {
     size: 'lg',
     weight: 'bold',
     color: FLEX_COLORS.textPrimary,
@@ -450,13 +452,67 @@ function createOrderReceiptFlex(userName, addedItem, userOrders) {
       color: FLEX_COLORS.textSecondary,
       align: 'start'
     }));
+  } else if (isWeekly) {
+    // Group orders by weekday for clear weekly view
+    var dayMap = {};
+    var dayKeys = [];
+    orders.forEach(function (o) {
+      var d = o.dayOfWeek || '今日';
+      if (!dayMap[d]) {
+        dayMap[d] = [];
+        dayKeys.push(d);
+      }
+      dayMap[d].push(o);
+    });
+
+    dayKeys.forEach(function (day, di) {
+      bodyContents.push(_flexText('【' + day + '】', {
+        size: 'sm',
+        weight: 'bold',
+        color: FLEX_COLORS.primaryDark,
+        align: 'start',
+        margin: di === 0 ? 'sm' : 'md'
+      }));
+
+      dayMap[day].forEach(function (o) {
+        var name = o.itemName || '';
+        var qty = o.quantity || 1;
+        var sub = o.subtotal !== undefined ? o.subtotal : qty * (o.price || 0);
+
+        // Highlight the just-added item (matching name and weekday if applicable)
+        var isAdded = addedItem && o.itemName === addedItem.itemName &&
+          (!addedItem.dayOfWeek || !o.dayOfWeek || o.dayOfWeek === addedItem.dayOfWeek);
+        var rowBg = isAdded ? FLEX_COLORS.successBg : 'transparent';
+
+        bodyContents.push(_flexBox([
+          _flexText(name + (qty > 1 ? ' x' + qty : ''), {
+            size: 'md',
+            color: FLEX_COLORS.textPrimary,
+            align: 'start',
+            weight: isAdded ? 'bold' : 'regular'
+          }),
+          _flexFiller(),
+          _flexText(_formatPrice(sub), {
+            size: 'md',
+            color: isAdded ? FLEX_COLORS.success : FLEX_COLORS.textSecondary,
+            align: 'end',
+            weight: isAdded ? 'bold' : 'regular'
+          })
+        ], {
+          layout: 'horizontal',
+          spacing: 'sm',
+          padding: 'xs',
+          backgroundColor: rowBg
+        }));
+      });
+    });
   } else {
+    // Daily mode: flat list
     orders.forEach(function (o) {
       var name = o.itemName || '';
       var qty = o.quantity || 1;
       var sub = o.subtotal !== undefined ? o.subtotal : qty * (o.price || 0);
 
-      // Highlight the just-added item
       var isAdded = addedItem && o.itemName === addedItem.itemName;
       var rowBg = isAdded ? FLEX_COLORS.successBg : 'transparent';
 
@@ -487,8 +543,9 @@ function createOrderReceiptFlex(userName, addedItem, userOrders) {
   bodyContents.push(_flexSeparator({ margin: 'md' }));
 
   // Grand total
+  var totalLabel = isWeekly ? '本週合計' : '合計';
   bodyContents.push(_flexBox([
-    _flexText('合計', {
+    _flexText(totalLabel, {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textPrimary,
@@ -516,8 +573,8 @@ function createOrderReceiptFlex(userName, addedItem, userOrders) {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('回覆「取消 菜名」可移除項目', {
-      size: 'sm',
+    _flexText('💡 回覆「取消」可開啟選單自選退訂特定餐點', {
+      size: 'xs',
       color: FLEX_COLORS.textSecondary,
       align: 'center'
     })
