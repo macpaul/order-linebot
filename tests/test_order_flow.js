@@ -25,6 +25,17 @@ globalThis.replyText = LineModule.replyText = function (token, text) {
   lastReply = { type: 'text', token: token, text: text };
   return { statusCode: 200 };
 };
+let lastPush = null;
+globalThis.pushText = LineModule.pushText = function (to, text) {
+  lastPush = { to: to, text: text };
+  globalThis._lastPush = lastPush;
+  return { statusCode: 200 };
+};
+globalThis.pushMessages = LineModule.pushMessages = function (to, messages) {
+  lastPush = { to: to, messages: messages };
+  globalThis._lastPush = lastPush;
+  return { statusCode: 200 };
+};
 
 // 1. Text Parsing Tests (Single-day & Weekly Batch)
 console.log('▶ Test 1: Order Text Parsing');
@@ -226,6 +237,7 @@ const aliceMonOrders = SheetModule.getUserOrders('user_alice', groupId, null, '�
 assert.strictEqual(aliceMonOrders.length, 1);
 assert.strictEqual(aliceMonOrders[0].quantity, 1);
 assert.strictEqual(aliceMonOrders[0].userName, '愛麗絲');
+assert.strictEqual(aliceMonOrders[0].userNickname, '愛麗絲');
 
 const aliceTueOrders = SheetModule.getUserOrders('user_alice', groupId, null, '週二');
 assert.strictEqual(aliceTueOrders.length, 1);
@@ -429,5 +441,129 @@ const postRes = CodeModule.doPost({
 });
 assert.strictEqual(postRes.statusCode, 200);
 console.log('  ✔ Webhook doPost and doGet passed.\n');
+
+// 7. Test Past Day Locks, Today Cutoff Locks, Organizer Notifications & UserNickname
+console.log('▶ Test 7: Past Day & Cutoff Locks, Organizer Push, and UserNickname Column');
+
+// 7-1: Simulate Wednesday 10:00 AM (週三, before cutoff)
+globalThis._mockCurrentDate = new Date('2026-09-09T10:00:00+08:00');
+assert.strictEqual(OrderModule.getTodayDayOfWeek(), '週三');
+assert.strictEqual(OrderModule.isDayPast('週一'), true);
+assert.strictEqual(OrderModule.isDayPast('週二'), true);
+assert.strictEqual(OrderModule.isDayPast('週三'), false);
+assert.strictEqual(OrderModule.isDayPast('週四'), false);
+assert.strictEqual(OrderModule.isDayPast('週五'), false);
+
+// Alice tries to cancel a past day's order (週一) -> Should be rejected
+OrderModule.handleTextMessage({
+  replyToken: 'token_cancel_past_day',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消 週一 全部' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已超過日期') && lastReply.text.includes('無法修改或取消'));
+
+// Alice checks weekly orders -> 週一 shows locked tag
+OrderModule.handleTextMessage({
+  replyToken: 'token_my_orders_past',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '我的本週訂單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('【週一 🔒[已過期]】'));
+console.log('  ✔ Past day cancellation rejected and locked tag displayed.');
+
+// 7-2: Simulate Wednesday 10:45 AM (週三, past cutoff 10:30)
+globalThis._mockCurrentDate = new Date('2026-09-09T10:45:00+08:00');
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週三'), true);
+
+// Alice tries to cancel today's order after cutoff -> Should be rejected
+OrderModule.handleTextMessage({
+  replyToken: 'token_cancel_today_cutoff',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消 週三 全部' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已超過結單時間') && lastReply.text.includes('無法修改或取消'));
+
+// Alice checks today's orders -> shows cutoff notice
+OrderModule.handleTextMessage({
+  replyToken: 'token_my_orders_today_cutoff',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '我的訂單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('🔒[已截止]'));
+assert.ok(lastReply.text.includes('今日點餐已超過截止時間'));
+
+// Interactive cancel menu reflects lock status
+OrderModule.handleTextMessage({
+  replyToken: 'token_cancel_menu_cutoff',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消餐點' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+const cancelCardJson = JSON.stringify(lastReply.flex);
+assert.ok(cancelCardJson.includes('已過期') || cancelCardJson.includes('已截止'));
+console.log('  ✔ Today past cutoff cancellation rejected, status tags and lock badges verified.');
+
+// 7-3: Organizer Notification on Add and Cancel
+SheetModule.setConfigValue('ORGANIZER_ID', 'organizer_boss_line_id');
+globalThis._mockCurrentDate = new Date('2026-09-09T10:00:00+08:00'); // Reset to 10:00 AM
+lastPush = null;
+
+// Bob orders for Friday
+OrderModule.handleTextMessage({
+  replyToken: 'token_bob_order_thu',
+  source: { groupId: groupId, userId: 'user_bob' },
+  message: { type: 'text', text: '週五 舒肥嫩雞胸餐盒+1' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastPush !== null);
+assert.strictEqual(lastPush.to, 'organizer_boss_line_id');
+assert.ok(lastPush.text.includes('【訂餐通知 - 新增加訂】'));
+assert.ok(lastPush.text.includes('舒肥嫩雞胸餐盒'));
+assert.ok(lastPush.text.includes('小鮑伯'));
+
+// Bob cancels Friday order
+lastPush = null;
+OrderModule.handleTextMessage({
+  replyToken: 'token_bob_cancel_thu',
+  source: { groupId: groupId, userId: 'user_bob' },
+  message: { type: 'text', text: '取消 週五 舒肥嫩雞胸餐盒' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已為您取消'));
+assert.ok(lastPush !== null);
+assert.strictEqual(lastPush.to, 'organizer_boss_line_id');
+assert.ok(lastPush.text.includes('【訂餐通知 - 取消餐點】'));
+assert.ok(lastPush.text.includes('舒肥嫩雞胸餐盒'));
+assert.ok(lastPush.text.includes('小鮑伯'));
+console.log('  ✔ LINE push notification to ORGANIZER_ID on additions and cancellations verified.');
+
+// 7-4: Verify UserNickname Column in Orders Sheet
+const colIndices14 = SheetModule._getOrderColumnIndexes([
+  'OrderId', 'Timestamp', 'Date', 'DayOfWeek', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid'
+]);
+assert.strictEqual(colIndices14.userNickname, 7);
+assert.strictEqual(colIndices14.itemName, 8);
+assert.strictEqual(colIndices14.status, 12);
+assert.strictEqual(colIndices14.paid, 13);
+
+const colIndices13 = SheetModule._getOrderColumnIndexes([
+  'OrderId', 'Timestamp', 'Date', 'DayOfWeek', 'GroupId', 'UserId', 'UserName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid'
+]);
+assert.strictEqual(colIndices13.userNickname, -1);
+assert.strictEqual(colIndices13.itemName, 7);
+assert.strictEqual(colIndices13.status, 11);
+
+// Verify order record in mock store has userNickname
+const bobOrdersInStore = SheetModule._mockStore.Orders.filter(function (o) { return o.userId === 'user_bob'; });
+assert.ok(bobOrdersInStore.length > 0);
+assert.strictEqual(bobOrdersInStore[0].userNickname, '小鮑伯');
+console.log('  ✔ Orders sheet UserNickname column and dynamic header mapping verified.\n');
+
+// Clean up mock date
+globalThis._mockCurrentDate = null;
 
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
