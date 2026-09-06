@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T16:56:40.069Z
+ * Automatically generated on: 2026-09-06T17:06:41.911Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -659,6 +659,46 @@ function getSpreadsheet() {
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
+var _cachedSpreadsheetTimeZone = null;
+
+/**
+ * Get timezone configured directly in the Spreadsheet settings.
+ * Directly reads SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() in GAS.
+ * Falls back to Session.getScriptTimeZone() if available, and defaults to 'Asia/Taipei'.
+ * @returns {string} e.g. 'Asia/Taipei'
+ */
+function getSpreadsheetTimeZone() {
+  if (typeof globalThis !== 'undefined' && globalThis._mockSpreadsheetTimeZone) {
+    return globalThis._mockSpreadsheetTimeZone;
+  }
+  if (_cachedSpreadsheetTimeZone) {
+    return _cachedSpreadsheetTimeZone;
+  }
+  if (isGasRuntime()) {
+    try {
+      var ss = getSpreadsheet();
+      if (ss && typeof ss.getSpreadsheetTimeZone === 'function') {
+        var ssTz = ss.getSpreadsheetTimeZone();
+        if (ssTz && ssTz.trim() !== '') {
+          _cachedSpreadsheetTimeZone = ssTz;
+          return _cachedSpreadsheetTimeZone;
+        }
+      }
+    } catch (e) {}
+    try {
+      if (typeof Session !== 'undefined' && Session.getScriptTimeZone) {
+        var scriptTz = Session.getScriptTimeZone();
+        if (scriptTz && scriptTz.trim() !== '') {
+          _cachedSpreadsheetTimeZone = scriptTz;
+          return _cachedSpreadsheetTimeZone;
+        }
+      }
+    } catch (e) {}
+  }
+  return 'Asia/Taipei';
+}
+
+
 /**
  * Initialize sheets, headers, and initial sample menu if needed
  */
@@ -1188,12 +1228,17 @@ function _getOrderColumnIndexes(headers) {
 function _formatDateValue(val) {
   if (!val) return '';
   if (val instanceof Date) {
+    var tz = getSpreadsheetTimeZone();
     if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
       try {
-        var tz = Session.getScriptTimeZone() || 'Asia/Taipei';
         return Utilities.formatDate(val, tz, 'yyyy-MM-dd');
       } catch (e) {}
     }
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(val);
+      }
+    } catch (e) {}
     var utc = val.getTime() + (val.getTimezoneOffset() * 60000);
     var twDate = new Date(utc + (3600000 * 8));
     var y = twDate.getFullYear();
@@ -1868,8 +1913,12 @@ function checkTimeZoneAndCurrentTime() {
   if (isGasRuntime()) {
     try {
       var ss = getSpreadsheet();
-      if (ss) ssTz = ss.getSpreadsheetTimeZone();
+      if (ss && typeof ss.getSpreadsheetTimeZone === 'function') {
+        ssTz = ss.getSpreadsheetTimeZone();
+      }
     } catch (e) {}
+  } else if (typeof globalThis !== 'undefined' && globalThis._mockSpreadsheetTimeZone) {
+    ssTz = globalThis._mockSpreadsheetTimeZone;
   }
 
   var scriptTz = 'N/A';
@@ -1877,24 +1926,41 @@ function checkTimeZoneAndCurrentTime() {
     try {
       scriptTz = Session.getScriptTimeZone();
     } catch (e) {}
+  } else if (typeof globalThis !== 'undefined' && globalThis._mockScriptTimeZone) {
+    scriptTz = globalThis._mockScriptTimeZone;
   }
+
+  // Determine effective timezone directly from spreadsheet setting, fallback to script timezone
+  var effectiveTz = getSpreadsheetTimeZone();
 
   var now = (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
   var serverRawTime = now.toString();
   var isoTime = now.toISOString ? now.toISOString() : String(now);
-  var taipeiTime = 'N/A';
+  var localTime = 'N/A';
   var dateStr = 'N/A';
   var dayOfWeekStr = 'N/A';
 
   if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
     try {
-      taipeiTime = Utilities.formatDate(now, 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-      dateStr = Utilities.formatDate(now, 'Asia/Taipei', 'yyyy-MM-dd');
-      var u = parseInt(Utilities.formatDate(now, 'Asia/Taipei', 'u'), 10);
+      localTime = Utilities.formatDate(now, effectiveTz, 'yyyy-MM-dd HH:mm:ss');
+      dateStr = Utilities.formatDate(now, effectiveTz, 'yyyy-MM-dd');
+      var u = parseInt(Utilities.formatDate(now, effectiveTz, 'u'), 10);
       var dayMapU = { 1: '週一', 2: '週二', 3: '週三', 4: '週四', 5: '週五', 6: '週六', 7: '週日' };
       dayOfWeekStr = dayMapU[u] || '週一';
     } catch (e) {}
   } else {
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        var dParts = new Intl.DateTimeFormat('en-CA', { timeZone: effectiveTz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+        var tParts = new Intl.DateTimeFormat('en-GB', { timeZone: effectiveTz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(now);
+        dateStr = dParts;
+        localTime = dParts + ' ' + tParts;
+        dayOfWeekStr = new Intl.DateTimeFormat('zh-TW', { timeZone: effectiveTz, weekday: 'short' }).format(now);
+      }
+    } catch (e) {}
+  }
+
+  if (dateStr === 'N/A') {
     var utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     var twDate = new Date(utc + (3600000 * 8));
     var y = twDate.getFullYear();
@@ -1904,23 +1970,32 @@ function checkTimeZoneAndCurrentTime() {
     var mm = ('0' + twDate.getMinutes()).slice(-2);
     var ss = ('0' + twDate.getSeconds()).slice(-2);
     dateStr = y + '-' + m + '-' + d;
-    taipeiTime = dateStr + ' ' + hh + ':' + mm + ':' + ss;
+    localTime = dateStr + ' ' + hh + ':' + mm + ':' + ss;
     var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
     dayOfWeekStr = dayMap[twDate.getDay()];
   }
 
+  var tzStatusNote = '';
+  if (ssTz !== 'N/A' && scriptTz !== 'N/A' && ssTz !== scriptTz) {
+    tzStatusNote = '⚠️ 提醒：試算表設定時區 (' + ssTz + ') 與專案資訊清單時區 (' + scriptTz + ') 不一致。系統已優先採用試算表設定時區 (' + effectiveTz + ')，建議前往「檔案 -> 設定」或「appsscript.json」將兩者同步！\n';
+  } else if (ssTz !== 'N/A') {
+    tzStatusNote = '✅ 系統已成功讀取試算表設定時區 (' + effectiveTz + ')！\n';
+  } else {
+    tzStatusNote = 'ℹ️ 運行採用時區 (' + effectiveTz + ')。\n';
+  }
+
   var msg = '【系統時區與時間診斷資訊】\n' +
             '----------------------------------------\n' +
-            '• 試算表時區 (Spreadsheet TimeZone): ' + ssTz + '\n' +
+            '• 試算表設定時區 (Spreadsheet TimeZone): ' + ssTz + '\n' +
             '• 專案腳本時區 (Script TimeZone): ' + scriptTz + '\n' +
-            '• 台北標準時間 (Asia/Taipei UTC+8): ' + taipeiTime + '\n' +
+            '• 系統運行採用時區 (Effective TimeZone): ' + effectiveTz + '\n' +
+            '• 當前時區時間 (Local Time): ' + localTime + '\n' +
             '• 當前判定日期: ' + dateStr + '\n' +
             '• 當前判定星期: ' + dayOfWeekStr + '\n' +
             '• 伺服器原始時間 (Raw Date): ' + serverRawTime + '\n' +
             '• ISO UTC 時間: ' + isoTime + '\n' +
             '----------------------------------------\n' +
-            (ssTz !== 'N/A' && ssTz !== 'Asia/Taipei' ? '⚠️ 注意：試算表時區非 Asia/Taipei，請至「檔案 -> 設定」修改時區！\n' : '✅ 試算表時區正常 (Asia/Taipei)！\n') +
-            (scriptTz !== 'N/A' && scriptTz !== 'Asia/Taipei' ? '⚠️ 注意：Apps Script 專案時區非 Asia/Taipei，請至專案設定檢查 appsscript.json！' : '✅ 專案腳本時區正常！');
+            tzStatusNote;
 
   if (typeof Logger !== 'undefined') {
     Logger.log(msg);
@@ -1934,7 +2009,9 @@ function checkTimeZoneAndCurrentTime() {
   return {
     spreadsheetTimeZone: ssTz,
     scriptTimeZone: scriptTz,
-    taipeiTime: taipeiTime,
+    effectiveTimeZone: effectiveTz,
+    localTime: localTime,
+    taipeiTime: localTime,
     dateStr: dateStr,
     dayOfWeek: dayOfWeekStr,
     serverRawTime: serverRawTime,
@@ -1967,15 +2044,17 @@ function logToSheet(type, message, detail) {
   } catch (e) {}
 }
 
-// Dual export
-(function () {
-  var g = (typeof globalThis !== 'undefined') ? globalThis
-       : (typeof global   !== 'undefined') ? global
-       : (typeof self     !== 'undefined') ? self
-       : this;
+// Global export helper
+(function (global) {
+  var g = (typeof window   !== 'undefined') ? window
+        : (typeof globalThis !== 'undefined') ? globalThis
+        : (typeof global   !== 'undefined') ? global
+        : (typeof self     !== 'undefined') ? self
+        : this;
 
   g.isGasRuntime = isGasRuntime;
   g.getSpreadsheet = getSpreadsheet;
+  g.getSpreadsheetTimeZone = getSpreadsheetTimeZone;
   g.initSheets = initSheets;
   g.getConfigValue = getConfigValue;
   g.setConfigValue = setConfigValue;
@@ -2004,6 +2083,7 @@ function logToSheet(type, message, detail) {
     module.exports = {
       isGasRuntime: isGasRuntime,
       getSpreadsheet: getSpreadsheet,
+      getSpreadsheetTimeZone: getSpreadsheetTimeZone,
       initSheets: initSheets,
       getConfigValue: getConfigValue,
       setConfigValue: setConfigValue,
@@ -2029,7 +2109,7 @@ function logToSheet(type, message, detail) {
       _mockStore: _mockStore
     };
   }
-})();
+})(this);
 
 
 /* =========================================================
@@ -4207,15 +4287,66 @@ var UberEatsModule = null;
 var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5 };
 
 /**
- * Helper to get today's date in YYYY-MM-DD format (Taiwan time UTC+8)
+ * Helper to get the effective timezone from SpreadsheetApp or SheetService
+ * @returns {string}
+ */
+function getAppTimeZone() {
+  if (typeof globalThis !== 'undefined' && globalThis._mockSpreadsheetTimeZone) {
+    return globalThis._mockSpreadsheetTimeZone;
+  }
+  if (typeof getSpreadsheetTimeZone === 'function') {
+    return getSpreadsheetTimeZone();
+  }
+  if (typeof SheetModule !== 'undefined' && typeof SheetModule.getSpreadsheetTimeZone === 'function') {
+    return SheetModule.getSpreadsheetTimeZone();
+  }
+  return 'Asia/Taipei';
+}
+
+/**
+ * Helper to format a Date into formatted string using effective spreadsheet timezone
+ * @param {Date} [date]
+ * @param {string} [format]
+ * @returns {string}
+ */
+function formatAppDate(date, format) {
+  var d = date || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var tz = getAppTimeZone();
+  var fmt = format || 'yyyy-MM-dd HH:mm:ss';
+  if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+    try {
+      return Utilities.formatDate(d, tz, fmt);
+    } catch (e) {}
+  }
+  try {
+    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+      if (fmt === 'yyyy-MM-dd') {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+      }
+      var dParts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+      var tParts = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(d);
+      return dParts + ' ' + tParts;
+    }
+  } catch (e) {}
+  return d.toISOString();
+}
+
+/**
+ * Helper to get today's date in YYYY-MM-DD format using effective spreadsheet timezone
  */
 function getTodayDateString(refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var tz = getAppTimeZone();
   if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
     try {
-      return Utilities.formatDate(d, 'Asia/Taipei', 'yyyy-MM-dd');
+      return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
     } catch (e) {}
   }
+  try {
+    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    }
+  } catch (e) {}
   var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
   var twDate = new Date(utc + (3600000 * 8));
   var year = twDate.getFullYear();
@@ -4229,12 +4360,20 @@ function getTodayDateString(refDate) {
  */
 function getTodayDayOfWeek(refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var tz = getAppTimeZone();
   var dayOfWeekStr = '';
   if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
     try {
-      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      var u = parseInt(Utilities.formatDate(d, tz, 'u'), 10);
       var dayMapU = { 1: '週一', 2: '週二', 3: '週三', 4: '週四', 5: '週五', 6: '週六', 7: '週日' };
       dayOfWeekStr = dayMapU[u];
+    } catch (e) {}
+  }
+  if (!dayOfWeekStr) {
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        dayOfWeekStr = new Intl.DateTimeFormat('zh-TW', { timeZone: tz, weekday: 'short' }).format(d);
+      }
     } catch (e) {}
   }
   if (!dayOfWeekStr) {
@@ -4248,18 +4387,30 @@ function getTodayDayOfWeek(refDate) {
 }
 
 /**
- * Check if a weekday has already passed compared to current Taiwan date
+ * Check if a weekday has already passed compared to current effective date
  * @param {string} targetDay - e.g. '週一'
  * @param {Date} [refDate] - Optional reference date for testing
  * @returns {boolean}
  */
 function isDayPast(targetDay, refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var tz = getAppTimeZone();
   var currentDayIndex = -1;
   if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
     try {
-      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      var u = parseInt(Utilities.formatDate(d, tz, 'u'), 10);
       currentDayIndex = u === 7 ? 0 : u; // convert Sunday 7 to 0
+    } catch (e) {}
+  }
+  if (currentDayIndex === -1) {
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        var dayStr = new Intl.DateTimeFormat('zh-TW', { timeZone: tz, weekday: 'short' }).format(d);
+        var mapStrToIndex = { '週日': 0, '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5, '週六': 6 };
+        if (typeof mapStrToIndex[dayStr] !== 'undefined') {
+          currentDayIndex = mapStrToIndex[dayStr];
+        }
+      }
     } catch (e) {}
   }
   if (currentDayIndex === -1) {
@@ -4290,17 +4441,35 @@ function isDayPast(targetDay, refDate) {
  */
 function isTodayCutoffPassed(day, refDate) {
   var d = refDate || (typeof globalThis !== 'undefined' && globalThis._mockCurrentDate) || new Date();
+  var tz = getAppTimeZone();
   var currentDayIndex = -1;
   var currentMinutes = -1;
   var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
 
   if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
     try {
-      var u = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'u'), 10);
+      var u = parseInt(Utilities.formatDate(d, tz, 'u'), 10);
       currentDayIndex = u === 7 ? 0 : u;
-      var hh = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'HH'), 10);
-      var mm = parseInt(Utilities.formatDate(d, 'Asia/Taipei', 'mm'), 10);
+      var hh = parseInt(Utilities.formatDate(d, tz, 'HH'), 10);
+      var mm = parseInt(Utilities.formatDate(d, tz, 'mm'), 10);
       currentMinutes = hh * 60 + mm;
+    } catch (e) {}
+  }
+  if (currentDayIndex === -1 || currentMinutes === -1) {
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        var dayStr = new Intl.DateTimeFormat('zh-TW', { timeZone: tz, weekday: 'short' }).format(d);
+        var mapStrToIndex = { '週日': 0, '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5, '週六': 6 };
+        if (typeof mapStrToIndex[dayStr] !== 'undefined') {
+          currentDayIndex = mapStrToIndex[dayStr];
+        }
+        var parts = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
+        var hPart = parts.find(function (p) { return p.type === 'hour'; });
+        var mPart = parts.find(function (p) { return p.type === 'minute'; });
+        if (hPart && mPart) {
+          currentMinutes = parseInt(hPart.value, 10) * 60 + parseInt(mPart.value, 10);
+        }
+      }
     } catch (e) {}
   }
   if (currentDayIndex === -1) {
@@ -4692,7 +4861,7 @@ function handleTextMessage(event) {
     }
     var cCount = SheetModule.cancelGroupOrders ? SheetModule.cancelGroupOrders(groupId, null, dayArg) : SheetModule.cancelOrder(null, groupId, null, null, dayArg);
     if (cCount > 0) {
-      var nowTw = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      var nowTw = formatAppDate();
       var notifMsg = '📢【訂餐通知 - 開單人取消當日全體餐點】\n👤 執行開單人：' + userDisplayName + '\n📅 梯次：' + dayArg + '\n🗑️ 已取消該日全體成員訂單共 ' + cCount + ' 筆紀錄。\n⏰ 時間：' + nowTw;
       notifyOrganizer(notifMsg);
       return LineModule.replyText(replyToken, '✅ 已由開單人成功取消【' + dayArg + '】全體成員的所有餐點紀錄，共 ' + cCount + ' 筆。');
@@ -4719,7 +4888,7 @@ function handleTextMessage(event) {
       totalAdvCancelled += SheetModule.cancelGroupOrders ? SheetModule.cancelGroupOrders(groupId, null, d) : SheetModule.cancelOrder(null, groupId, null, null, d);
     });
     if (totalAdvCancelled > 0) {
-      var nowTwAdv = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      var nowTwAdv = formatAppDate();
       var notifAdvMsg = '📢【訂餐通知 - 開單人取消所有未截止預約訂單】\n👤 執行開單人：' + userDisplayName + '\n🗑️ 已取消全體成員未截止預約共 ' + totalAdvCancelled + ' 筆。\n⏰ 時間：' + nowTwAdv;
       notifyOrganizer(notifAdvMsg);
       return LineModule.replyText(replyToken, '✅ 已由開單人成功取消全體成員所有未截止梯次的預約訂單，共 ' + totalAdvCancelled + ' 筆紀錄。');
@@ -4848,7 +5017,7 @@ function handleTextMessage(event) {
         }
       });
       if (totalMyCancelled > 0) {
-        var nowTwMy = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+        var nowTwMy = formatAppDate();
         var pushMsgMy = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + userDisplayName + '\n🗑️ 取消內容：未截止梯次個人全部餐點 (共 ' + totalMyCancelled + ' 筆)\n' + myCancelledSummary.join('\n') + '\n⏰ 時間：' + nowTwMy;
         notifyOrganizer(pushMsgMy);
         return LineModule.replyText(replyToken, '✅ 已為您取消個人所有未截止梯次餐點，共 ' + totalMyCancelled + ' 筆紀錄。已通知開單人！');
@@ -4998,7 +5167,7 @@ function handleTextMessage(event) {
     if (cancelledCount > 0) {
       var dayText = cancelDay ? cancelDay + ' ' : '';
       var itemDesc = targetItem ? '「' + targetItem + '」' : '全部餐點';
-      var nowTwCancel = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      var nowTwCancel = formatAppDate();
       var cancelPushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + targetDisplayName + '\n📅 梯次：' + (cancelDay || '今日') + '\n🗑️ 取消內容：' + itemDesc + ' (共 ' + cancelledCount + ' 筆)\n⏰ 時間：' + nowTwCancel;
       notifyOrganizer(cancelPushMsg);
 
@@ -5097,7 +5266,7 @@ function handleTextMessage(event) {
       return '• 【' + r.dayOfWeek + '】' + r.itemName + ' x' + r.quantity + ' ($' + r.subtotal + ')';
     });
     var orderTotalAmt = addedRecords.reduce(function (sum, r) { return sum + r.subtotal; }, 0);
-    var nowTwOrder = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+    var nowTwOrder = formatAppDate();
     var orderPushMsg = '📢【訂餐通知 - 新增加訂】\n👤 訂餐人：' + userDisplayName + '\n🍱 預訂項目：\n' + orderSummaryLines.join('\n') + '\n💰 總計：$' + orderTotalAmt + ' 元\n⏰ 時間：' + nowTwOrder;
     notifyOrganizer(orderPushMsg);
 
@@ -5173,6 +5342,8 @@ function handlePostbackEvent(event) {
   g.matchMenuItem = matchMenuItem;
   g.handleTextMessage = handleTextMessage;
   g.handlePostbackEvent = handlePostbackEvent;
+  g.getAppTimeZone = getAppTimeZone;
+  g.formatAppDate = formatAppDate;
   g.getTodayDateString = getTodayDateString;
   g.getTodayDayOfWeek = getTodayDayOfWeek;
   g.isDayPast = isDayPast;
@@ -5185,6 +5356,8 @@ function handlePostbackEvent(event) {
       matchMenuItem: matchMenuItem,
       handleTextMessage: handleTextMessage,
       handlePostbackEvent: handlePostbackEvent,
+      getAppTimeZone: getAppTimeZone,
+      formatAppDate: formatAppDate,
       getTodayDateString: getTodayDateString,
       getTodayDayOfWeek: getTodayDayOfWeek,
       isDayPast: isDayPast,
