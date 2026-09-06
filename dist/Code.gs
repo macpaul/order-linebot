@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T17:32:46.151Z
+ * Automatically generated on: 2026-09-06T17:58:37.100Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -1764,8 +1764,8 @@ function getGroupOrders(groupId, date, dayOfWeek) {
     var rStatus = String(r[colMap.status]);
     if (rStatus !== 'ACTIVE') continue;
 
-    var rGroupId = String(r[colMap.groupId]);
-    if (groupId && rGroupId !== groupId) continue;
+    var rGroupId = String(r[colMap.groupId] || '').trim();
+    if (groupId && rGroupId && rGroupId !== groupId) continue;
 
     var rDate = _formatDateValue(r[colMap.date]);
     var rDay = colMap.dayOfWeek !== -1 ? String(r[colMap.dayOfWeek] || '').trim() : '';
@@ -1797,6 +1797,12 @@ function getGroupOrders(groupId, date, dayOfWeek) {
  */
 function getOrderSummary(groupId, date, dayOfWeek) {
   var orders = getGroupOrders(groupId, date, dayOfWeek);
+  if (orders.length === 0 && groupId) {
+    var allOrders = getGroupOrders('', date, dayOfWeek);
+    if (allOrders.length > 0) {
+      orders = allOrders;
+    }
+  }
   var itemMap = {};
   var userMap = {};
   var totalQuantity = 0;
@@ -1858,6 +1864,12 @@ function getWeeklyOrderSummary(groupId) {
   days.forEach(function (day) {
     var sched = getScheduleByDay(day) || { restaurantName: day + '店家' };
     var dayOrders = getGroupOrders(groupId, null, day);
+    if (dayOrders.length === 0 && groupId) {
+      var allDayOrders = getGroupOrders('', null, day);
+      if (allDayOrders.length > 0) {
+        dayOrders = allDayOrders;
+      }
+    }
     var itemMap = {};
     var dayTotalQty = 0;
     var dayTotalAmt = 0;
@@ -2690,9 +2702,10 @@ var FLEX_COLORS = {
  */
 function _flexText(text, opts) {
   var o = opts || {};
+  var rawStr = (text !== undefined && text !== null) ? String(text) : '';
   var txt = {
     type: 'text',
-    text: String(text !== undefined && text !== null ? text : '')
+    text: rawStr || ' '
   };
   if (o.color) txt.color = o.color;
   if (o.size) txt.size = o.size;
@@ -2717,8 +2730,9 @@ function _flexBox(contents, opts) {
   };
   if (o.spacing && o.spacing !== 'none') box.spacing = o.spacing;
   if (o.margin && o.margin !== 'none') box.margin = o.margin;
-  if (o.paddingAll) box.paddingAll = o.paddingAll;
-  else if (o.padding && o.padding !== 'none') box.paddingAll = o.padding;
+  var p = o.paddingAll || o.padding;
+  if (p === 'xxs') p = 'xs';
+  if (p && p !== 'none') box.paddingAll = p;
   if (o.backgroundColor && o.backgroundColor !== 'transparent') box.backgroundColor = o.backgroundColor;
   if (o.cornerRadius && o.cornerRadius !== 'none') box.cornerRadius = o.cornerRadius;
   if (o.borderWidth && o.borderWidth !== '0px' && o.borderWidth !== 'none') box.borderWidth = o.borderWidth;
@@ -3302,7 +3316,7 @@ function _buildPaymentContents(paymentInfo) {
     }
 
     // Bank QR Code image
-    if (paymentInfo.bankQrUrl) {
+    if (paymentInfo.bankQrUrl && /^https:\/\//i.test(paymentInfo.bankQrUrl)) {
       bankRows.push({
         type: 'image',
         url: paymentInfo.bankQrUrl,
@@ -3342,7 +3356,7 @@ function _buildPaymentContents(paymentInfo) {
 
   // LINE Pay button & QR
   if (paymentInfo.linePayUrl || paymentInfo.linePayQrUrl || paymentInfo.isPersonalLinePay) {
-    if (paymentInfo.linePayUrl) {
+    if (paymentInfo.linePayUrl && /^(?:https|line):\/\//i.test(paymentInfo.linePayUrl)) {
       var buttonLabel = paymentInfo.isPersonalLinePay ? '🟢 開啟 LINE 錢包轉帳' : '🟢 前往 LINE Pay 轉帳';
       contents.push({
         type: 'button',
@@ -3369,7 +3383,7 @@ function _buildPaymentContents(paymentInfo) {
       }
     }
 
-    if (paymentInfo.linePayQrUrl) {
+    if (paymentInfo.linePayQrUrl && /^https:\/\//i.test(paymentInfo.linePayQrUrl)) {
       contents.push({
         type: 'image',
         url: paymentInfo.linePayQrUrl,
@@ -3421,7 +3435,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   var statusColor = isClosed ? FLEX_COLORS.danger : FLEX_COLORS.success;
 
   /* ---- header ---- */
-  var headerDateText = dateStr + (data.dayOfWeek ? ' (' + data.dayOfWeek + ')' : '');
+  var headerDateText = (dateStr ? dateStr : '今日') + (data.dayOfWeek ? ' (' + data.dayOfWeek + ')' : '');
   var header = _flexBox([
     _flexText(restaurantName || '訂單統計', {
       size: 'xl',
@@ -3430,7 +3444,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       align: 'start'
     }),
     _flexBox([
-      _flexText(headerDateText || '', {
+      _flexText(headerDateText, {
         size: 'sm',
         color: FLEX_COLORS.textOnColor,
         align: 'start'
@@ -3438,14 +3452,14 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       _flexFiller(),
       _flexBox([
         _flexText(statusLabel, {
-          size: 'sm',
+          size: 'xs',
           weight: 'bold',
           color: FLEX_COLORS.textOnColor,
           align: 'center'
         })
       ], {
         layout: 'vertical',
-        padding: 'xxs',
+        paddingAll: 'xs',
         backgroundColor: statusColor,
         cornerRadius: 'sm'
       })
@@ -3457,9 +3471,8 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   ], {
     layout: 'vertical',
     spacing: 'none',
-    padding: 'lg',
-    backgroundColor: FLEX_COLORS.primaryDark,
-    cornerRadius: 'lg'
+    paddingAll: 'lg',
+    backgroundColor: FLEX_COLORS.primaryDark
   });
 
   /* ---- body ---- */
@@ -3486,17 +3499,19 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
             size: 'md',
             weight: 'bold',
             color: FLEX_COLORS.textPrimary,
-            align: 'start'
+            align: 'start',
+            flex: 3
           }),
-          _flexFiller(),
           _flexText(sub, {
             size: 'md',
             weight: 'bold',
             color: FLEX_COLORS.primaryDark,
-            align: 'end'
+            align: 'end',
+            flex: 1
           })
         ], {
           layout: 'horizontal',
+          justifyContent: 'space-between',
           spacing: 'sm'
         })
       ];
@@ -3528,17 +3543,19 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textPrimary,
-      align: 'start'
+      align: 'start',
+      flex: 1
     }),
-    _flexFiller(),
     _flexText(totalQty + ' 份 / ' + _formatPrice(totalAmt), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.primary,
-      align: 'end'
+      align: 'end',
+      flex: 2
     })
   ], {
     layout: 'horizontal',
+    justifyContent: 'space-between',
     spacing: 'sm',
     padding: 'sm'
   }));
@@ -3555,36 +3572,40 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
 
     data.users.forEach(function (u) {
       var userItemsStr = (u.items && u.items.length > 0) ? u.items.join('、') : '';
+      var userColChildren = [
+        _flexText(u.userName || '成員', {
+          size: 'sm',
+          weight: 'bold',
+          color: FLEX_COLORS.textPrimary
+        })
+      ];
+      if (userItemsStr) {
+        userColChildren.push(_flexText(userItemsStr, {
+          size: 'xxs',
+          color: FLEX_COLORS.textSecondary,
+          margin: 'xxs',
+          wrap: true
+        }));
+      }
+
       bodyContents.push(_flexBox([
-        _flexBox([
-          _flexText(u.userName || '成員', {
-            size: 'sm',
-            weight: 'bold',
-            color: FLEX_COLORS.textPrimary
-          }),
-          _flexText(userItemsStr, {
-            size: 'xxs',
-            color: FLEX_COLORS.textSecondary,
-            margin: 'xxs',
-            wrap: true
-          })
-        ], {
+        _flexBox(userColChildren, {
           layout: 'vertical',
           flex: 3
         }),
-        _flexFiller(),
         _flexText('$' + u.total + ' 元', {
           size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.danger,
           align: 'end',
-          flex: 2
+          flex: 1
         })
       ], {
         layout: 'horizontal',
         alignItems: 'center',
+        justifyContent: 'space-between',
         margin: 'xs',
-        paddingAll: 'xs',
+        paddingAll: 'sm',
         backgroundColor: FLEX_COLORS.background,
         cornerRadius: 'sm'
       }));
@@ -3617,7 +3638,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   var body = _flexBox(bodyContents, {
     layout: 'vertical',
     spacing: 'none',
-    padding: 'lg',
+    paddingAll: 'lg',
     backgroundColor: FLEX_COLORS.surface
   });
 
@@ -3640,7 +3661,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
 
   return {
     type: 'bubble',
-    size: 'giga',
+    size: 'mega',
     header: header,
     body: body,
     footer: footer
@@ -4595,6 +4616,49 @@ function isUserOrganizer(userId, userDisplayName) {
 }
 
 /**
+ * Format order summary data as readable plain text (including items, buyers, member breakdown and total)
+ * @param {string} restaurantName
+ * @param {Object} summaryData - { date, dayOfWeek, totalQuantity, totalAmount, items, users }
+ * @param {boolean} isClosed
+ * @returns {string}
+ */
+function formatOrderSummaryText(restaurantName, summaryData, isClosed) {
+  var s = summaryData || {};
+  var items = s.items || [];
+  var users = s.users || [];
+  var lines = [];
+  var status = isClosed ? '【已截止】' : '【開放中】';
+  lines.push('📊 今日訂餐統計 ' + status);
+  lines.push('🍱 店家：' + (restaurantName || '今日便當'));
+  if (s.date || s.dayOfWeek) {
+    lines.push('📅 日期：' + (s.date || '') + (s.dayOfWeek ? ' (' + s.dayOfWeek + ')' : ''));
+  }
+  lines.push('─────────────────');
+
+  lines.push('📋 餐點統計：');
+  if (items.length === 0) {
+    lines.push('  （今日尚無訂單）');
+  } else {
+    items.forEach(function (it) {
+      var buyers = (it.buyers && it.buyers.length > 0) ? ' (' + it.buyers.join(', ') + ')' : '';
+      lines.push('  • ' + it.itemName + ' x ' + it.quantity + ' ＝ $' + it.subtotal + buyers);
+    });
+  }
+  lines.push('─────────────────');
+  lines.push('💰 總計：' + (s.totalQuantity || 0) + ' 份 / $' + (s.totalAmount || 0) + ' 元');
+
+  if (users.length > 0) {
+    lines.push('─────────────────');
+    lines.push('👤 每人應付明細與點餐內容：');
+    users.forEach(function (u) {
+      var userItems = (u.items && u.items.length > 0) ? u.items.join('、') : '';
+      lines.push('  • ' + (u.userName || '成員') + '：' + userItems + ' ＝ $' + (u.total || 0) + ' 元');
+    });
+  }
+  return lines.join('\n');
+}
+
+/**
  * Parse ordering text lines
  * Supports daily and weekly batch ordering syntax:
  *   "+1 排骨飯" / "+2 雞腿飯"
@@ -5229,6 +5293,16 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
   }
 
+  // 10.5 TODAY SUMMARY (TEXT): 今日文字統計 / 今日統計文字 / 文字統計 / 統計文字 / 今日文字
+  if (/^(?:\/)?(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i.test(text)) {
+    var daySchedText = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
+    var restNameText = (daySchedText && daySchedText.restaurantName) ? daySchedText.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
+    var isOrderOpenText = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
+    var summaryTextData = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
+    var textOutput = formatOrderSummaryText(restNameText, summaryTextData, !isOrderOpenText);
+    return LineModule.replyText(replyToken, textOutput);
+  }
+
   // 11. TODAY SUMMARY: 今日統計 / 本日統計 / 統計 / 即時統計 / 今日訂單 / 今日訂餐
   if (/^(?:\/)?(?:今日統計|本日統計|統計|即時統計|今日訂單|今日訂餐|今日訂餐統計|今日訂單統計|本日訂單|本日訂餐|本日訂單統計)$/i.test(text)) {
     var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
@@ -5237,7 +5311,18 @@ function handleTextMessage(event) {
     var summary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
     var payInfoTodaySum = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum);
-    return LineModule.replyFlex(replyToken, '【今日訂餐統計】' + restName, sumFlex);
+    var altText = '【今日訂餐統計】' + restName + ' (' + (summary.totalQuantity || 0) + '份 / $' + (summary.totalAmount || 0) + ')';
+    var replyRes = LineModule.replyFlex(replyToken, altText, sumFlex);
+    if (replyRes && replyRes.statusCode && replyRes.statusCode >= 400) {
+      // Fallback via push if Flex reply was rejected
+      var fallbackText = formatOrderSummaryText(restName, summary, !isOrderOpen);
+      if (groupId && LineModule.pushText) {
+        LineModule.pushText(groupId, fallbackText);
+      } else if (userId && LineModule.pushText) {
+        LineModule.pushText(userId, fallbackText);
+      }
+    }
+    return replyRes;
   }
 
   // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐 / 本週結單 / 今日結單
@@ -5392,6 +5477,7 @@ function handlePostbackEvent(event) {
   g.isDayPast = isDayPast;
   g.isTodayCutoffPassed = isTodayCutoffPassed;
   g.notifyOrganizer = notifyOrganizer;
+  g.formatOrderSummaryText = formatOrderSummaryText;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -5405,7 +5491,8 @@ function handlePostbackEvent(event) {
       getTodayDayOfWeek: getTodayDayOfWeek,
       isDayPast: isDayPast,
       isTodayCutoffPassed: isTodayCutoffPassed,
-      notifyOrganizer: notifyOrganizer
+      notifyOrganizer: notifyOrganizer,
+      formatOrderSummaryText: formatOrderSummaryText
     };
   }
 })();
