@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T05:12:19.455Z
+ * Automatically generated on: 2026-09-06T05:38:26.238Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -555,7 +555,9 @@ var _mockStore = {
     'PAYMENT_BANK_CODE': '',
     'PAYMENT_BANK_NAME': '',
     'PAYMENT_BANK_ACCOUNT': '',
-    'PAYMENT_BANK_ACCOUNT_NAME': ''
+    'PAYMENT_BANK_ACCOUNT_NAME': '',
+    'PAYMENT_BANK_QR_URL': '',
+    'PAYMENT_LINEPAY_QR_URL': ''
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -641,7 +643,9 @@ function initSheets() {
         ['PAYMENT_BANK_CODE', '', '收款銀行代碼 (例如: 822)'],
         ['PAYMENT_BANK_NAME', '', '收款銀行名稱 (例如: 中國信託)'],
         ['PAYMENT_BANK_ACCOUNT', '', '收款銀行帳號 (例如: 123456789012)'],
-        ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)']
+        ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)'],
+        ['PAYMENT_BANK_QR_URL', '', '收款銀行 QR Code 圖片網址 (支援 Google Drive 分享連結或圖床)'],
+        ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)']
       ]
     },
     {
@@ -745,24 +749,50 @@ function setConfigValue(key, value) {
 }
 
 /**
- * Get payment configuration (LINE Pay & Bank Transfer)
- * @returns {{ linePayUrl: string, bankCode: string, bankName: string, bankAccount: string, bankAccountName: string, hasPaymentInfo: boolean }}
+ * Convert Google Drive sharing URL or any web link to direct image URL
+ * @param {string} url
+ * @returns {string} Direct image URL
+ */
+function normalizeImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  var trimmed = url.trim();
+  if (!trimmed) return '';
+
+  // Google Drive sharing patterns:
+  // 1) https://drive.google.com/file/d/{FILE_ID}/view...
+  // 2) https://drive.google.com/open?id={FILE_ID}
+  // 3) https://drive.google.com/uc?id={FILE_ID}
+  var gdMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+)|uc\?(?:[^&]+&)*id=([a-zA-Z0-9_-]+))/i);
+  if (gdMatch) {
+    var fileId = gdMatch[1] || gdMatch[2] || gdMatch[3];
+    return 'https://lh3.googleusercontent.com/d/' + fileId;
+  }
+  return trimmed;
+}
+
+/**
+ * Get payment configuration (LINE Pay & Bank Transfer + QR Codes)
+ * @returns {{ linePayUrl: string, linePayQrUrl: string, bankCode: string, bankName: string, bankAccount: string, bankAccountName: string, bankQrUrl: string, hasPaymentInfo: boolean }}
  */
 function getPaymentConfig() {
   var linePayUrl = (getConfigValue('PAYMENT_LINEPAY_URL', '') || '').trim();
+  var linePayQrUrl = normalizeImageUrl(getConfigValue('PAYMENT_LINEPAY_QR_URL', '') || '');
   var bankCode = (getConfigValue('PAYMENT_BANK_CODE', '') || '').trim();
   var bankName = (getConfigValue('PAYMENT_BANK_NAME', '') || '').trim();
   var bankAccount = (getConfigValue('PAYMENT_BANK_ACCOUNT', '') || '').trim();
   var bankAccountName = (getConfigValue('PAYMENT_BANK_ACCOUNT_NAME', '') || '').trim();
+  var bankQrUrl = normalizeImageUrl(getConfigValue('PAYMENT_BANK_QR_URL', '') || '');
 
-  var hasPaymentInfo = !!(linePayUrl || bankAccount || bankCode);
+  var hasPaymentInfo = !!(linePayUrl || linePayQrUrl || bankAccount || bankCode || bankQrUrl);
 
   return {
     linePayUrl: linePayUrl,
+    linePayQrUrl: linePayQrUrl,
     bankCode: bankCode,
     bankName: bankName,
     bankAccount: bankAccount,
     bankAccountName: bankAccountName,
+    bankQrUrl: bankQrUrl,
     hasPaymentInfo: hasPaymentInfo
   };
 }
@@ -1375,6 +1405,7 @@ function logToSheet(type, message, detail) {
   g.getOrderSummary = getOrderSummary;
   g.getWeeklyOrderSummary = getWeeklyOrderSummary;
   g.getPaymentConfig = getPaymentConfig;
+  g.normalizeImageUrl = normalizeImageUrl;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
   g.logToSheet = logToSheet;
   g._mockStore = _mockStore;
@@ -1398,6 +1429,7 @@ function logToSheet(type, message, detail) {
       getOrderSummary: getOrderSummary,
       getWeeklyOrderSummary: getWeeklyOrderSummary,
       getPaymentConfig: getPaymentConfig,
+      normalizeImageUrl: normalizeImageUrl,
       onOpenSpreadsheet: onOpenSpreadsheet,
       logToSheet: logToSheet,
       _mockStore: _mockStore
@@ -2525,7 +2557,7 @@ function _buildPaymentContents(paymentInfo) {
   }));
 
   // Bank transfer block
-  if (paymentInfo.bankAccount || paymentInfo.bankCode) {
+  if (paymentInfo.bankAccount || paymentInfo.bankCode || paymentInfo.bankQrUrl) {
     var bankTitle = (paymentInfo.bankCode ? paymentInfo.bankCode + ' ' : '') + (paymentInfo.bankName || '銀行跨行匯款');
     var bankRows = [
       _flexText('🏦 ' + bankTitle, {
@@ -2552,6 +2584,30 @@ function _buildPaymentContents(paymentInfo) {
       }));
     }
 
+    // Bank QR Code image
+    if (paymentInfo.bankQrUrl) {
+      bankRows.push({
+        type: 'image',
+        url: paymentInfo.bankQrUrl,
+        size: 'md',
+        aspectRatio: '1:1',
+        aspectMode: 'fit',
+        margin: 'sm',
+        align: 'center',
+        action: {
+          type: 'uri',
+          label: '放大檢視',
+          uri: paymentInfo.bankQrUrl
+        }
+      });
+      bankRows.push(_flexText('🔍 點擊 QR Code 可放大檢視或截圖掃碼轉帳', {
+        size: 'xxs',
+        color: FLEX_COLORS.textSecondary,
+        align: 'center',
+        margin: 'xs'
+      }));
+    }
+
     bankRows.push(_flexText('💡 轉帳完成後請私訊或於群組告知主揪以利對帳', {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
@@ -2567,20 +2623,39 @@ function _buildPaymentContents(paymentInfo) {
     }));
   }
 
-  // LINE Pay button
-  if (paymentInfo.linePayUrl) {
-    contents.push({
-      type: 'button',
-      action: {
-        type: 'uri',
-        label: '🟢 前往 LINE Pay 轉帳',
-        uri: paymentInfo.linePayUrl
-      },
-      style: 'primary',
-      color: '#06C755',
-      height: 'sm',
-      margin: 'sm'
-    });
+  // LINE Pay button & QR
+  if (paymentInfo.linePayUrl || paymentInfo.linePayQrUrl) {
+    if (paymentInfo.linePayUrl) {
+      contents.push({
+        type: 'button',
+        action: {
+          type: 'uri',
+          label: '🟢 前往 LINE Pay 轉帳',
+          uri: paymentInfo.linePayUrl
+        },
+        style: 'primary',
+        color: '#06C755',
+        height: 'sm',
+        margin: 'sm'
+      });
+    }
+
+    if (paymentInfo.linePayQrUrl) {
+      contents.push({
+        type: 'image',
+        url: paymentInfo.linePayQrUrl,
+        size: 'md',
+        aspectRatio: '1:1',
+        aspectMode: 'fit',
+        margin: 'sm',
+        align: 'center',
+        action: {
+          type: 'uri',
+          label: 'LINE Pay 收款碼',
+          uri: paymentInfo.linePayQrUrl
+        }
+      });
+    }
   }
 
   return contents;
@@ -3508,12 +3583,20 @@ function handleTextMessage(event) {
   function _formatPaymentText(payInfo) {
     if (!payInfo || !payInfo.hasPaymentInfo) return '';
     var pLines = ['\n💳【付款資訊】'];
-    if (payInfo.bankAccount || payInfo.bankCode) {
+    if (payInfo.bankAccount || payInfo.bankCode || payInfo.bankQrUrl) {
       var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || '');
-      pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+      if (payInfo.bankAccount) {
+        pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+      }
+      if (payInfo.bankQrUrl) {
+        pLines.push('• 銀行轉帳 QR Code：' + payInfo.bankQrUrl);
+      }
     }
     if (payInfo.linePayUrl) {
       pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+    }
+    if (payInfo.linePayQrUrl) {
+      pLines.push('• LINE Pay 收款碼：' + payInfo.linePayQrUrl);
     }
     return pLines.join('\n');
   }
