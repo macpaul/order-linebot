@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-05T17:52:44.982Z
+ * Automatically generated on: 2026-09-06T03:31:49.037Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -2030,25 +2030,28 @@ function _calcOrderTotal(orders) {
  * ------------------------------------------------------------------ */
 
 /**
- * createMenuFlex — Build a LINE Flex bubble that displays today's menu.
+ * createMenuFlex — Build a LINE Flex bubble that displays today's or weekday's menu with order buttons.
  *
  * Layout:
- *   header  – restaurant name + cutoff-time badge
- *   body     – items grouped by category (name … price)
- *   footer   – usage hint ("reply with an item name to order")
+ *   header  – restaurant name + weekday badge + cutoff-time badge
+ *   body     – items grouped by category, each item with an interactive '+1 點餐' button
+ *   footer   – usage hint
  *
  * @param {string} restaurantName - Display name of the restaurant.
  * @param {string} cutoffTime - Cutoff time string, e.g. "11:00".
  * @param {Array<Object>} menuItems - Flat array of menu records.
- *   Each record shape: { category: string, itemName: string, price: number, isAvailable?: boolean }
+ *   Each record shape: { category: string, itemName: string, price: number, isAvailable?: boolean, description?: string }
+ * @param {string} [dayOfWeek] - Optional day of week (e.g. "週一", "週二").
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createMenuFlex(restaurantName, cutoffTime, menuItems) {
+function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
   var groups = _groupMenuByCategory(menuItems);
+  var headerTitle = restaurantName || '今日菜單';
+  var dayBadge = dayOfWeek ? '【' + dayOfWeek + '】' : '';
 
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText(restaurantName || '今日菜單', {
+    _flexText(dayBadge + headerTitle, {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -2063,67 +2066,142 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems) {
   ], {
     layout: 'vertical',
     spacing: 'none',
-    padding: 'lg',
+    paddingAll: 'lg',
     backgroundColor: FLEX_COLORS.primary,
     cornerRadius: 'lg'
   });
 
   /* ---- body: category sections ---- */
   var bodyContents = [];
+  var totalRendered = 0;
+  var MAX_ITEMS_PER_MENU = 35;
 
-  groups.forEach(function (group, gi) {
-    // Category heading
-    bodyContents.push(_flexText('【' + group.category + '】', {
-      size: 'md',
-      weight: 'bold',
-      color: FLEX_COLORS.primaryDark,
-      align: 'start',
-      margin: gi === 0 ? 'none' : 'lg'
+  if (groups.length === 0) {
+    bodyContents.push(_flexText('（目前此店家尚無菜單項目）', {
+      size: 'sm',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'lg'
     }));
+  } else {
+    groups.forEach(function (group, gi) {
+      if (totalRendered >= MAX_ITEMS_PER_MENU) return;
 
-    // Item rows
-    group.items.forEach(function (item) {
-      var name = item.itemName || '';
-      var price = _formatPrice(item.price);
-
-      bodyContents.push(_flexBox([
-        _flexText(name, {
-          size: 'md',
-          color: FLEX_COLORS.textPrimary,
-          align: 'start'
-        }),
-        _flexFiller(),
-        _flexText(price, {
-          size: 'md',
-          color: FLEX_COLORS.textSecondary,
-          align: 'end'
-        })
-      ], {
-        layout: 'horizontal',
-        spacing: 'sm',
-        padding: 'xs',
-        backgroundColor: 'transparent'
+      // Category heading
+      bodyContents.push(_flexText('【' + group.category + '】', {
+        size: 'md',
+        weight: 'bold',
+        color: FLEX_COLORS.primaryDark,
+        align: 'start',
+        margin: gi === 0 ? 'none' : 'md'
       }));
+
+      // Item rows with order buttons
+      group.items.forEach(function (item) {
+        if (totalRendered >= MAX_ITEMS_PER_MENU) return;
+        totalRendered++;
+
+        var name = item.itemName || '';
+        var price = _formatPrice(item.price);
+        var isAvail = item.isAvailable === undefined || item.isAvailable === true || item.isAvailable === 'TRUE';
+        var orderText = (dayOfWeek ? dayOfWeek + ' ' : '') + name + '+1';
+
+        var leftBoxContents = [
+          _flexText(name, {
+            size: 'sm',
+            weight: 'bold',
+            color: isAvail ? FLEX_COLORS.textPrimary : FLEX_COLORS.textSecondary,
+            wrap: true
+          }),
+          _flexText(price, {
+            size: 'xs',
+            color: isAvail ? FLEX_COLORS.primaryDark : FLEX_COLORS.textSecondary,
+            weight: 'bold',
+            margin: 'xs'
+          })
+        ];
+
+        if (item.description) {
+          leftBoxContents.push(_flexText(item.description, {
+            size: 'xxs',
+            color: FLEX_COLORS.textSecondary,
+            wrap: true,
+            margin: 'xs'
+          }));
+        }
+
+        var actionButton;
+        if (isAvail) {
+          actionButton = {
+            type: 'button',
+            action: {
+              type: 'message',
+              label: '+1 點餐',
+              text: orderText
+            },
+            style: 'primary',
+            color: FLEX_COLORS.primary,
+            height: 'sm',
+            flex: 2
+          };
+        } else {
+          actionButton = {
+            type: 'button',
+            action: {
+              type: 'message',
+              label: '已售完',
+              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + ' 已售完'
+            },
+            style: 'secondary',
+            height: 'sm',
+            flex: 2
+          };
+        }
+
+        bodyContents.push(_flexBox([
+          _flexBox(leftBoxContents, {
+            layout: 'vertical',
+            flex: 4,
+            justifyContent: 'center'
+          }),
+          actionButton
+        ], {
+          layout: 'horizontal',
+          spacing: 'sm',
+          alignItems: 'center',
+          paddingAll: 'sm',
+          margin: 'xs',
+          backgroundColor: totalRendered % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
+          cornerRadius: 'md'
+        }));
+      });
     });
-  });
+  }
 
   var body = _flexBox(bodyContents, {
     layout: 'vertical',
     spacing: 'none',
-    padding: 'lg',
+    paddingAll: 'md',
     backgroundColor: FLEX_COLORS.surface
   });
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 回覆菜名即可加購', {
-      size: 'sm',
-      color: FLEX_COLORS.textSecondary,
+    _flexText('💡 點擊「+1 點餐」按鈕即可直接加訂！', {
+      size: 'xs',
+      weight: 'bold',
+      color: FLEX_COLORS.primaryDark,
       align: 'center'
+    }),
+    _flexText('亦可輸入「' + (dayOfWeek ? dayOfWeek + ' ' : '') + '菜名+數量」或「取消 菜名」', {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'xs'
     })
   ], {
     layout: 'vertical',
-    padding: 'md',
+    paddingAll: 'sm',
     backgroundColor: FLEX_COLORS.background
   });
 
@@ -2916,7 +2994,7 @@ function handleTextMessage(event) {
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
     var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
-    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu);
+    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay);
     return LineModule.replyFlex(replyToken, targetDay + ' ' + restName + ' 菜單', dayMenuFlex);
   }
 
@@ -2958,7 +3036,7 @@ function handleTextMessage(event) {
     SheetModule.setConfigValue('ORGANIZER_ID', userId);
 
     var menuList = SheetModule.getMenuItems(todayDay, restaurant);
-    var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList);
+    var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList, todayDay);
     return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
   }
 
@@ -2967,7 +3045,7 @@ function handleTextMessage(event) {
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
-    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu);
+    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay);
     return LineModule.replyFlex(replyToken, curRestaurant + ' 菜單', curMenuFlex);
   }
 
