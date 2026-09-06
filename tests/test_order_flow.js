@@ -409,7 +409,41 @@ assert.ok(lastReply.altText.includes('【已結單】'));
 const dailyCloseJson = JSON.stringify(lastReply.flex);
 assert.ok(dailyCloseJson.includes('822 中國信託'));
 assert.ok(dailyCloseJson.includes('https://line.me/ti/p/linepay_mock'));
-console.log('  ✔ Daily close order (今日結單) verified with payment methods.\n');
+console.log('  ✔ Daily close order (今日結單) verified with payment methods.');
+
+// H-5: Test personal LINE Pay transfer mode (with wallet scheme & friend display name/ID guidance)
+console.log('  [Step H-5] Personal LINE Pay Wallet Transfer Mode');
+SheetModule.setConfigValue('PAYMENT_LINEPAY_URL', '');
+SheetModule.setConfigValue('PAYMENT_LINEPAY_USER_NAME', '主揪小芳');
+SheetModule.setConfigValue('PAYMENT_LINEPAY_USER_ID', 'eva_lin');
+
+const personalPayConfig = SheetModule.getPaymentConfig();
+assert.strictEqual(personalPayConfig.hasPaymentInfo, true);
+assert.strictEqual(personalPayConfig.isPersonalLinePay, true);
+assert.strictEqual(personalPayConfig.linePayUrl, 'https://line.me/R/nv/wallet');
+assert.strictEqual(personalPayConfig.linePayRecipientName, '主揪小芳');
+assert.strictEqual(personalPayConfig.linePayUserId, 'eva_lin');
+
+OrderModule.handleTextMessage({
+  replyToken: 'token_close_personal_pay',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '結單' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+const personalCloseJson = JSON.stringify(lastReply.flex);
+assert.ok(personalCloseJson.includes('🟢 開啟 LINE 錢包轉帳'));
+assert.ok(personalCloseJson.includes('https://line.me/R/nv/wallet'));
+assert.ok(personalCloseJson.includes('請於錢包點選「轉帳」並搜尋好友：「主揪小芳」 (LINE ID: eva_lin)'));
+
+OrderModule.handleTextMessage({
+  replyToken: 'token_orders_personal_pay',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '我的本週訂單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('LINE Pay 好友轉帳：https://line.me/R/nv/wallet'));
+assert.ok(lastReply.text.includes('搜尋好友「主揪小芳」 (LINE ID: eva_lin)'));
+console.log('  ✔ Personal LINE Pay Wallet transfer button, URL scheme and recipient guidance verified.\n');
 
 // 5. Google Sheets Admin Editing & Management Methods
 console.log('▶ Test 5: Google Sheets Admin Schedule Editing');
@@ -566,13 +600,19 @@ console.log('  ✔ Orders sheet UserNickname column and dynamic header mapping v
 // 7-5: Verify initSheets backfills all recently added Config variables
 delete SheetModule._mockStore.Config['ORGANIZER_ID'];
 delete SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'];
+delete SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'];
+delete SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'];
 assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], undefined);
+assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'], undefined);
+assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'], undefined);
 
 const initRes = SheetModule.initSheets();
 assert.strictEqual(initRes, true);
 assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], '');
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], '');
+assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'], '');
+assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'], '');
 assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_NAME'), '小幫手');
 assert.strictEqual(SheetModule.getConfigValue('CLOSE_ORDER_SCOPE'), 'WEEKLY');
 console.log('  ✔ initSheets automatically backfills all recently added Config variables.\n');
