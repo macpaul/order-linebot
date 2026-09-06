@@ -681,6 +681,44 @@ function _formatDateValue(val) {
 }
 
 /**
+ * Match order timing against query date and dayOfWeek.
+ * Ensures orders placed in advance for other weekdays are never mixed into today's query.
+ *
+ * @param {string} orderDate - e.g. '2026-09-07'
+ * @param {string} orderDayOfWeek - e.g. '週一', '週二'
+ * @param {string} [queryDate] - e.g. '2026-09-07'
+ * @param {string} [queryDayOfWeek] - e.g. '週一'
+ * @returns {boolean}
+ */
+function _matchOrderTiming(orderDate, orderDayOfWeek, queryDate, queryDayOfWeek) {
+  var oDay = (orderDayOfWeek || '').trim();
+  var qDay = (queryDayOfWeek || '').trim();
+  var oDate = (orderDate || '').trim();
+  var qDate = (queryDate || '').trim();
+
+  // 1. Both date and dayOfWeek are queried (e.g. daily summary / today orders)
+  if (qDate && qDay) {
+    if (oDay) {
+      return (oDay === qDay || oDay === 'ALL' || oDay === '今日');
+    }
+    return (oDate === qDate);
+  }
+
+  // 2. Only dayOfWeek is queried (e.g. weekly batch schedule query)
+  if (qDay) {
+    return (oDay === qDay || oDay === 'ALL');
+  }
+
+  // 3. Only date is queried
+  if (qDate) {
+    return (oDate === qDate);
+  }
+
+  // 4. Neither is specified (all orders)
+  return true;
+}
+
+/**
  * Record an order
  */
 function addOrder(orderData) {
@@ -782,15 +820,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
       if (o.status !== 'ACTIVE') return false;
       if (groupId && o.groupId !== groupId) return false;
 
-      var matchTiming = true;
-      if (date && dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
-      } else if (date) {
-        matchTiming = (o.date === date);
-      } else if (dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek);
-      }
-      if (!matchTiming) return false;
+      if (!_matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek)) return false;
 
       // Strict user matching:
       // If userName is provided and not fallback '成員', order MUST match userName or userNickname
@@ -847,15 +877,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     var rDate = _formatDateValue(r[colMap.date]);
     var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
 
-    var matchTiming = true;
-    if (date && dayOfWeek) {
-      matchTiming = (rDayOfWeek === dayOfWeek || rDate === date);
-    } else if (date) {
-      matchTiming = (rDate === date);
-    } else if (dayOfWeek) {
-      matchTiming = (rDayOfWeek === dayOfWeek);
-    }
-    if (!matchTiming) continue;
+    if (!_matchOrderTiming(rDate, rDayOfWeek, date, dayOfWeek)) continue;
 
     var rUserId = String(r[colMap.userId]);
     var rUserName = String(r[colMap.userName]);
@@ -919,15 +941,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
       if (o.status !== 'ACTIVE') return;
       if (groupId && o.groupId !== groupId) return;
 
-      var matchTiming = true;
-      if (date && dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
-      } else if (date) {
-        matchTiming = (o.date === date);
-      } else if (dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek);
-      }
-      if (!matchTiming) return;
+      if (!_matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek)) return;
       if (itemName && o.itemName.indexOf(itemName) === -1) return;
 
       // Strict user matching
@@ -971,15 +985,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
     var rDate = _formatDateValue(r[colMap.date]);
     var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
 
-    var matchTiming = true;
-    if (date && dayOfWeek) {
-      matchTiming = (rDayOfWeek === dayOfWeek || rDate === date);
-    } else if (date) {
-      matchTiming = (rDate === date);
-    } else if (dayOfWeek) {
-      matchTiming = (rDayOfWeek === dayOfWeek);
-    }
-    if (!matchTiming) continue;
+    if (!_matchOrderTiming(rDate, rDayOfWeek, date, dayOfWeek)) continue;
 
     var rItem = String(r[colMap.itemName]);
     if (itemName && rItem.indexOf(itemName) === -1) continue;
@@ -1021,15 +1027,7 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
     _mockStore.Orders.forEach(function (o) {
       if (o.status !== 'ACTIVE') return;
       if (groupId && o.groupId !== groupId) return;
-      var matchTiming = true;
-      if (date && dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
-      } else if (date) {
-        matchTiming = (o.date === date);
-      } else if (dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek);
-      }
-      if (!matchTiming) return;
+      if (!_matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek)) return;
       if (itemName && o.itemName.indexOf(itemName) === -1) return;
 
       o.status = 'CANCELLED';
@@ -1058,15 +1056,7 @@ function cancelGroupOrders(groupId, date, dayOfWeek, itemName) {
     var rDate = _formatDateValue(r[colMap.date]);
     var rDayOfWeek = String(r[colMap.dayOfWeek] || '').trim();
 
-    var matchTiming = true;
-    if (date && dayOfWeek) {
-      matchTiming = (rDayOfWeek === dayOfWeek || rDate === date);
-    } else if (date) {
-      matchTiming = (rDate === date);
-    } else if (dayOfWeek) {
-      matchTiming = (rDayOfWeek === dayOfWeek);
-    }
-    if (!matchTiming) continue;
+    if (!_matchOrderTiming(rDate, rDayOfWeek, date, dayOfWeek)) continue;
 
     var rItem = String(r[colMap.itemName]);
     if (!itemName || rItem.indexOf(itemName) !== -1) {
@@ -1112,15 +1102,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
       var matchGroup = (!groupId || o.groupId === groupId);
-      var matchTiming = true;
-      if (date && dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek || o.date === date);
-      } else if (date) {
-        matchTiming = (o.date === date);
-      } else if (dayOfWeek) {
-        matchTiming = (o.dayOfWeek === dayOfWeek);
-      }
-      return matchGroup && matchTiming && o.status === 'ACTIVE';
+      return matchGroup && _matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek) && o.status === 'ACTIVE';
     });
   }
 
@@ -1144,15 +1126,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
     var rDate = _formatDateValue(r[colMap.date]);
     var rDay = String(r[colMap.dayOfWeek] || '').trim();
 
-    var matchTiming = true;
-    if (date && dayOfWeek) {
-      matchTiming = (rDay === dayOfWeek || rDate === date);
-    } else if (date) {
-      matchTiming = (rDate === date);
-    } else if (dayOfWeek) {
-      matchTiming = (rDay === dayOfWeek);
-    }
-    if (!matchTiming) continue;
+    if (!_matchOrderTiming(rDate, rDay, date, dayOfWeek)) continue;
 
     orders.push({
       orderId: r[colMap.orderId],
@@ -1498,6 +1472,7 @@ function logToSheet(type, message, detail) {
   g.findUserInGroup = findUserInGroup;
   g.logToSheet = logToSheet;
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
+  g._matchOrderTiming = _matchOrderTiming;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -1527,6 +1502,7 @@ function logToSheet(type, message, detail) {
       checkTimeZoneAndCurrentTime: checkTimeZoneAndCurrentTime,
       logToSheet: logToSheet,
       _getOrderColumnIndexes: _getOrderColumnIndexes,
+      _matchOrderTiming: _matchOrderTiming,
       _mockStore: _mockStore
     };
   }
