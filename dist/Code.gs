@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-06T07:08:38.942Z
+ * Automatically generated on: 2026-09-06T07:43:13.987Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -588,6 +588,7 @@ var _mockStore = {
     'IS_ORDERING_OPEN': 'false',
     'RESTAURANT_NAME': '老王便當',
     'CUTOFF_TIME': '11:00',
+    'ORGANIZER_ID': '',
     'ORGANIZER_NAME': '小幫手',
     'ORDER_RECEIPT_SCOPE': 'WEEKLY',
     'CLOSE_ORDER_SCOPE': 'WEEKLY',
@@ -660,13 +661,6 @@ function getSpreadsheet() {
  * Initialize sheets, headers, and initial sample menu if needed
  */
 function initSheets() {
-  if (!isGasRuntime()) {
-    return true;
-  }
-
-  var ss = getSpreadsheet();
-  if (!ss) return false;
-
   var sheetDefs = [
     {
       name: CONFIG.SHEET_NAMES.CONFIG,
@@ -675,8 +669,8 @@ function initSheets() {
         ['IS_ORDERING_OPEN', 'false', '目前是否開放點餐 (true/false)'],
         ['RESTAURANT_NAME', '老王便當', '今日配合訂購店家名稱'],
         ['CUTOFF_TIME', '11:00', '今日點餐截止時間'],
-        ['ORGANIZER_ID', '', '發起開單人 LINE User ID'],
-        ['ORGANIZER_NAME', '', '發起開單人姓名'],
+        ['ORGANIZER_ID', '', '發起開單人 LINE User ID (點餐/取消即時推播通知對象)'],
+        ['ORGANIZER_NAME', '小幫手', '發起開單人姓名'],
         ['ORDER_RECEIPT_SCOPE', 'WEEKLY', '點餐後收據顯示範圍 (WEEKLY: 本週訂單 / DAILY: 今日訂單)'],
         ['CLOSE_ORDER_SCOPE', 'WEEKLY', '結單結算範圍 (WEEKLY: 本週梯次結單 / DAILY: 今日結單)'],
         ['PAYMENT_LINEPAY_URL', '', 'LINE Pay 收款/轉帳連結或個人收款碼網址'],
@@ -726,6 +720,26 @@ function initSheets() {
     }
   ];
 
+  if (!isGasRuntime()) {
+    // Synchronize _mockStore.Config with all keys defined in sheetDefs
+    var configDef = sheetDefs[0];
+    if (configDef && configDef.initData) {
+      configDef.initData.forEach(function (row) {
+        var k = row[0];
+        var v = row[1];
+        if (_mockStore.Config[k] === undefined) {
+          _mockStore.Config[k] = v;
+        }
+      });
+    }
+    return true;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+
+  var addedConfigCount = 0;
+
   sheetDefs.forEach(function (def) {
     var sheet = ss.getSheetByName(def.name);
     if (!sheet) {
@@ -737,8 +751,61 @@ function initSheets() {
           sheet.appendRow(row);
         });
       }
+    } else if (def.name === CONFIG.SHEET_NAMES.CONFIG && def.initData && def.initData.length > 0) {
+      // Backfill missing config keys into existing Config sheet
+      var existingData = sheet.getDataRange().getValues();
+      var existingKeys = {};
+      for (var r = 1; r < existingData.length; r++) {
+        var k = String(existingData[r][0]).trim();
+        if (k) existingKeys[k] = true;
+      }
+      def.initData.forEach(function (row) {
+        var reqKey = String(row[0]).trim();
+        if (!existingKeys[reqKey]) {
+          sheet.appendRow(row);
+          existingKeys[reqKey] = true;
+          addedConfigCount++;
+        }
+      });
+    } else if (def.name === CONFIG.SHEET_NAMES.ORDERS) {
+      // Ensure UserNickname column exists in existing Orders sheet
+      var headerRow = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+      var hasNickname = false;
+      for (var h = 0; h < headerRow.length; h++) {
+        if (String(headerRow[h]).trim().toLowerCase() === 'usernickname') {
+          hasNickname = true;
+          break;
+        }
+      }
+      if (!hasNickname && headerRow.length >= 13) {
+        sheet.insertColumnAfter(7);
+        sheet.getRange(1, 8).setValue('UserNickname').setFontWeight('bold').setBackground('#EFEFEF');
+      }
+    } else if (def.name === CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE && def.initData) {
+      // Ensure all Mon-Fri schedule days exist
+      var schedData = sheet.getDataRange().getValues();
+      var existingDays = {};
+      for (var s = 1; s < schedData.length; s++) {
+        var day = String(schedData[s][0]).trim();
+        if (day) existingDays[day] = true;
+      }
+      def.initData.forEach(function (row) {
+        if (!existingDays[row[0]]) {
+          sheet.appendRow(row);
+          existingDays[row[0]] = true;
+        }
+      });
     }
   });
+
+  try {
+    if (typeof SpreadsheetApp !== 'undefined' && SpreadsheetApp.getActiveSpreadsheet()) {
+      var toastMsg = addedConfigCount > 0
+        ? '試算表結構檢查完成！已自動補齊 ' + addedConfigCount + ' 項新 Config 設定。'
+        : '試算表結構與所有 Config 設定檢查完成，全部正常！';
+      SpreadsheetApp.getActiveSpreadsheet().toast(toastMsg, '檢查完成', 5);
+    }
+  } catch (e) {}
 
   return true;
 }
