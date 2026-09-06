@@ -176,6 +176,21 @@ function handleTextMessage(event) {
 
   if (!text) return null;
 
+  // Resolve user display name (nickname) early
+  var userDisplayName = '成員';
+  try {
+    if (LineModule && LineModule.getUserProfile) {
+      var prof = LineModule.getUserProfile(userId, groupId);
+      if (prof && typeof prof.then === 'function') {
+        prof.then(function (p) {
+          if (p && p.displayName) userDisplayName = p.displayName;
+        });
+      } else if (prof && prof.displayName) {
+        userDisplayName = prof.displayName;
+      }
+    }
+  } catch (e) {}
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
   if (/^(幫助|說明|指令|help|\/help)$/i.test(text)) {
     var helpFlex = FlexModule.createHelpFlex();
@@ -294,14 +309,27 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, msg);
   }
 
-  // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消 [品項]
-  var cancelMatch = text.match(/^(?:\/)?取消(?:\s+(週[一二三四五]))?(?:\s*(全部|.+))?$/);
+  // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消 [品項] / 取消餐點
+  var cancelMatch = text.match(/^(?:\/)?(?:取消餐點|取消)(?:\s+(週[一二三四五]))?(?:\s*(全部|全部訂單|所有訂單|.+))?$/);
   if (cancelMatch) {
     var cancelDay = cancelMatch[1] || null;
     var targetItem = cancelMatch[2] ? cancelMatch[2].trim() : '';
-    if (targetItem === '全部') targetItem = '';
+    if (targetItem === '餐點' || targetItem === '全部' || targetItem === '全部訂單' || targetItem === '所有訂單') {
+      targetItem = '';
+    }
 
-    var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, cancelDay ? null : todayDate, cancelDay);
+    // If user sent "取消" or "取消餐點" without specifying day or item: show interactive cancel menu
+    if (!cancelDay && !targetItem && text.trim().match(/^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/)) {
+      var activeOrders = SheetModule.getUserOrders(userId, groupId, null, null);
+      if (!activeOrders || activeOrders.length === 0) {
+        return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
+      }
+      var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders);
+      return LineModule.replyFlex(replyToken, '🗑️ 請選擇欲取消的餐點', cancelFlex);
+    }
+
+    var targetDate = cancelDay ? null : (targetItem ? todayDate : null);
+    var cancelledCount = SheetModule.cancelOrder(userId, groupId, targetItem, targetDate, cancelDay);
     if (cancelledCount > 0) {
       var dayText = cancelDay ? cancelDay + ' ' : '';
       return LineModule.replyText(replyToken, '✅ 已為您取消 ' + dayText + (targetItem ? '「' + targetItem + '」' : '全部餐點') + ' 共 ' + cancelledCount + ' 筆紀錄。');
@@ -338,20 +366,6 @@ function handleTextMessage(event) {
   // 13. ORDER PLACEMENT: +1 / +2 / 點餐語法解析 (支援單日與週一至週五梯次點餐)
   var orderItems = parseOrderText(text);
   if (orderItems.length > 0) {
-    var userDisplayName = '成員';
-    try {
-      if (LineModule.getUserProfile) {
-        var profilePromise = LineModule.getUserProfile(userId, groupId);
-        if (profilePromise && typeof profilePromise.then === 'function') {
-          profilePromise.then(function (prof) {
-            if (prof && prof.displayName) userDisplayName = prof.displayName;
-          });
-        } else if (profilePromise && profilePromise.displayName) {
-          userDisplayName = profilePromise.displayName;
-        }
-      }
-    } catch (e) {}
-
     var addedRecords = [];
     var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
 
