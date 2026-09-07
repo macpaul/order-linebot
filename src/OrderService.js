@@ -593,6 +593,24 @@ function handleTextMessage(event) {
     }
   }
 
+  // 4b. CUSTOM RESTAURANT IMPORT VIA CHAT: 匯入自訂餐廳 [週幾] [餐廳名稱] / 匯入餐廳 [週幾] [餐廳名稱]
+  var customImportMatch = text.match(/^(?:匯入自訂餐廳|匯入餐廳|自訂餐廳匯入)\s+(週[一二三四五]|ALL)\s+(.+)$/i);
+  if (customImportMatch) {
+    var customDay = customImportMatch[1];
+    var customRestName = customImportMatch[2].trim();
+
+    var customResult = SheetModule.importCustomRestaurantMenu(customDay, customRestName);
+    if (!customResult || !customResult.success) {
+      if (customResult && customResult.reason === 'SYSTEM_TAB') {
+        return LineModule.replyText(replyToken, '❌ 匯入失敗：「' + customRestName + '」為系統專用功能工作表，不可作為自訂餐廳。');
+      }
+      return LineModule.replyText(replyToken, '⚠️ 匯入失敗：找不到工作表名稱為【' + customRestName + '】的自訂餐廳菜單。\n請先確認試算表中已新增同名工作表（完全符合），且包含菜單欄位。');
+    }
+
+    var successMsg = '✅ 已成功從自訂餐廳【' + customResult.restaurantName + '】匯入至 ' + customDay + ' 菜單！\n共匯入 ' + (customResult.count || 0) + ' 道餐點。\n可直接傳送「' + customDay + '菜單」查看。';
+    return LineModule.replyText(replyToken, successMsg);
+  }
+
   // 5. OPEN ORDER: 開單 [店家] [時間] / 開始訂餐
   var openMatch = text.match(/^(?:\/)?(?:開單|開始訂餐)(?:\s+(.+?))?(?:\s+([0-9]{1,2}:[0-9]{2}))?$/);
   if (openMatch) {
