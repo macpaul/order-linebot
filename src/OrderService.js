@@ -356,14 +356,62 @@ function formatOrderSummaryText(restaurantName, summaryData, isClosed) {
  *   "週一+1 排骨飯" / "週一 排骨飯+1" / "週二 雞腿飯*2"
  *   "週一 排骨飯+1, 週二 雞腿飯+1, 週四 燒肉飯+1"
  */
+function _protectBrackets(str) {
+  return str.replace(/([(（\[【][^)）\]】]*[)）\]】])/g, function (match) {
+    return match.replace(/,/g, '___COMMA___').replace(/，/g, '___COMMA___');
+  });
+}
+function _restoreBrackets(str) {
+  return str.replace(/___COMMA___/g, ',');
+}
+
+function _pushParsedOrderItem(list, dayOfWeek, rawItem, qty, explicitChild) {
+  var childName = explicitChild || '';
+  var cleanItem = (rawItem || '').trim();
+
+  // If explicitChild has multiple children separated by comma or 頓號: "大寶, 二寶"
+  if (explicitChild) {
+    var splitKids = explicitChild.split(/[,、，\s]+/).filter(function (k) { return k && k.trim(); });
+    if (splitKids.length > 1) {
+      splitKids.forEach(function (kid) {
+        list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: 1, childName: kid });
+      });
+      return;
+    } else if (splitKids.length === 1) {
+      childName = splitKids[0];
+    }
+  }
+
+  // Check if itemName has brackets or parentheses, e.g. "招牌便當 (大寶)" or "招牌便當（大寶）" or "招牌便當 [大寶]"
+  var bracketMatch = cleanItem.match(/^(.+?)\s*[(（\[【]([^)）\]】]+)[)）\]】]\s*$/);
+  if (bracketMatch) {
+    cleanItem = bracketMatch[1].trim();
+    var innerText = bracketMatch[2].trim();
+    if (innerText) {
+      var multiKids = innerText.split(/[,、，\s]+/).filter(function (k) { return k && k.trim(); });
+      if (multiKids.length > 1) {
+        multiKids.forEach(function (kid) {
+          list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: 1, childName: kid });
+        });
+        return;
+      } else if (multiKids.length === 1) {
+        childName = multiKids[0];
+      }
+    }
+  }
+
+  list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: qty, childName: childName });
+}
+
 function parseOrderText(text) {
   if (!text) return [];
-  var clean = text.replace(/，|；/g, ',');
+  var protectedText = _protectBrackets(text);
+  var clean = protectedText.replace(/，|；/g, ',');
   var lines = clean.split(/[\n,]+/);
   var parsedItems = [];
 
   for (var i = 0; i < lines.length; i++) {
-    var raw = lines[i].trim();
+    var raw = _restoreBrackets(lines[i]).trim();
     if (!raw) continue;
 
     var dayOfWeek = null;
@@ -374,6 +422,25 @@ function parseOrderText(text) {
       raw = raw.replace(dayMatch[0], '').trim();
     }
 
+    var childPrefix = null;
+    var prefixMatch = raw.match(/^([^\s:+*xX0-9]{1,10})\s*[:：]\s*(.+)$/);
+    if (prefixMatch) {
+      var pKid = prefixMatch[1].trim();
+      if (pKid !== '點餐' && pKid !== '取消' && pKid !== '訂單' && pKid !== '開單' && pKid !== '說明' && pKid !== '菜單') {
+        childPrefix = pKid;
+        raw = prefixMatch[2].trim();
+      }
+    }
+
+    // Check if bracket at the end of line, e.g. "排骨飯+1 (大寶)" or "+2 排骨飯 (大寶, 二寶)"
+    var trailingBracket = raw.match(/(.+?)\s*[(（\[【]([^)）\]】]+)[)）\]】]\s*$/);
+    if (trailingBracket) {
+      if (!childPrefix) {
+        childPrefix = trailingBracket[2].trim();
+      }
+      raw = trailingBracket[1].trim();
+    }
+
     var qty = 1;
     var itemName = '';
 
@@ -382,7 +449,7 @@ function parseOrderText(text) {
     if (match1) {
       qty = parseInt(match1[1], 10);
       itemName = match1[2].trim();
-      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
+      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
       continue;
     }
 
@@ -391,7 +458,7 @@ function parseOrderText(text) {
     if (match2) {
       itemName = match2[1].trim();
       qty = parseInt(match2[2], 10);
-      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
+      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
       continue;
     }
 
@@ -400,7 +467,7 @@ function parseOrderText(text) {
     if (match3) {
       itemName = match3[1].trim();
       qty = parseInt(match3[2], 10);
-      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
+      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
       continue;
     }
 
@@ -409,7 +476,7 @@ function parseOrderText(text) {
     if (match4) {
       itemName = match4[1].trim();
       qty = match4[2] ? parseInt(match4[2], 10) : 1;
-      parsedItems.push({ dayOfWeek: dayOfWeek, itemName: itemName, quantity: qty });
+      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
       continue;
     }
   }
@@ -594,7 +661,8 @@ function handleTextMessage(event) {
         var lockTag = isPast ? ' 🔒[已過期]' : (isCutoff ? ' 🔒[已截止]' : '');
         var itemsText = dOrders.map(function (o) {
           daySub += o.subtotal;
-          return o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')';
+          var childTag = o.childName ? ' [' + o.childName + ']' : '';
+          return o.itemName + childTag + ' x' + o.quantity + ' ($' + o.subtotal + ')';
         }).join('、');
         grandTotal += daySub;
         lines.push('【' + d + lockTag + '】' + itemsText + ' (小計 $' + daySub + ')');
@@ -625,13 +693,62 @@ function handleTextMessage(event) {
     var total = 0;
     var myLines = myOrders.map(function (o) {
       total += o.subtotal;
-      return '• ' + o.itemName + ' x' + o.quantity + ' ($' + o.subtotal + ')' + statusTag;
+      var childTag = o.childName ? ' [' + o.childName + ']' : '';
+      return '• ' + o.itemName + childTag + ' x' + o.quantity + ' ($' + o.subtotal + ')' + statusTag;
     });
     var payInfoToday = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var payTextToday = _formatPaymentText(payInfoToday);
     var cutoffNotice = isCutoff ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : '';
     var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + cutoffNotice + payTextToday;
     return LineModule.replyText(replyToken, msg);
+  }
+
+  // 8.5 CHILDREN MANAGEMENT: 我的小孩 / 小孩名冊 / 小孩名單 / 設定小孩 / 新增小孩 / 刪除小孩
+  if (/^(?:\/)?(?:我的小孩|小孩名單|小孩名冊|我的孩子)$/i.test(text.trim())) {
+    var kidsProfiles = SheetModule.getChildrenProfiles ? SheetModule.getChildrenProfiles(userId) : [];
+    if (kidsProfiles.length === 0) {
+      var kidNames = SheetModule.getChildren ? SheetModule.getChildren(userId) : [];
+      kidsProfiles = kidNames.map(function (k) { return { childName: k, note: '' }; });
+    }
+    var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles);
+    return LineModule.replyFlex(replyToken, '👶 我的小孩與用餐對象名冊', kidsFlex);
+  }
+
+  var setKidsMatch = text.match(/^(?:\/)?(?:設定小孩|小孩設定|登記小孩)\s+(.+)$/i);
+  if (setKidsMatch) {
+    var rawList = setKidsMatch[1].trim();
+    var kidList = rawList.split(/[,、\s]+/).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
+    if (kidList.length === 0) {
+      return LineModule.replyText(replyToken, '⚠️ 請輸入欲設定的小孩姓名，例如：「設定小孩 大寶, 二寶」');
+    }
+    if (SheetModule.setChildren) {
+      SheetModule.setChildren(userId, userDisplayName, userDisplayName, kidList);
+    }
+    return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
+  }
+
+  var addKidMatch = text.match(/^(?:\/)?(?:新增小孩|加小孩)\s+([^\s]+)(?:\s+(.+))?$/i);
+  if (addKidMatch) {
+    var newKidName = addKidMatch[1].trim();
+    var kidNote = (addKidMatch[2] || '').trim();
+    if (!newKidName) {
+      return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名，例如：「新增小孩 小寶 三年二班」');
+    }
+    if (SheetModule.saveChild) {
+      SheetModule.saveChild(userId, userDisplayName, userDisplayName, newKidName, kidNote);
+    }
+    return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
+  }
+
+  var delKidMatch = text.match(/^(?:\/)?(?:刪除小孩|移除小孩)\s+([^\s]+)$/i);
+  if (delKidMatch) {
+    var delKidName = delKidMatch[1].trim();
+    var deleted = SheetModule.deleteChild ? SheetModule.deleteChild(userId, delKidName) : false;
+    if (deleted) {
+      return LineModule.replyText(replyToken, '✅ 已成功移除小孩「' + delKidName + '」的名冊紀錄。');
+    } else {
+      return LineModule.replyText(replyToken, '⚠️ 未找到名為「' + delKidName + '」的小孩紀錄喔！');
+    }
   }
 
   // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消餐點 / 開單人全體取消與二次確認
@@ -827,6 +944,7 @@ function handleTextMessage(event) {
     var targetDisplayName = userDisplayName;
     var cancelDay = null;
     var targetItem = '';
+    var cancelChild = '';
 
     // Extract day prefix if present (e.g. "週一 招牌三寶飯" or "今日 脆皮燒肉飯")
     var prefixDayMatch = remainder.match(/^(週[一二三四五]|今日)(?:\s+(.*))?$/);
@@ -835,11 +953,34 @@ function handleTextMessage(event) {
       remainder = prefixDayMatch[2] ? prefixDayMatch[2].trim() : '';
     }
 
+    // Check if bracket suffix specifies a child: e.g. "招牌便當 (大寶)" or "(大寶)" or "[大寶]"
+    var bracketMatch = remainder.match(/(?:^|\s*)[(（\[【]([^)）\]】]+)[)）\]】]\s*$/);
+    if (bracketMatch) {
+      cancelChild = bracketMatch[1].trim();
+      remainder = remainder.replace(bracketMatch[0], '').trim();
+    }
+
+    // Check if remainder starts with a registered child name or child in active orders
+    var myChildren = SheetModule.getChildren ? SheetModule.getChildren(userId) : [];
+    if (!cancelChild && remainder) {
+      var childTokens = remainder.split(/\s+/);
+      var candidateChild = childTokens[0];
+      var isKnownChild = myChildren.indexOf(candidateChild) !== -1;
+      if (!isKnownChild) {
+        var myExistingOrders = SheetModule.getUserOrders ? SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName) : [];
+        isKnownChild = myExistingOrders.some(function (o) { return o.childName === candidateChild; });
+      }
+      if (isKnownChild) {
+        cancelChild = candidateChild;
+        remainder = childTokens.slice(1).join(' ').trim();
+      }
+    }
+
     // Check if remainder specifies another user: e.g. "@Carol 舒肥嫩雞胸餐盒" or "小鮑伯 舒肥嫩雞胸餐盒" or "小鮑伯 全部"
     if (!isExplicitMy && remainder) {
       var tokens = remainder.split(/\s+/);
       var firstToken = tokens[0];
-      if (!/^(?:週[一二三四五]|今日)$/.test(firstToken)) {
+      if (!/^(?:週[一二三四五]|今日)$/.test(firstToken) && firstToken !== cancelChild) {
         var userInGroup = SheetModule.findUserInGroup ? SheetModule.findUserInGroup(groupId, firstToken) : null;
         var isOtherToken = false;
         if (firstToken.indexOf('@') === 0) {
@@ -878,6 +1019,15 @@ function handleTextMessage(event) {
       }
     }
 
+    // Check bracket again in case day was extracted leaving bracket
+    if (!cancelChild && remainder) {
+      var bracketMatch2 = remainder.match(/(?:^|\s*)[(（\[【]([^)）\]】]+)[)）\]】]\s*$/);
+      if (bracketMatch2) {
+        cancelChild = bracketMatch2[1].trim();
+        remainder = remainder.replace(bracketMatch2[0], '').trim();
+      }
+    }
+
     targetItem = remainder;
     if (targetItem === '全部' || targetItem === '全部訂單' || targetItem === '所有訂單' || targetItem === '所有預約') {
       targetItem = '';
@@ -901,7 +1051,9 @@ function handleTextMessage(event) {
     if (!isOrgGen && !targetUserObj) {
       var myOrders = SheetModule.getUserOrders(userId, groupId, null, cancelDay, userDisplayName);
       var hasMyItem = myOrders && myOrders.some(function (o) {
-        return !targetItem || o.itemName.indexOf(targetItem) !== -1;
+        var matchItem = !targetItem || o.itemName.indexOf(targetItem) !== -1;
+        var matchChild = !cancelChild || (o.childName || '').trim() === cancelChild.trim();
+        return matchItem && matchChild;
       });
 
       if (!hasMyItem) {
@@ -926,11 +1078,15 @@ function handleTextMessage(event) {
     if (isOrgGen && !targetUserObj && targetItem) {
       var orgOrders = SheetModule.getUserOrders(userId, groupId, null, cancelDay, userDisplayName);
       var orgHasItem = orgOrders && orgOrders.some(function (o) {
-        return o.itemName.indexOf(targetItem) !== -1;
+        var matchItem = o.itemName.indexOf(targetItem) !== -1;
+        var matchChild = !cancelChild || (o.childName || '').trim() === cancelChild.trim();
+        return matchItem && matchChild;
       });
       if (!orgHasItem) {
         var groupMatches = SheetModule.getGroupOrders ? SheetModule.getGroupOrders(groupId, null, cancelDay).filter(function (o) {
-          return o.itemName.indexOf(targetItem) !== -1;
+          var matchItem = o.itemName.indexOf(targetItem) !== -1;
+          var matchChild = !cancelChild || (o.childName || '').trim() === cancelChild.trim();
+          return matchItem && matchChild;
         }) : [];
         if (groupMatches.length > 0) {
           targetUserObj = groupMatches[0];
@@ -945,7 +1101,11 @@ function handleTextMessage(event) {
       targetDate = null;
     } else if (targetItem) {
       var userTodayOrders = SheetModule.getUserOrders(targetUserId, groupId, todayDate, null, targetDisplayName);
-      var hasTodayOrder = userTodayOrders && userTodayOrders.some(function (o) { return o.itemName.indexOf(targetItem) !== -1; });
+      var hasTodayOrder = userTodayOrders && userTodayOrders.some(function (o) {
+        var matchItem = o.itemName.indexOf(targetItem) !== -1;
+        var matchChild = !cancelChild || (o.childName || '').trim() === cancelChild.trim();
+        return matchItem && matchChild;
+      });
       if (hasTodayOrder) {
         targetDate = todayDate;
       }
@@ -957,18 +1117,20 @@ function handleTextMessage(event) {
       targetItem,
       targetDate,
       cancelDay,
-      targetDisplayName
+      targetDisplayName,
+      cancelChild
     );
 
     if (cancelledCount > 0) {
       var dayText = cancelDay ? cancelDay + ' ' : '';
+      var childText = cancelChild ? '[' + cancelChild + '] ' : '';
       var itemDesc = targetItem ? '「' + targetItem + '」' : '全部餐點';
       var nowTwCancel = formatAppDate();
-      var cancelPushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + targetDisplayName + '\n📅 梯次：' + (cancelDay || '今日') + '\n🗑️ 取消內容：' + itemDesc + ' (共 ' + cancelledCount + ' 筆)\n⏰ 時間：' + nowTwCancel;
+      var cancelPushMsg = '📢【訂餐通知 - 取消餐點】\n👤 訂餐人：' + targetDisplayName + '\n📅 梯次：' + (cancelDay || '今日') + (cancelChild ? '\n👶 對象：' + cancelChild : '') + '\n🗑️ 取消內容：' + childText + itemDesc + ' (共 ' + cancelledCount + ' 筆)\n⏰ 時間：' + nowTwCancel;
       notifyOrganizer(cancelPushMsg);
 
       var replyPrefix = (targetUserObj && (targetUserId !== userId || targetDisplayName !== userDisplayName)) ? '✅ 已由開單人為【' + targetDisplayName + '】取消 ' : '✅ 已為您取消 ';
-      return LineModule.replyText(replyToken, replyPrefix + dayText + itemDesc + ' 共 ' + cancelledCount + ' 筆紀錄。已通知開單人！');
+      return LineModule.replyText(replyToken, replyPrefix + dayText + childText + itemDesc + ' 共 ' + cancelledCount + ' 筆紀錄。已通知開單人！');
     } else {
       return LineModule.replyText(replyToken, '查無符合條件的未取消訂單。');
     }
@@ -1037,6 +1199,62 @@ function handleTextMessage(event) {
   // 13. ORDER PLACEMENT: +1 / +2 / 點餐語法解析 (支援單日與週一至週五梯次點餐)
   var orderItems = parseOrderText(text);
   if (orderItems.length > 0) {
+    // Option 2 + Option 1 Hybrid UX:
+    // If ordering items have no child assigned and caller has registered children in Children tab,
+    // pop up Quick Reply floating buttons for children selection plus openKeyboard note button.
+    var allNoChild = orderItems.every(function (oi) { return !oi.childName; });
+    var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId) : [];
+
+    if (allNoChild && userKids && userKids.length > 0 && orderItems.length === 1) {
+      var oiPrompt = orderItems[0];
+      var pDay = oiPrompt.dayOfWeek || '';
+      var dayPrefix = pDay ? pDay + ' ' : '';
+      var pQty = oiPrompt.quantity || 1;
+      var quickReplyItems = userKids.map(function (k) {
+        return {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '👦 ' + k,
+            text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + k + ')'
+          }
+        };
+      });
+      // Add 本人
+      quickReplyItems.push({
+        type: 'action',
+        action: {
+          type: 'message',
+          label: '👤 本人',
+          text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (本人)'
+        }
+      });
+      // Add openKeyboard note button (Option 1 + Option 2 hybrid)
+      quickReplyItems.push({
+        type: 'action',
+        action: {
+          type: 'postback',
+          label: '✏️ 其他備註',
+          data: 'action=prompt_note&item=' + encodeURIComponent(oiPrompt.itemName) + (pDay ? '&day=' + encodeURIComponent(pDay) : '') + '&qty=' + pQty,
+          inputOption: 'openKeyboard',
+          fillInText: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' ()'
+        }
+      });
+
+      var promptMsg = '🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「✏️ 其他備註」手動輸入）';
+      if (LineModule.replyQuickReply) {
+        return LineModule.replyQuickReply(replyToken, promptMsg, quickReplyItems);
+      } else {
+        return LineModule.replyMessages(replyToken, [{
+          type: 'text',
+          text: promptMsg,
+          quickReply: {
+            items: quickReplyItems
+          }
+        }]);
+      }
+    }
+
     var addedRecords = [];
     var isOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
 
@@ -1067,6 +1285,7 @@ function handleTextMessage(event) {
         userId: userId,
         userName: userDisplayName,
         userNickname: userDisplayName,
+        childName: oi.childName || '',
         itemName: matched.itemName,
         quantity: oi.quantity,
         price: matched.price
@@ -1080,7 +1299,8 @@ function handleTextMessage(event) {
 
     // Send push notification to organizer if configured
     var orderSummaryLines = addedRecords.map(function (r) {
-      return '• 【' + r.dayOfWeek + '】' + r.itemName + ' x' + r.quantity + ' ($' + r.subtotal + ')';
+      var childTag = r.childName ? ' [' + r.childName + ']' : '';
+      return '• 【' + r.dayOfWeek + '】' + r.itemName + childTag + ' x' + r.quantity + ' ($' + r.subtotal + ')';
     });
     var orderTotalAmt = addedRecords.reduce(function (sum, r) { return sum + r.subtotal; }, 0);
     var nowTwOrder = formatAppDate();
@@ -1122,7 +1342,8 @@ function handlePostbackEvent(event) {
 
   var action = params.action;
   if (action === 'order') {
-    var orderText = (params.day ? params.day + ' ' : '') + params.item + '+' + (params.qty || '1');
+    var childSuffix = params.child ? ' (' + params.child + ')' : '';
+    var orderText = (params.day ? params.day + ' ' : '') + params.item + '+' + (params.qty || '1') + childSuffix;
     var pseudoEvent = {
       replyToken: replyToken,
       source: event.source,
@@ -1134,7 +1355,8 @@ function handlePostbackEvent(event) {
   }
 
   if (action === 'cancel') {
-    var cancelText = '取消 ' + (params.day ? params.day + ' ' : '') + (params.item || '全部');
+    var childPart = params.child ? ' ' + params.child : '';
+    var cancelText = '取消 ' + (params.day ? params.day + ' ' : '') + childPart + (params.item ? ' ' + params.item : ' 全部');
     var pseudoCancelEvent = {
       replyToken: replyToken,
       source: event.source,
@@ -1143,6 +1365,10 @@ function handlePostbackEvent(event) {
       }
     };
     return handleTextMessage(pseudoCancelEvent);
+  }
+
+  if (action === 'prompt_note') {
+    return null;
   }
 
   return null;
