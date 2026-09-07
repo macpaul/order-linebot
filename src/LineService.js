@@ -229,6 +229,23 @@ function replyFlex(replyToken, altText, flexContents) {
 }
 
 /**
+ * replyQuickReply — Reply with a text message with quick reply buttons.
+ * @param {string} replyToken - Reply token from the webhook event.
+ * @param {string} text - Text content to send.
+ * @param {Array<Object>} quickReplyItems - Quick reply action items.
+ * @returns {Object|Promise<{statusCode:number, data:Object|null}>}
+ */
+function replyQuickReply(replyToken, text, quickReplyItems) {
+  return replyMessages(replyToken, [{
+    type: 'text',
+    text: text,
+    quickReply: {
+      items: quickReplyItems
+    }
+  }]);
+}
+
+/**
  * pushMessages — Send a push message to a user or group.
  * @param {string} to - LINE User ID or Group ID.
  * @param {Array<Object>} messages - Array of LINE message objects.
@@ -423,6 +440,7 @@ function validateSignature(bodyString, signature, channelSecret) {
   g.replyMessages = replyMessages;
   g.replyText = replyText;
   g.replyFlex = replyFlex;
+  g.replyQuickReply = replyQuickReply;
   g.pushMessages = pushMessages;
   g.pushText = pushText;
   g.getUserProfile = getUserProfile;
@@ -433,6 +451,7 @@ function validateSignature(bodyString, signature, channelSecret) {
       replyMessages: replyMessages,
       replyText: replyText,
       replyFlex: replyFlex,
+      replyQuickReply: replyQuickReply,
       pushMessages: pushMessages,
       pushText: pushText,
       getUserProfile: getUserProfile,
