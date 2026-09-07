@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-07T14:34:50.228Z
+ * Automatically generated on: 2026-09-07T16:31:50.590Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -6201,7 +6201,7 @@ function refreshWeeklySummary() {
       sheet.appendRow(['【本週梯次總計】', '', '', weeklySummary.grandTotalQuantity, '', weeklySummary.grandTotalAmount, '']);
 
       // Member payment list
-      sheet.appendRow([]);
+      sheet.appendRow(['']);
       sheet.appendRow(['【成員本週應收總額】', '姓名', '應付金額']);
       weeklySummary.users.forEach(function (u) {
         sheet.appendRow(['', u.userName, u.total]);
