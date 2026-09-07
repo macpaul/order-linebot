@@ -52,7 +52,8 @@ var _mockStore = {
     { dayOfWeek: '週五', restaurantName: '健康水煮輕食', category: '低GI', itemName: '薄鹽烤鯖魚餐盒', price: 120, isAvailable: 'TRUE', description: '' }
   ],
   Orders: [],
-  Summary: []
+  Summary: [],
+  Children: []
 };
 
 /**
@@ -177,11 +178,15 @@ function initSheets() {
     },
     {
       name: CONFIG.SHEET_NAMES.ORDERS,
-      headers: ['OrderId', 'Timestamp', 'Date', 'DayOfWeek', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid']
+      headers: ['OrderId', 'Timestamp', 'Date', 'DayOfWeek', 'GroupId', 'UserId', 'UserName', 'UserNickname', 'ChildName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Status', 'Paid']
     },
     {
       name: CONFIG.SHEET_NAMES.SUMMARY,
       headers: ['DayOfWeek', 'RestaurantName', 'ItemName', 'Quantity', 'Price', 'Subtotal', 'Buyers']
+    },
+    {
+      name: CONFIG.SHEET_NAMES.CHILDREN,
+      headers: ['UserId', 'UserName', 'UserNickname', 'ChildName', 'Note', 'CreatedAt', 'UpdatedAt']
     }
   ];
 
@@ -233,12 +238,14 @@ function initSheets() {
         }
       });
     } else if (def.name === CONFIG.SHEET_NAMES.ORDERS) {
-      // Ensure DayOfWeek and UserNickname columns exist in existing Orders sheet
+      // Ensure DayOfWeek, UserNickname, and ChildName columns exist in existing Orders sheet
       var headerRow = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
       var hasDayOfWeek = false;
       var hasNickname = false;
+      var hasChildName = false;
       var dateColIndex = -1;
       var userNameColIndex = -1;
+      var nicknameColIndex = -1;
       for (var h = 0; h < headerRow.length; h++) {
         var hName = String(headerRow[h]).trim().toLowerCase().replace(/[\s_\-/（）()]/g, '');
         if (hName === 'dayofweek' || hName === '星期' || hName === '星期幾' || hName === '梯次' || hName === 'day' || hName === 'weekday' || hName === '週幾' || hName === '禮拜' || hName === '週' || hName === '周') {
@@ -246,6 +253,10 @@ function initSheets() {
         }
         if (hName === 'usernickname' || hName === '使用者暱稱' || hName === '暱稱') {
           hasNickname = true;
+          nicknameColIndex = h + 1;
+        }
+        if (hName === 'childname' || hName === 'child' || hName === '小孩' || hName === '小孩姓名' || hName === '孩子' || hName === '分配對象' || hName === '對象' || hName === '用餐人') {
+          hasChildName = true;
         }
         if (hName === 'date' || hName === '日期') {
           dateColIndex = h + 1; // 1-based column
@@ -272,6 +283,12 @@ function initSheets() {
         var insertNickAfterCol = userNameColIndex > 0 ? userNameColIndex : 7;
         sheet.insertColumnAfter(insertNickAfterCol);
         sheet.getRange(1, insertNickAfterCol + 1).setValue('UserNickname').setFontWeight('bold').setBackground('#EFEFEF');
+        nicknameColIndex = insertNickAfterCol + 1;
+      }
+      if (!hasChildName) {
+        var insertChildAfterCol = nicknameColIndex > 0 ? nicknameColIndex : (userNameColIndex > 0 ? userNameColIndex + 1 : 8);
+        sheet.insertColumnAfter(insertChildAfterCol);
+        sheet.getRange(1, insertChildAfterCol + 1).setValue('ChildName').setFontWeight('bold').setBackground('#EFEFEF');
       }
     } else if (def.name === CONFIG.SHEET_NAMES.WEEKLY_SCHEDULE && def.initData) {
       // Ensure all Mon-Fri schedule days exist
@@ -640,6 +657,7 @@ function _getOrderColumnIndexes(headers) {
     userId: 4,
     userName: 5,
     userNickname: -1,
+    childName: -1,
     itemName: 6,
     quantity: 7,
     price: 8,
@@ -658,6 +676,7 @@ function _getOrderColumnIndexes(headers) {
     else if (h === 'userid' || h === '使用者id' || h === '用戶id' || h === 'lineid') colMap.userId = c;
     else if (h === 'username' || h === '使用者名稱' || h === '姓名' || h === '訂購人') colMap.userName = c;
     else if (h === 'usernickname' || h === '使用者暱稱' || h === '暱稱') colMap.userNickname = c;
+    else if (h === 'childname' || h === 'child' || h === '小孩' || h === '小孩姓名' || h === '孩子' || h === '分配對象' || h === '對象' || h === '用餐人') colMap.childName = c;
     else if (h === 'itemname' || h === '餐點名稱' || h === '餐點' || h === '品項') colMap.itemName = c;
     else if (h === 'quantity' || h === '數量' || h === '份數') colMap.quantity = c;
     else if (h === 'price' || h === '單價' || h === '價格') colMap.price = c;
@@ -805,6 +824,7 @@ function addOrder(orderData) {
     userId: orderData.userId || '',
     userName: orderData.userName || '成員',
     userNickname: orderData.userNickname || orderData.userName || '成員',
+    childName: (orderData.childName || '').trim(),
     itemName: orderData.itemName || '',
     quantity: quantity,
     price: price,
@@ -812,6 +832,10 @@ function addOrder(orderData) {
     status: 'ACTIVE',
     paid: 'UNPAID'
   };
+
+  if (record.childName && record.childName !== '本人' && record.childName !== '自己') {
+    saveChild(record.userId, record.userName, record.userNickname, record.childName);
+  }
 
   if (!isGasRuntime()) {
     _mockStore.Orders.push(record);
@@ -823,49 +847,28 @@ function addOrder(orderData) {
   var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
   if (!sheet) return record;
 
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0] || [];
-  var hasNicknameCol = false;
-  for (var h = 0; h < headers.length; h++) {
-    if (String(headers[h]).trim().toLowerCase() === 'usernickname') {
-      hasNicknameCol = true;
-      break;
-    }
-  }
+  var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+  var colMap = _getOrderColumnIndexes(headers);
+  var rowData = new Array(headers.length);
+  for (var idx = 0; idx < rowData.length; idx++) rowData[idx] = '';
 
-  if (hasNicknameCol) {
-    sheet.appendRow([
-      record.orderId,
-      record.timestamp,
-      record.date,
-      record.dayOfWeek,
-      record.groupId,
-      record.userId,
-      _sanitizeSheetCell(record.userName),
-      _sanitizeSheetCell(record.userNickname),
-      _sanitizeSheetCell(record.itemName),
-      record.quantity,
-      record.price,
-      record.subtotal,
-      record.status,
-      record.paid
-    ]);
-  } else {
-    sheet.appendRow([
-      record.orderId,
-      record.timestamp,
-      record.date,
-      record.dayOfWeek,
-      record.groupId,
-      record.userId,
-      _sanitizeSheetCell(record.userName),
-      _sanitizeSheetCell(record.itemName),
-      record.quantity,
-      record.price,
-      record.subtotal,
-      record.status,
-      record.paid
-    ]);
-  }
+  if (colMap.orderId !== -1) rowData[colMap.orderId] = record.orderId;
+  if (colMap.timestamp !== -1) rowData[colMap.timestamp] = record.timestamp;
+  if (colMap.date !== -1) rowData[colMap.date] = record.date;
+  if (colMap.dayOfWeek !== -1) rowData[colMap.dayOfWeek] = record.dayOfWeek;
+  if (colMap.groupId !== -1) rowData[colMap.groupId] = record.groupId;
+  if (colMap.userId !== -1) rowData[colMap.userId] = record.userId;
+  if (colMap.userName !== -1) rowData[colMap.userName] = _sanitizeSheetCell(record.userName);
+  if (colMap.userNickname !== -1) rowData[colMap.userNickname] = _sanitizeSheetCell(record.userNickname);
+  if (colMap.childName !== -1) rowData[colMap.childName] = _sanitizeSheetCell(record.childName);
+  if (colMap.itemName !== -1) rowData[colMap.itemName] = _sanitizeSheetCell(record.itemName);
+  if (colMap.quantity !== -1) rowData[colMap.quantity] = record.quantity;
+  if (colMap.price !== -1) rowData[colMap.price] = record.price;
+  if (colMap.subtotal !== -1) rowData[colMap.subtotal] = record.subtotal;
+  if (colMap.status !== -1) rowData[colMap.status] = record.status;
+  if (colMap.paid !== -1) rowData[colMap.paid] = record.paid;
+
+  sheet.appendRow(rowData);
 
   return record;
 }
@@ -947,6 +950,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     var rUserId = String(r[colMap.userId]);
     var rUserName = String(r[colMap.userName]);
     var rUserNickname = colMap.userNickname !== -1 ? String(r[colMap.userNickname]) : rUserName;
+    var rChildName = colMap.childName !== -1 ? String(r[colMap.childName] || '').trim() : '';
 
     // Strict user matching:
     if (hasValidUserName) {
@@ -971,6 +975,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
       userId: rUserId,
       userName: rUserName,
       userNickname: rUserNickname,
+      childName: rChildName,
       itemName: r[colMap.itemName],
       quantity: Number(r[colMap.quantity]),
       price: Number(r[colMap.price]),
@@ -992,7 +997,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
  * @param {string} [userName]
  * @returns {number} Count of cancelled orders
  */
-function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
+function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, childName) {
   // If neither userId nor userName is provided, do NOT cancel anything
   var hasValidUserId = (userId && userId !== 'anonymous');
   var hasValidUserName = (userName && userName !== '成員');
@@ -1008,6 +1013,9 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
 
       if (!_matchOrderTiming(o.date, o.dayOfWeek, date, dayOfWeek)) return;
       if (itemName && o.itemName.indexOf(itemName) === -1) return;
+      if (childName && childName.trim()) {
+        if ((o.childName || '').trim() !== childName.trim()) return;
+      }
 
       // Strict user matching
       if (hasValidUserName) {
@@ -1054,6 +1062,11 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName) {
 
     var rItem = String(r[colMap.itemName]);
     if (itemName && rItem.indexOf(itemName) === -1) continue;
+
+    if (childName && childName.trim() && colMap.childName !== -1) {
+      var rChildName = String(r[colMap.childName] || '').trim();
+      if (rChildName !== childName.trim()) continue;
+    }
 
     var rUserId = String(r[colMap.userId]);
     var rUserName = String(r[colMap.userName]);
@@ -1190,6 +1203,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
 
     var rDate = _formatDateValue(r[colMap.date]);
     var rDay = colMap.dayOfWeek !== -1 ? String(r[colMap.dayOfWeek] || '').trim() : '';
+    var rChildName = colMap.childName !== -1 ? String(r[colMap.childName] || '').trim() : '';
 
     if (!_matchOrderTiming(rDate, rDay, date, dayOfWeek)) continue;
 
@@ -1202,6 +1216,7 @@ function getGroupOrders(groupId, date, dayOfWeek) {
       userId: r[colMap.userId],
       userName: r[colMap.userName],
       userNickname: colMap.userNickname !== -1 ? r[colMap.userNickname] : (r[colMap.userName] || ''),
+      childName: rChildName,
       itemName: r[colMap.itemName],
       quantity: Number(r[colMap.quantity]),
       price: Number(r[colMap.price]),
@@ -1231,6 +1246,9 @@ function getOrderSummary(groupId, date, dayOfWeek) {
 
   orders.forEach(function (o) {
     var uName = o.userNickname || o.userName || '成員';
+    var childTag = o.childName ? '[' + o.childName + ']' : '';
+    var buyerEntry = uName + childTag + (o.quantity > 1 ? 'x' + o.quantity : '');
+
     if (!itemMap[o.itemName]) {
       itemMap[o.itemName] = {
         itemName: o.itemName,
@@ -1242,7 +1260,7 @@ function getOrderSummary(groupId, date, dayOfWeek) {
     }
     itemMap[o.itemName].quantity += o.quantity;
     itemMap[o.itemName].subtotal += o.subtotal;
-    itemMap[o.itemName].buyers.push(uName + (o.quantity > 1 ? 'x' + o.quantity : ''));
+    itemMap[o.itemName].buyers.push(buyerEntry);
 
     if (!userMap[uName]) {
       userMap[uName] = {
@@ -1251,7 +1269,8 @@ function getOrderSummary(groupId, date, dayOfWeek) {
         total: 0
       };
     }
-    userMap[uName].items.push(o.itemName + 'x' + o.quantity);
+    var userItemEntry = (o.childName ? o.childName + ': ' : '') + o.itemName + 'x' + o.quantity;
+    userMap[uName].items.push(userItemEntry);
     userMap[uName].total += o.subtotal;
 
     totalQuantity += o.quantity;
@@ -1307,7 +1326,8 @@ function getWeeklyOrderSummary(groupId) {
       }
       itemMap[o.itemName].quantity += o.quantity;
       itemMap[o.itemName].subtotal += o.subtotal;
-      itemMap[o.itemName].buyers.push(o.userName + (o.quantity > 1 ? 'x' + o.quantity : ''));
+      var childTag = o.childName ? '[' + o.childName + ']' : '';
+      itemMap[o.itemName].buyers.push((o.userNickname || o.userName) + childTag + (o.quantity > 1 ? 'x' + o.quantity : ''));
 
       dayTotalQty += o.quantity;
       dayTotalAmt += o.subtotal;
@@ -1323,7 +1343,8 @@ function getWeeklyOrderSummary(groupId) {
       if (!userWeeklyMap[o.userName].days[day]) {
         userWeeklyMap[o.userName].days[day] = [];
       }
-      userWeeklyMap[o.userName].days[day].push(o.itemName + 'x' + o.quantity);
+      var userItemLabel = (o.childName ? o.childName + ': ' : '') + o.itemName + 'x' + o.quantity;
+      userWeeklyMap[o.userName].days[day].push(userItemLabel);
       userWeeklyMap[o.userName].total += o.subtotal;
     });
 
@@ -1516,6 +1537,228 @@ function logToSheet(type, message, detail) {
   } catch (e) {}
 }
 
+/**
+ * Get children for a specific user
+ * @param {string} userId
+ * @returns {Array<string>} Array of child names (e.g. ['大寶', '二寶'])
+ */
+function getChildren(userId) {
+  if (!userId) return [];
+  if (!isGasRuntime()) {
+    if (!_mockStore.Children) _mockStore.Children = [];
+    var kids = [];
+    _mockStore.Children.forEach(function (c) {
+      if (c.userId === userId && c.childName && kids.indexOf(c.childName) === -1) {
+        kids.push(c.childName);
+      }
+    });
+    return kids;
+  }
+  var ss = getSpreadsheet();
+  if (!ss) return [];
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+  if (!sheet) return [];
+  var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return [];
+  var kids = [];
+  for (var i = 1; i < rows.length; i++) {
+    var rUid = String(rows[i][0] || '').trim();
+    var rChild = String(rows[i][3] || '').trim();
+    if (rUid === userId && rChild && kids.indexOf(rChild) === -1) {
+      kids.push(rChild);
+    }
+  }
+  return kids;
+}
+
+/**
+ * Get detailed children profiles for a specific user
+ * @param {string} userId
+ * @returns {Array<{ userId: string, userName: string, userNickname: string, childName: string, note: string, createdAt: string, updatedAt: string }>}
+ */
+function getChildrenProfiles(userId) {
+  if (!userId) return [];
+  if (!isGasRuntime()) {
+    if (!_mockStore.Children) _mockStore.Children = [];
+    return _mockStore.Children.filter(function (c) { return c.userId === userId; });
+  }
+  var ss = getSpreadsheet();
+  if (!ss) return [];
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+  if (!sheet) return [];
+  var rows = sheet.getDataRange().getValues();
+  if (!rows || rows.length <= 1) return [];
+  var list = [];
+  for (var i = 1; i < rows.length; i++) {
+    var rUid = String(rows[i][0] || '').trim();
+    if (rUid === userId) {
+      list.push({
+        userId: rUid,
+        userName: String(rows[i][1] || ''),
+        userNickname: String(rows[i][2] || ''),
+        childName: String(rows[i][3] || ''),
+        note: String(rows[i][4] || ''),
+        createdAt: String(rows[i][5] || ''),
+        updatedAt: String(rows[i][6] || '')
+      });
+    }
+  }
+  return list;
+}
+
+/**
+ * Save or update a child profile
+ * @param {string} userId
+ * @param {string} userName
+ * @param {string} userNickname
+ * @param {string} childName
+ * @param {string} [note]
+ * @returns {boolean}
+ */
+function saveChild(userId, userName, userNickname, childName, note) {
+  if (!userId || !childName) return false;
+  var cName = childName.trim();
+  if (!cName || cName === '本人' || cName === '自己') return false;
+  var nowStr = new Date().toISOString();
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.Children) _mockStore.Children = [];
+    var existing = null;
+    for (var i = 0; i < _mockStore.Children.length; i++) {
+      if (_mockStore.Children[i].userId === userId && _mockStore.Children[i].childName === cName) {
+        existing = _mockStore.Children[i];
+        break;
+      }
+    }
+    if (existing) {
+      if (note !== undefined && note !== null && note !== '') existing.note = note;
+      existing.updatedAt = nowStr;
+    } else {
+      _mockStore.Children.push({
+        userId: userId,
+        userName: userName || '',
+        userNickname: userNickname || userName || '',
+        childName: cName,
+        note: note || '',
+        createdAt: nowStr,
+        updatedAt: nowStr
+      });
+    }
+    return true;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+  if (!sheet) {
+    initSheets();
+    sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+    if (!sheet) return false;
+  }
+
+  var rows = sheet.getDataRange().getValues();
+  for (var r = 1; r < rows.length; r++) {
+    if (String(rows[r][0]).trim() === userId && String(rows[r][3]).trim() === cName) {
+      if (note !== undefined && note !== null && note !== '') {
+        sheet.getRange(r + 1, 5).setValue(note);
+      }
+      sheet.getRange(r + 1, 7).setValue(nowStr);
+      return true;
+    }
+  }
+
+  sheet.appendRow([userId, userName || '', userNickname || userName || '', cName, note || '', nowStr, nowStr]);
+  return true;
+}
+
+/**
+ * Set batch children for a user (replacing current list)
+ * @param {string} userId
+ * @param {string} userName
+ * @param {string} userNickname
+ * @param {Array<string>} childNames
+ * @returns {boolean}
+ */
+function setChildren(userId, userName, userNickname, childNames) {
+  if (!userId) return false;
+  var names = (childNames || []).map(function (n) { return String(n).trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.Children) _mockStore.Children = [];
+    _mockStore.Children = _mockStore.Children.filter(function (c) { return c.userId !== userId; });
+    var nowStr = new Date().toISOString();
+    names.forEach(function (n) {
+      _mockStore.Children.push({
+        userId: userId,
+        userName: userName || '',
+        userNickname: userNickname || userName || '',
+        childName: n,
+        note: '',
+        createdAt: nowStr,
+        updatedAt: nowStr
+      });
+    });
+    return true;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+  if (!sheet) {
+    initSheets();
+    sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+    if (!sheet) return false;
+  }
+
+  var rows = sheet.getDataRange().getValues();
+  for (var r = rows.length - 1; r >= 1; r--) {
+    if (String(rows[r][0]).trim() === userId) {
+      sheet.deleteRow(r + 1);
+    }
+  }
+
+  var nowTime = new Date().toISOString();
+  names.forEach(function (n) {
+    sheet.appendRow([userId, userName || '', userNickname || userName || '', n, '', nowTime, nowTime]);
+  });
+  return true;
+}
+
+/**
+ * Delete a specific child profile
+ * @param {string} userId
+ * @param {string} childName
+ * @returns {boolean}
+ */
+function deleteChild(userId, childName) {
+  if (!userId || !childName) return false;
+  var cName = childName.trim();
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.Children) return false;
+    var lenBefore = _mockStore.Children.length;
+    _mockStore.Children = _mockStore.Children.filter(function (c) {
+      return !(c.userId === userId && c.childName === cName);
+    });
+    return _mockStore.Children.length < lenBefore;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var sheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+  if (!sheet) return false;
+
+  var rows = sheet.getDataRange().getValues();
+  var deleted = false;
+  for (var r = rows.length - 1; r >= 1; r--) {
+    if (String(rows[r][0]).trim() === userId && String(rows[r][3]).trim() === cName) {
+      sheet.deleteRow(r + 1);
+      deleted = true;
+    }
+  }
+  return deleted;
+}
+
 // Global export helper
 (function (global) {
   var g = (typeof window   !== 'undefined') ? window
@@ -1551,6 +1794,11 @@ function logToSheet(type, message, detail) {
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
   g._matchOrderTiming = _matchOrderTiming;
   g.normalizeDayOfWeek = normalizeDayOfWeek;
+  g.getChildren = getChildren;
+  g.getChildrenProfiles = getChildrenProfiles;
+  g.saveChild = saveChild;
+  g.setChildren = setChildren;
+  g.deleteChild = deleteChild;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -1582,6 +1830,11 @@ function logToSheet(type, message, detail) {
       _getOrderColumnIndexes: _getOrderColumnIndexes,
       _matchOrderTiming: _matchOrderTiming,
       normalizeDayOfWeek: normalizeDayOfWeek,
+      getChildren: getChildren,
+      getChildrenProfiles: getChildrenProfiles,
+      saveChild: saveChild,
+      setChildren: setChildren,
+      deleteChild: deleteChild,
       _mockStore: _mockStore
     };
   }
