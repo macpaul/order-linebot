@@ -66,7 +66,7 @@ function refreshWeeklySummary() {
       sheet.appendRow(['【本週梯次總計】', '', '', weeklySummary.grandTotalQuantity, '', weeklySummary.grandTotalAmount, '']);
 
       // Member payment list
-      sheet.appendRow([]);
+      sheet.appendRow(['']);
       sheet.appendRow(['【成員本週應收總額】', '姓名', '應付金額']);
       weeklySummary.users.forEach(function (u) {
         sheet.appendRow(['', u.userName, u.total]);
