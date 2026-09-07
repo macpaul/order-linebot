@@ -136,6 +136,61 @@ function showUberEatsImportDialog() {
 }
 
 /**
+ * Admin Action: Interactive Dialog to Import Menu from Custom Restaurant Sheet
+ */
+function showCustomRestaurantImportDialog() {
+  if (typeof SpreadsheetApp === 'undefined') return;
+  var ui = SpreadsheetApp.getUi();
+
+  var dayPrompt = ui.prompt(
+    '匯入自訂餐廳菜單 (步驟 1/2)',
+    '請輸入要排程的星期（例如：週一、週二、週三、週四、週五 或 ALL）：',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (dayPrompt.getSelectedButton() !== ui.Button.OK) return;
+  var rawDay = dayPrompt.getResponseText().trim();
+  var dayOfWeek = (typeof normalizeDayOfWeek === 'function' ? normalizeDayOfWeek(rawDay) : rawDay) || '週一';
+
+  var namePrompt = ui.prompt(
+    '匯入自訂餐廳菜單 (步驟 2/2)',
+    '請輸入自訂餐廳名稱（必須與試算表工作表 Tab 名稱完全一致）：',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (namePrompt.getSelectedButton() !== ui.Button.OK) return;
+  var restaurantName = namePrompt.getResponseText().trim();
+  if (!restaurantName) {
+    ui.alert('⚠️ 餐廳名稱不得為空！');
+    return;
+  }
+
+  // Exact match check
+  var ss = typeof getSpreadsheet === 'function' ? getSpreadsheet() : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return;
+
+  if (typeof isSystemTab === 'function' && isSystemTab(restaurantName)) {
+    ui.alert('⚠️ 匯入失敗\n「' + restaurantName + '」為系統專用功能工作表，不可作為自訂餐廳菜單！\n請選擇自訂餐廳工作表。');
+    return;
+  }
+
+  var targetSheet = ss.getSheetByName(restaurantName);
+  if (!targetSheet) {
+    ui.alert('⚠️ 沒找到這間自訂餐廳菜單！\n\n找不到名為「' + restaurantName + '」的工作表，請確認工作表名稱完全一致（包含大小寫與空格）。');
+    return;
+  }
+
+  try {
+    var result = importCustomRestaurantMenu(dayOfWeek, restaurantName);
+    if (!result || !result.success) {
+      ui.alert('⚠️ 沒找到這間自訂餐廳菜單！\n\n' + ((result && result.message) || '請確認工作表名稱完全一致（包含大小寫與空格）。'));
+      return;
+    }
+    ui.alert('✅ 匯入成功！\n餐廳：' + restaurantName + '\n已排入：' + result.dayOfWeek + '\n共匯入 ' + result.count + ' 道餐點至菜單 (Menu)！');
+  } catch (err) {
+    ui.alert('❌ 匯入發生錯誤：' + err.message);
+  }
+}
+
+/**
  * HTTP GET Handler - Service Health Check & Information
  */
 function doGet(e) {
@@ -437,6 +492,7 @@ function setup() {
   g.refreshDailySummary = refreshDailySummary;
   g.refreshWeeklySummary = refreshWeeklySummary;
   g.showUberEatsImportDialog = showUberEatsImportDialog;
+  g.showCustomRestaurantImportDialog = showCustomRestaurantImportDialog;
   g.doGet = doGet;
   g.doPost = doPost;
   g.setup = setup;
@@ -450,6 +506,7 @@ function setup() {
       refreshDailySummary: refreshDailySummary,
       refreshWeeklySummary: refreshWeeklySummary,
       showUberEatsImportDialog: showUberEatsImportDialog,
+      showCustomRestaurantImportDialog: showCustomRestaurantImportDialog,
       doGet: doGet,
       doPost: doPost,
       setup: setup,
