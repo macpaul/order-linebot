@@ -78,12 +78,13 @@
    - 確認「地區設定」為 **台灣**，且「時區」設定為 **`(GMT+08:00) 台北時間`**。
    - 點擊「儲存並載入」。
    > 💡 系統程式碼會**直接動態讀取此試算表設定之時區**（已全面移除 hardcode 寫死的時區），以確保訂餐截止時間、每日換日與點餐紀錄時間戳記 100% 精確對齊！
-3. 試算表將由程式首次執行自動初始化產生 5 個工作表（管理員亦可直接編輯）：
+3. 試算表將由程式首次執行自動初始化產生 6 個工作表（管理員亦可直接編輯）：
    - `Config`：系統全域設定（開單狀態、今日店家、截止時間、收據顯示範圍等）。
    - `WeeklySchedule`：**週一至週五梯次排程表**（星期、當日店家、截止時間、Uber Eats 網址、備註、啟用狀態）。
    - `Menu`：菜單清單（星期、店家名稱、分類、品項名稱、價格、供應狀態、描述）。
-    - `Orders`：點餐流水帳（OrderId、Timestamp、Date、DayOfWeek、GroupId、UserId、UserName、UserNickname 當時暱稱、ItemName、Quantity、Price、Subtotal、Status、Paid）。
-    - `Summary`：即時與全週梯次統計匯總（各日小計、總金額、成員應付清單）。
+   - `Orders`：點餐流水帳（OrderId、Timestamp、Date、DayOfWeek、GroupId、UserId、UserName、UserNickname 當時暱稱、ChildName 分餐小孩對象、ItemName、Quantity、Price、Subtotal、Status、Paid）。
+   - `Summary`：即時與全週梯次統計匯總（各日小計、總金額、成員應付清單）。
+   - `Children`：**小孩名冊名冊**（UserId 家長 ID、UserName 家長名稱、UserNickname 家長暱稱、ChildName 小孩姓名/代號、Note 班級或飲食備註、CreatedAt 建立時間、UpdatedAt 更新時間）。
 
 #### 💡 `Config` 系統設定參數說明
 管理員可隨時於 `Config` 工作表直接調整參數值：
@@ -231,7 +232,7 @@
 - **原因**：早期模組變數在單檔打包時，全域宣告發生了變數提升覆蓋（Variable Hoisting Shadowing），導致 `getConfigProperty` 函式被初始化為 `null`。
 - **解決步驟**：
   - 本專案已於 `v1.1.1` 加入嚴格的環境保護守衛修復此問題。
-  - 請重新複製專案中的最新 [`dist/Code.gs`](dist/Code.gs) 內容，完整覆蓋貼入 Google Apps Script 編輯器，儲存後再次點擊選單初始化即可順利建立 5 大工作表。
+  - 請重新複製專案中的最新 [`dist/Code.gs`](dist/Code.gs) 內容，完整覆蓋貼入 Google Apps Script 編輯器，儲存後再次點擊選單初始化即可順利建立 6 大工作表。
 
 ---
 
