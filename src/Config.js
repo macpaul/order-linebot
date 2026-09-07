@@ -25,7 +25,8 @@ var CONFIG = {
     WEEKLY_SCHEDULE: 'WeeklySchedule',
     MENU: 'Menu',
     ORDERS: 'Orders',
-    SUMMARY: 'Summary'
+    SUMMARY: 'Summary',
+    CHILDREN: 'Children'
   },
 
   /**
