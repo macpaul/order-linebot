@@ -480,6 +480,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
         var name = o.itemName || '';
         var qty = o.quantity || 1;
         var sub = o.subtotal !== undefined ? o.subtotal : qty * (o.price || 0);
+        var childTag = o.childName ? ' [' + o.childName + ']' : '';
 
         // Highlight the just-added item (matching name and weekday if applicable)
         var isAdded = addedItem && o.itemName === addedItem.itemName &&
@@ -487,7 +488,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
         var rowBg = isAdded ? FLEX_COLORS.successBg : 'transparent';
 
         bodyContents.push(_flexBox([
-          _flexText(name + (qty > 1 ? ' x' + qty : ''), {
+          _flexText(name + childTag + (qty > 1 ? ' x' + qty : ''), {
             size: 'md',
             color: FLEX_COLORS.textPrimary,
             align: 'start',
@@ -514,12 +515,13 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
       var name = o.itemName || '';
       var qty = o.quantity || 1;
       var sub = o.subtotal !== undefined ? o.subtotal : qty * (o.price || 0);
+      var childTag = o.childName ? ' [' + o.childName + ']' : '';
 
       var isAdded = addedItem && o.itemName === addedItem.itemName;
       var rowBg = isAdded ? FLEX_COLORS.successBg : 'transparent';
 
       bodyContents.push(_flexBox([
-        _flexText(name + (qty > 1 ? ' x' + qty : ''), {
+        _flexText(name + childTag + (qty > 1 ? ' x' + qty : ''), {
           size: 'md',
           color: FLEX_COLORS.textPrimary,
           align: 'start',
@@ -1188,8 +1190,9 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       }));
 
       dayItems.forEach(function (it) {
-        var cancelCmd = '取消 ' + day + ' ' + it.itemName;
-        var itemText = it.itemName + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
+        var childTag = it.childName ? ' [' + it.childName + ']' : '';
+        var cancelCmd = '取消 ' + day + ' ' + (it.childName ? it.childName + ' ' : '') + it.itemName;
+        var itemText = it.itemName + childTag + (it.quantity > 1 ? ' x' + it.quantity : '') + ' ($' + (it.subtotal || (it.price * it.quantity)) + ')';
 
         var actionComponent = isDayLocked
           ? _flexBox([
@@ -1585,6 +1588,95 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
   };
 }
 
+/**
+ * createChildrenListFlex — Display registered children/recipients card
+ * @param {string} userName
+ * @param {Array<string|Object>} children
+ * @returns {Object} LINE Flex bubble
+ */
+function createChildrenListFlex(userName, children) {
+  var kids = children || [];
+  var header = _flexBox([
+    _flexText('👶 我的小孩與用餐對象名冊', {
+      size: 'lg',
+      weight: 'bold',
+      color: FLEX_COLORS.textOnColor
+    }),
+    _flexText('同仁：' + (userName || '成員'), {
+      size: 'xs',
+      color: FLEX_COLORS.textOnColor,
+      margin: 'xs'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'lg',
+    backgroundColor: FLEX_COLORS.primary
+  });
+
+  var bodyContents = [];
+  if (kids.length === 0) {
+    bodyContents.push(_flexText('您目前尚未登記任何小孩或用餐對象。', {
+      size: 'sm',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'md'
+    }));
+    bodyContents.push(_flexText('💡 您可以在點餐時直接加註，如「+1 招牌便當 (大寶)」，系統會自動為您建檔！\n或輸入「設定小孩 大寶, 二寶」完成登記。', {
+      size: 'xs',
+      color: FLEX_COLORS.textSecondary,
+      margin: 'md',
+      wrap: true
+    }));
+  } else {
+    bodyContents.push(_flexText('已登記的對象名冊（點餐時可一鍵指定）：', {
+      size: 'xs',
+      color: FLEX_COLORS.textSecondary,
+      margin: 'xs'
+    }));
+
+    kids.forEach(function (k, i) {
+      var name = typeof k === 'string' ? k : (k.childName || '');
+      var note = (typeof k === 'object' && k.note) ? ' (' + k.note + ')' : '';
+      bodyContents.push(_flexBox([
+        _flexText('👦 ' + name + note, {
+          size: 'md',
+          weight: 'bold',
+          color: FLEX_COLORS.textPrimary,
+          flex: 3
+        })
+      ], {
+        layout: 'horizontal',
+        alignItems: 'center',
+        paddingAll: 'sm',
+        margin: 'xs',
+        backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
+        cornerRadius: 'md'
+      }));
+    });
+
+    bodyContents.push(_flexSeparator({ margin: 'md' }));
+    bodyContents.push(_flexText('💡 點餐方式：\n1. 點擊菜單上的「+1 點餐」按鈕，系統會自動彈出小孩捷徑按鈕供您挑選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！', {
+      size: 'xs',
+      color: FLEX_COLORS.primaryDark,
+      wrap: true,
+      margin: 'sm'
+    }));
+  }
+
+  var body = _flexBox(bodyContents, {
+    layout: 'vertical',
+    paddingAll: 'md',
+    backgroundColor: FLEX_COLORS.surface
+  });
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: header,
+    body: body
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Dual-Environment Export (GAS + Node.js)
  * ------------------------------------------------------------------ */
@@ -1603,6 +1695,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
   g.createConfirmCancelFlex = createConfirmCancelFlex;
   g.createWeeklyScheduleFlex = createWeeklyScheduleFlex;
   g.createWeeklySummaryFlex = createWeeklySummaryFlex;
+  g.createChildrenListFlex = createChildrenListFlex;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -1615,6 +1708,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
       createConfirmCancelFlex: createConfirmCancelFlex,
       createWeeklyScheduleFlex: createWeeklyScheduleFlex,
       createWeeklySummaryFlex: createWeeklySummaryFlex,
+      createChildrenListFlex: createChildrenListFlex,
       // Internal helpers exposed for Node.js testing.
       _flexText: _flexText,
       _flexBox: _flexBox,
