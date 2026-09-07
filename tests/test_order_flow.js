@@ -1318,38 +1318,19 @@ assert.strictEqual(wedMenu[0].price, 65);
 assert.strictEqual(wedMenu[1].itemName, '酥炸雞排便當');
 assert.strictEqual(wedMenu[1].price, 100);
 
-// 11-4: Chat command handling
-// Test system tab warning via chat
+// 11-4: Chat command temporary dormancy verification
+// Chat commands for custom restaurant import are temporarily disabled to prevent accidental member triggers
+lastReply = null;
 OrderModule.handleTextMessage({
-  replyToken: 'tok_sys_tab',
-  source: { groupId: groupId, userId: 'user_alice' },
-  message: { type: 'text', text: '匯入餐廳 週三 Menu' }
-});
-assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('系統專用功能工作表'), 'System tab rejected in chat');
-
-// Test not found warning via chat
-OrderModule.handleTextMessage({
-  replyToken: 'tok_not_found',
-  source: { groupId: groupId, userId: 'user_alice' },
-  message: { type: 'text', text: '匯入餐廳 週三 神秘幽靈廚房' }
-});
-assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('找不到工作表名稱為【神秘幽靈廚房】'), 'Not found warning in chat');
-
-// Test successful import via chat
-OrderModule.handleTextMessage({
-  replyToken: 'tok_chat_import_ok',
+  replyToken: 'tok_chat_disabled',
   source: { groupId: groupId, userId: 'user_alice' },
   message: { type: 'text', text: '匯入自訂餐廳 週三 老王便當' }
 });
-assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('已成功從自訂餐廳【老王便當】匯入至 週三 菜單'), 'Chat import success msg');
-assert.ok(lastReply.text.includes('共匯入 3 道餐點'), 'Chat import count check');
+assert.ok(!lastReply || !lastReply.text || !lastReply.text.includes('已成功從自訂餐廳'), 'Chat command must remain dormant');
 
 // 11-5: Dialog function exported
 assert.strictEqual(typeof CodeModule.showCustomRestaurantImportDialog, 'function');
-console.log('  ✔ Custom restaurant tab menu import and chat commands verified.\n');
+console.log('  ✔ Custom restaurant tab menu import verified (chat command dormant).\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
