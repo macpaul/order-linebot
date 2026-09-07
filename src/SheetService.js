@@ -683,6 +683,193 @@ function saveMenuItems(dayOfWeek, restaurantName, items) {
 }
 
 /**
+ * Reserved system tab names (cannot be treated as custom restaurant menus)
+ */
+var SYSTEM_TAB_NAMES = [
+  'Config',
+  'Logs',
+  'WeeklySchedule',
+  'Menu',
+  'Orders',
+  'Children',
+  'Summary'
+];
+
+/**
+ * Check if a given sheet/tab name is a reserved system tab
+ * @param {string} tabName
+ * @returns {boolean}
+ */
+function isSystemTab(tabName) {
+  if (!tabName) return true;
+  var clean = String(tabName).trim().toLowerCase();
+  for (var i = 0; i < SYSTEM_TAB_NAMES.length; i++) {
+    if (SYSTEM_TAB_NAMES[i].toLowerCase() === clean) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Read custom restaurant menu items from a custom sheet
+ * Format: RestaurantName, Category, ItemName, Price, IsAvailable, Description
+ * @param {string} restaurantName - Exact match sheet name
+ * @returns {Array<Object>|null} List of item objects or null if sheet not found / system tab
+ */
+function readCustomRestaurantMenu(restaurantName) {
+  if (!restaurantName) return null;
+  var rName = String(restaurantName).trim();
+  if (isSystemTab(rName)) {
+    return null;
+  }
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.CustomRestaurants) return null;
+    return _mockStore.CustomRestaurants[rName] || null;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return null;
+
+  var sheet = ss.getSheetByName(rName);
+  if (!sheet) return null;
+
+  var data = sheet.getDataRange().getValues();
+  if (!data || data.length === 0) return [];
+
+  var startRow = 0;
+  var colMap = {
+    restaurantName: -1,
+    category: -1,
+    itemName: -1,
+    price: -1,
+    isAvailable: -1,
+    description: -1
+  };
+
+  var firstRow = data[0] || [];
+  var hasHeader = false;
+  for (var c = 0; c < firstRow.length; c++) {
+    var val = String(firstRow[c]).trim().toLowerCase().replace(/[\s_\-/（）()]/g, '');
+    if (val === 'itemname' || val === '餐點' || val === '品項' || val === '品名' || val === '餐點名稱') {
+      colMap.itemName = c;
+      hasHeader = true;
+    } else if (val === 'category' || val === '分類' || val === '類別') {
+      colMap.category = c;
+      hasHeader = true;
+    } else if (val === 'price' || val === '價格' || val === '金額' || val === '單價') {
+      colMap.price = c;
+      hasHeader = true;
+    } else if (val === 'isavailable' || val === '供應' || val === '供應狀態' || val === '是否供應') {
+      colMap.isAvailable = c;
+      hasHeader = true;
+    } else if (val === 'description' || val === '描述' || val === '備註' || val === '說明') {
+      colMap.description = c;
+      hasHeader = true;
+    } else if (val === 'restaurantname' || val === '店家' || val === '餐廳' || val === '店家名稱') {
+      colMap.restaurantName = c;
+      hasHeader = true;
+    }
+  }
+
+  if (hasHeader) {
+    startRow = 1;
+  } else {
+    // Default 6 columns: RestaurantName, Category, ItemName, Price, IsAvailable, Description
+    colMap = {
+      restaurantName: 0,
+      category: 1,
+      itemName: 2,
+      price: 3,
+      isAvailable: 4,
+      description: 5
+    };
+  }
+
+  var items = [];
+  for (var r = startRow; r < data.length; r++) {
+    var row = data[r];
+    var rawItemName = colMap.itemName !== -1 ? row[colMap.itemName] : (row[2] !== undefined ? row[2] : row[1]);
+    var itName = String(rawItemName || '').trim();
+    if (!itName) continue; // skip empty rows
+
+    var cat = colMap.category !== -1 ? String(row[colMap.category] || '').trim() : (row[1] ? String(row[1]).trim() : '一般');
+    var priceVal = colMap.price !== -1 ? row[colMap.price] : row[3];
+    var price = Number(priceVal) || 0;
+    var availVal = colMap.isAvailable !== -1 ? row[colMap.isAvailable] : row[4];
+    var isAvailable = (availVal === undefined || availVal === null || String(availVal).trim() === '') ? true : (String(availVal).toUpperCase() !== 'FALSE');
+    var desc = colMap.description !== -1 ? String(row[colMap.description] || '').trim() : (row[5] ? String(row[5]).trim() : '');
+
+    items.push({
+      category: cat || '一般',
+      itemName: itName,
+      price: price,
+      isAvailable: isAvailable,
+      description: desc
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Import custom restaurant menu to WeeklySchedule and Menu tabs
+ * @param {string} dayOfWeek - e.g. "週一", "週二"
+ * @param {string} restaurantName - Tab name of the custom restaurant
+ * @returns {Object} { success: boolean, reason?: string, message?: string, count?: number }
+ */
+function importCustomRestaurantMenu(dayOfWeek, restaurantName) {
+  if (!restaurantName || !String(restaurantName).trim()) {
+    return { success: false, reason: 'EMPTY_NAME', message: '餐廳名稱不得為空！' };
+  }
+
+  var rName = String(restaurantName).trim();
+  if (isSystemTab(rName)) {
+    return {
+      success: false,
+      reason: 'SYSTEM_TAB',
+      message: '「' + rName + '」為系統專用功能工作表，無法作為自訂餐廳菜單匯入！'
+    };
+  }
+
+  var normDay = normalizeDayOfWeek ? normalizeDayOfWeek(dayOfWeek) : dayOfWeek;
+  if (!normDay || normDay === '今日') {
+    normDay = '週一';
+  }
+
+  var items = readCustomRestaurantMenu(rName);
+  if (items === null) {
+    return {
+      success: false,
+      reason: 'NOT_FOUND',
+      message: '查無此自訂餐廳！\n找不到名為「' + rName + '」的工作表，請確認工作表名稱完全一致（包含大小寫與空格）。'
+    };
+  }
+
+  if (items.length === 0) {
+    return {
+      success: false,
+      reason: 'EMPTY_MENU',
+      message: '工作表「' + rName + '」中沒有任何餐點品項！'
+    };
+  }
+
+  // 1. Update WeeklySchedule
+  setWeeklyScheduleDay(normDay, rName, '10:30', '', '從自訂餐廳匯入', true);
+
+  // 2. Update Menu
+  saveMenuItems(normDay, rName, items);
+
+  return {
+    success: true,
+    dayOfWeek: normDay,
+    restaurantName: rName,
+    count: items.length
+  };
+}
+
+/**
  * Helper to map Orders sheet header columns dynamically
  */
 function _getOrderColumnIndexes(headers) {
@@ -1428,6 +1615,7 @@ function onOpenSpreadsheet() {
       .addItem('🕒 檢查 Apps Script 時區與系統時間', 'checkTimeZoneAndCurrentTime')
       .addSeparator()
       .addItem('🍔 從 Uber Eats 網址匯入菜單', 'showUberEatsImportDialog')
+      .addItem('📑 從自訂餐廳匯入菜單', 'showCustomRestaurantImportDialog')
       .addSeparator()
       .addItem('🔍 診斷測試：Uber Eats 菜單抓取', 'testUberEatsImport')
       .addItem('🔍 診斷測試：LINE 連線狀態', 'testLineConnection')
@@ -1832,6 +2020,10 @@ function deleteChild(userId, childName) {
   g._getOrderColumnIndexes = _getOrderColumnIndexes;
   g._matchOrderTiming = _matchOrderTiming;
   g.normalizeDayOfWeek = normalizeDayOfWeek;
+  g.SYSTEM_TAB_NAMES = SYSTEM_TAB_NAMES;
+  g.isSystemTab = isSystemTab;
+  g.readCustomRestaurantMenu = readCustomRestaurantMenu;
+  g.importCustomRestaurantMenu = importCustomRestaurantMenu;
   g.getChildren = getChildren;
   g.getChildrenProfiles = getChildrenProfiles;
   g.saveChild = saveChild;
@@ -1852,6 +2044,10 @@ function deleteChild(userId, childName) {
       setWeeklyScheduleDay: setWeeklyScheduleDay,
       getMenuItems: getMenuItems,
       saveMenuItems: saveMenuItems,
+      SYSTEM_TAB_NAMES: SYSTEM_TAB_NAMES,
+      isSystemTab: isSystemTab,
+      readCustomRestaurantMenu: readCustomRestaurantMenu,
+      importCustomRestaurantMenu: importCustomRestaurantMenu,
       addOrder: addOrder,
       getUserOrders: getUserOrders,
       cancelOrder: cancelOrder,
