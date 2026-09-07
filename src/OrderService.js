@@ -594,6 +594,8 @@ function handleTextMessage(event) {
   }
 
   // 4b. CUSTOM RESTAURANT IMPORT VIA CHAT: 匯入自訂餐廳 [週幾] [餐廳名稱] / 匯入餐廳 [週幾] [餐廳名稱]
+  // ⚠️ 暫時關閉聊天室匯入指令，避免一般使用者誤觸；待未來提供管理員與一般使用者權限隔離時再開啟。目前僅保留 Google 試算表選單操作。
+  /*
   var customImportMatch = text.match(/^(?:匯入自訂餐廳|匯入餐廳|自訂餐廳匯入)\s+(週[一二三四五]|ALL)\s+(.+)$/i);
   if (customImportMatch) {
     var customDay = customImportMatch[1];
@@ -610,6 +612,7 @@ function handleTextMessage(event) {
     var successMsg = '✅ 已成功從自訂餐廳【' + customResult.restaurantName + '】匯入至 ' + customDay + ' 菜單！\n共匯入 ' + (customResult.count || 0) + ' 道餐點。\n可直接傳送「' + customDay + '菜單」查看。';
     return LineModule.replyText(replyToken, successMsg);
   }
+  */
 
   // 5. OPEN ORDER: 開單 [店家] [時間] / 開始訂餐
   var openMatch = text.match(/^(?:\/)?(?:開單|開始訂餐)(?:\s+(.+?))?(?:\s+([0-9]{1,2}:[0-9]{2}))?$/);
