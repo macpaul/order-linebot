@@ -25,6 +25,18 @@ globalThis.replyText = LineModule.replyText = function (token, text) {
   lastReply = { type: 'text', token: token, text: text };
   return { statusCode: 200 };
 };
+globalThis.replyQuickReply = LineModule.replyQuickReply = function (token, text, quickReplyItems) {
+  lastReply = { type: 'quick_reply', token: token, text: text, quickReply: { items: quickReplyItems } };
+  return { statusCode: 200 };
+};
+globalThis.replyMessages = LineModule.replyMessages = function (token, messages) {
+  if (messages && messages[0] && messages[0].quickReply) {
+    lastReply = { type: 'quick_reply', token: token, text: messages[0].text, quickReply: messages[0].quickReply };
+  } else {
+    lastReply = { type: 'messages', token: token, messages: messages };
+  }
+  return { statusCode: 200 };
+};
 let lastPush = null;
 globalThis.pushText = LineModule.pushText = function (to, text) {
   lastPush = { to: to, text: text };
@@ -1074,5 +1086,184 @@ assert.strictEqual(lastReply.type, 'text', '今日文字統計 must return plain
 assert.ok(lastReply.text.includes('今日訂餐統計'), 'Text summary must include title');
 
 console.log('  ✔ createSummaryFlex schema validity, plain-text summary, and member roster verified.\n');
+
+// ==========================================
+// TEST 10: Multi-Child Meal Allocation, Children Management & Quick Reply Flow
+// ==========================================
+console.log('▶ Test 10: Multi-Child Meal Allocation, Children Management & Quick Reply Flow');
+
+// 10-1: Syntax Parsing with child names and multi-kid split
+const t10_p1 = OrderModule.parseOrderText('+1 招牌便當 (大寶)');
+assert.strictEqual(t10_p1.length, 1);
+assert.strictEqual(t10_p1[0].itemName, '招牌便當');
+assert.strictEqual(t10_p1[0].quantity, 1);
+assert.strictEqual(t10_p1[0].childName, '大寶');
+
+const t10_p2 = OrderModule.parseOrderText('+1 雞腿便當（小寶）');
+assert.strictEqual(t10_p2.length, 1);
+assert.strictEqual(t10_p2[0].itemName, '雞腿便當');
+assert.strictEqual(t10_p2[0].childName, '小寶');
+
+const t10_p3 = OrderModule.parseOrderText('+2 排骨飯 (大寶, 二寶)');
+assert.strictEqual(t10_p3.length, 2, 'Multi-child split must produce 2 individual order items');
+assert.strictEqual(t10_p3[0].itemName, '排骨飯');
+assert.strictEqual(t10_p3[0].quantity, 1);
+assert.strictEqual(t10_p3[0].childName, '大寶');
+assert.strictEqual(t10_p3[1].itemName, '排骨飯');
+assert.strictEqual(t10_p3[1].quantity, 1);
+assert.strictEqual(t10_p3[1].childName, '二寶');
+
+const t10_p4 = OrderModule.parseOrderText('大寶: 排骨飯+1');
+assert.strictEqual(t10_p4.length, 1);
+assert.strictEqual(t10_p4[0].itemName, '排骨飯');
+assert.strictEqual(t10_p4[0].quantity, 1);
+assert.strictEqual(t10_p4[0].childName, '大寶');
+
+const t10_p5 = OrderModule.parseOrderText('週一 排骨飯+1 (大寶)');
+assert.strictEqual(t10_p5.length, 1);
+assert.strictEqual(t10_p5[0].dayOfWeek, '週一');
+assert.strictEqual(t10_p5[0].itemName, '排骨飯');
+assert.strictEqual(t10_p5[0].childName, '大寶');
+
+console.log('  ✔ Multi-child syntax parsing, bracket extraction, and comma split verified.');
+
+// 10-2: Children Tab CRUD API & Commands
+SheetModule.setChildren('user_alice', 'Alice', '愛麗絲', ['大寶', '二寶']);
+const aliceKids = SheetModule.getChildren('user_alice');
+assert.deepStrictEqual(aliceKids, ['大寶', '二寶'], 'Alice should have 大寶 and 二寶 registered');
+
+SheetModule.saveChild('user_alice', 'Alice', '愛麗絲', '小寶', '附小三年二班');
+const aliceKids2 = SheetModule.getChildren('user_alice');
+assert.deepStrictEqual(aliceKids2, ['大寶', '二寶', '小寶'], 'Alice should now have 3 children');
+
+SheetModule.deleteChild('user_alice', '小寶');
+assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['大寶', '二寶'], '小寶 deleted');
+
+// Test Children management commands via handleTextMessage
+OrderModule.handleTextMessage({
+  replyToken: 'token_kids_list',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '我的小孩' }
+});
+assert.strictEqual(lastReply.type, 'flex', '我的小孩 must reply with children list flex card');
+const kidsFlexJson = JSON.stringify(lastReply.flex);
+assert.ok(kidsFlexJson.includes('大寶'), 'Kids flex card must include 大寶');
+assert.ok(kidsFlexJson.includes('二寶'), 'Kids flex card must include 二寶');
+
+// Test set children command
+OrderModule.handleTextMessage({
+  replyToken: 'token_kids_set',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '設定小孩 寶一, 寶二' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('成功設定小孩名冊'));
+assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['寶一', '寶二']);
+
+// Reset Alice kids back to 大寶, 二寶
+SheetModule.setChildren('user_alice', 'Alice', '愛麗絲', ['大寶', '二寶']);
+
+console.log('  ✔ Children tab CRUD API, flex card, and management commands verified.');
+
+// 10-3: Quick Reply UX Trigger Test (Option 2 + Option 1)
+globalThis._mockCurrentDate = new Date('2026-09-07T02:00:00.000Z'); // Monday 10:00 AM Taipei
+SheetModule.setConfigValue('IS_ORDERING_OPEN', 'true');
+
+// Alice (has kids) orders without bracket: "+1 招牌三寶飯"
+OrderModule.handleTextMessage({
+  replyToken: 'token_quick_reply',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '+1 招牌三寶飯' }
+});
+assert.strictEqual(lastReply.type, 'quick_reply', 'Ordering without child designation for parent must trigger Quick Reply');
+assert.ok(lastReply.text.includes('分配給哪位小孩或自己'), 'Prompt text guides user to pick recipient');
+const qrItems = lastReply.quickReply.items;
+assert.strictEqual(qrItems.length, 4, 'Must have 4 items: 大寶, 二寶, 本人, 其他備註');
+assert.strictEqual(qrItems[0].action.label, '👦 大寶');
+assert.strictEqual(qrItems[0].action.text, '+1 招牌三寶飯 (大寶)');
+assert.strictEqual(qrItems[1].action.label, '👦 二寶');
+assert.strictEqual(qrItems[1].action.text, '+1 招牌三寶飯 (二寶)');
+assert.strictEqual(qrItems[2].action.label, '👤 本人');
+assert.strictEqual(qrItems[2].action.text, '+1 招牌三寶飯 (本人)');
+assert.strictEqual(qrItems[3].action.label, '✏️ 其他備註');
+assert.strictEqual(qrItems[3].action.inputOption, 'openKeyboard');
+assert.strictEqual(qrItems[3].action.fillInText, '+1 招牌三寶飯 ()');
+
+// Non-parent (Bob, who has no children registered) orders without bracket: "+1 脆皮燒肉飯"
+OrderModule.handleTextMessage({
+  replyToken: 'token_bob_no_kids',
+  source: { groupId: groupId, userId: 'user_bob' },
+  message: { type: 'text', text: '+1 脆皮燒肉飯' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Single member without kids immediately completes order with receipt flex');
+
+console.log('  ✔ Quick Reply floating buttons & openKeyboard option verified.');
+
+// 10-4: Query & Child-Targeted Cancellation Precision
+// Alice places orders for her kids
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_k1',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '+1 招牌三寶飯 (大寶)' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_k2',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '+1 脆皮燒肉飯 (二寶)' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+
+// Verify 我的訂單 displays child allocation tags
+OrderModule.handleTextMessage({
+  replyToken: 'token_alice_my_orders',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '我的訂單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('[大寶]'), 'My orders text must show [大寶]');
+assert.ok(lastReply.text.includes('[二寶]'), 'My orders text must show [二寶]');
+
+// Verify Interactive Cancel Order menu shows [大寶] and [二寶] with targeted cancel commands
+const aliceActiveOrders = SheetModule.getUserOrders('user_alice', groupId, null, null, '愛麗絲');
+const cancelFlexAlice = FlexModule.createCancelOrderFlex('愛麗絲', aliceActiveOrders, {}, false);
+const cancelFlexAliceJson = JSON.stringify(cancelFlexAlice);
+assert.ok(cancelFlexAliceJson.includes('[大寶]'), 'Cancel menu displays [大寶]');
+assert.ok(cancelFlexAliceJson.includes('取消 今日 大寶 招牌三寶飯') || cancelFlexAliceJson.includes('取消 週一 大寶 招牌三寶飯'), 'Cancel command targets 大寶');
+
+// Alice cancels only 大寶's dish: "取消 大寶 招牌三寶飯"
+OrderModule.handleTextMessage({
+  replyToken: 'token_cancel_kid_1',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消 大寶 招牌三寶飯' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已為您取消 [大寶] 「招牌三寶飯」'), 'Only 大寶 order cancelled');
+
+// Verify that 二寶's dish is still active!
+const aliceRemainingOrders = SheetModule.getUserOrders('user_alice', groupId, null, null, '愛麗絲');
+const hasK1 = aliceRemainingOrders.some(function (o) { return o.childName === '大寶'; });
+const hasK2 = aliceRemainingOrders.some(function (o) { return o.childName === '二寶'; });
+assert.strictEqual(hasK1, false, '大寶 dish must be cancelled');
+assert.strictEqual(hasK2, true, '二寶 dish must remain active');
+
+console.log('  ✔ Child-targeted order query, cancel menu, and cancellation precision verified.');
+
+// 10-5: Summary Presentation (Today Summary & Text Summary with Children Allocation)
+const todaySummaryWithKids = SheetModule.getOrderSummary(groupId, '2026-09-07', '週一');
+const textSummaryWithKids = OrderModule.formatOrderSummaryText('廣東正龍燒臘', todaySummaryWithKids, false);
+assert.ok(textSummaryWithKids.includes('愛麗絲[二寶]'), 'Item buyers must show 愛麗絲[二寶]');
+assert.ok(textSummaryWithKids.includes('二寶: 脆皮燒肉飯x1'), 'Member breakdown must list 二寶: 脆皮燒肉飯x1');
+
+const flexSummaryWithKids = FlexModule.createSummaryFlex('廣東正龍燒臘', todaySummaryWithKids, false, null);
+const flexSummaryJson = JSON.stringify(flexSummaryWithKids);
+assert.ok(flexSummaryJson.includes('愛麗絲'), 'Flex summary must contain parent name');
+assert.ok(flexSummaryJson.includes('二寶: 脆皮燒肉飯x1'), 'Flex summary member section shows child breakdown');
+
+console.log('  ✔ Today Summary (Flex & Text) multi-child allocation breakdown verified.\n');
+
+// Clean up mock date
+globalThis._mockCurrentDate = null;
 
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
