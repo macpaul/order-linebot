@@ -1263,6 +1263,94 @@ assert.ok(flexSummaryJson.includes('二寶: 脆皮燒肉飯x1'), 'Flex summary m
 
 console.log('  ✔ Today Summary (Flex & Text) multi-child allocation breakdown verified.\n');
 
+// 11. Custom Restaurant Tab Menu Import Tests
+console.log('▶ Test 11: Custom Restaurant Tab Menu Import');
+// 11-1: System tab detection
+assert.strictEqual(SheetModule.isSystemTab('Config'), true);
+assert.strictEqual(SheetModule.isSystemTab('Logs'), true);
+assert.strictEqual(SheetModule.isSystemTab('WeeklySchedule'), true);
+assert.strictEqual(SheetModule.isSystemTab('Menu'), true);
+assert.strictEqual(SheetModule.isSystemTab('Orders'), true);
+assert.strictEqual(SheetModule.isSystemTab('Children'), true);
+assert.strictEqual(SheetModule.isSystemTab('Summary'), true);
+assert.strictEqual(SheetModule.isSystemTab('orders'), true, 'Case-insensitive system tab check');
+assert.strictEqual(SheetModule.isSystemTab('老王便當'), false, 'Custom tab is not a system tab');
+assert.strictEqual(SheetModule.isSystemTab('金仙蝦捲飯'), false);
+
+// 11-2: Validation & Error handling
+const errEmpty = SheetModule.importCustomRestaurantMenu('週三', '');
+assert.strictEqual(errEmpty.success, false);
+assert.strictEqual(errEmpty.reason, 'EMPTY_NAME');
+
+const errSystem = SheetModule.importCustomRestaurantMenu('週三', 'Orders');
+assert.strictEqual(errSystem.success, false);
+assert.strictEqual(errSystem.reason, 'SYSTEM_TAB');
+
+const errNotFound = SheetModule.importCustomRestaurantMenu('週三', '不存在之餐廳');
+assert.strictEqual(errNotFound.success, false);
+assert.strictEqual(errNotFound.reason, 'NOT_FOUND');
+
+// 11-3: Successful custom restaurant import
+SheetModule._mockStore.CustomRestaurants = {
+  '老王便當': [
+    { dayOfWeek: '週三', restaurantName: '老王便當', category: '精選便當', itemName: '招牌滷肉飯', price: 65, isAvailable: true, description: '附滷蛋與酸菜' },
+    { dayOfWeek: '週三', restaurantName: '老王便當', category: '精選便當', itemName: '酥炸雞排便當', price: 100, isAvailable: true, description: '現炸超大雞排' },
+    { dayOfWeek: '週三', restaurantName: '老王便當', category: '湯品飲料', itemName: '冬瓜蛤蜊湯', price: 35, isAvailable: true, description: '' }
+  ]
+};
+
+const impRes = SheetModule.importCustomRestaurantMenu('週三', '老王便當');
+assert.strictEqual(impRes.success, true);
+assert.strictEqual(impRes.restaurantName, '老王便當');
+assert.strictEqual(impRes.dayOfWeek, '週三');
+assert.strictEqual(impRes.count, 3);
+
+// Verify WeeklySchedule was updated
+const wedSchedule = SheetModule.getScheduleByDay('週三');
+assert.strictEqual(wedSchedule.restaurantName, '老王便當');
+assert.strictEqual(wedSchedule.notes, '從自訂餐廳匯入');
+
+// Verify Menu was updated
+const wedMenu = SheetModule.getMenuItems('週三', '老王便當');
+assert.strictEqual(wedMenu.length, 3);
+assert.strictEqual(wedMenu[0].itemName, '招牌滷肉飯');
+assert.strictEqual(wedMenu[0].price, 65);
+assert.strictEqual(wedMenu[1].itemName, '酥炸雞排便當');
+assert.strictEqual(wedMenu[1].price, 100);
+
+// 11-4: Chat command handling
+// Test system tab warning via chat
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sys_tab',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '匯入餐廳 週三 Menu' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('系統專用功能工作表'), 'System tab rejected in chat');
+
+// Test not found warning via chat
+OrderModule.handleTextMessage({
+  replyToken: 'tok_not_found',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '匯入餐廳 週三 神秘幽靈廚房' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('找不到工作表名稱為【神秘幽靈廚房】'), 'Not found warning in chat');
+
+// Test successful import via chat
+OrderModule.handleTextMessage({
+  replyToken: 'tok_chat_import_ok',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '匯入自訂餐廳 週三 老王便當' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已成功從自訂餐廳【老王便當】匯入至 週三 菜單'), 'Chat import success msg');
+assert.ok(lastReply.text.includes('共匯入 3 道餐點'), 'Chat import count check');
+
+// 11-5: Dialog function exported
+assert.strictEqual(typeof CodeModule.showCustomRestaurantImportDialog, 'function');
+console.log('  ✔ Custom restaurant tab menu import and chat commands verified.\n');
+
 // Clean up mock date
 globalThis._mockCurrentDate = null;
 
