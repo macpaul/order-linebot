@@ -186,7 +186,12 @@ function initSheets() {
     },
     {
       name: CONFIG.SHEET_NAMES.CHILDREN,
-      headers: ['UserId', 'UserName', 'UserNickname', 'ChildName', 'Note', 'CreatedAt', 'UpdatedAt']
+      headers: ['UserId', 'UserName', 'UserNickname', 'ChildName', 'Note', 'CreatedAt', 'UpdatedAt'],
+      initData: [
+        ['U00000000000000000000000000000001', '愛麗絲', '愛麗絲媽咪', '大寶', '附小三年二班', '2026-09-07 08:00:00', '2026-09-07 08:00:00'],
+        ['U00000000000000000000000000000001', '愛麗絲', '愛麗絲媽咪', '二寶', '附幼企鵝班', '2026-09-07 08:00:00', '2026-09-07 08:00:00'],
+        ['U00000000000000000000000000000002', '小鮑伯', '鮑伯爸爸', '小寶', '附小一年一班 (不吃牛)', '2026-09-07 08:00:00', '2026-09-07 08:00:00']
+      ]
     }
   ];
 
@@ -221,7 +226,39 @@ function initSheets() {
           sheet.appendRow(row);
         });
       }
-    } else if (def.name === CONFIG.SHEET_NAMES.CONFIG && def.initData && def.initData.length > 0) {
+    } else {
+      // If sheet exists but is completely empty (0 rows), populate headers and sample data
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow(def.headers);
+        sheet.getRange(1, 1, 1, def.headers.length).setFontWeight('bold').setBackground('#EFEFEF');
+        if (def.initData && def.initData.length > 0) {
+          def.initData.forEach(function (row) {
+            sheet.appendRow(row);
+          });
+        }
+      } else {
+        // Ensure row 1 has valid headers if blank
+        var r1Vals = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+        var isR1Empty = r1Vals.every(function (v) { return !String(v).trim(); });
+        if (isR1Empty) {
+          sheet.getRange(1, 1, 1, def.headers.length).setValues([def.headers]).setFontWeight('bold').setBackground('#EFEFEF');
+        }
+      }
+
+      if (def.name === CONFIG.SHEET_NAMES.CHILDREN) {
+        // Ensure Children headers are present in row 1
+        var cHeaderVals = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+        var firstH = String(cHeaderVals[0] || '').trim().toLowerCase();
+        if (!firstH || firstH !== 'userid') {
+          sheet.getRange(1, 1, 1, def.headers.length).setValues([def.headers]).setFontWeight('bold').setBackground('#EFEFEF');
+        }
+        // If Children tab has only header row (0 data rows), append sample initData rows
+        if (sheet.getLastRow() <= 1 && def.initData && def.initData.length > 0) {
+          def.initData.forEach(function (row) {
+            sheet.appendRow(row);
+          });
+        }
+      } else if (def.name === CONFIG.SHEET_NAMES.CONFIG && def.initData && def.initData.length > 0) {
       // Backfill missing config keys into existing Config sheet
       var existingData = sheet.getDataRange().getValues();
       var existingKeys = {};
@@ -305,6 +342,7 @@ function initSheets() {
         }
       });
     }
+  }
   });
 
   try {
