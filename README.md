@@ -158,6 +158,8 @@ npm run bundle
   **「今日統計」/「統計」完全獨立於 `CLOSE_ORDER_SCOPE`（結單範圍）與 `ORDER_RECEIPT_SCOPE`（收據範圍）設定**。無論何時呼叫、無論是在開單中或結單截止後，系統一律只會嚴格查詢屬於今日梯次的訂單資料，並排除其他星期的預約。**程式碼已全面支援 `DayOfWeek` 自動容錯正規化（相容「週一」、「星期一」、「周一」、「禮拜一」、「Mon」、「1」等寫法）與欄位動態適配（相容舊版無星期欄位試算表，自動補建且絕不誤讀 GroupId）**。時區方面直接動態讀取試算表檔案設定之時區，請確認試算表「檔案 ➡️ 設定」時區為 `(GMT+08:00) 台北時間`，亦可在試算表上方選單點擊「`🍱 便當訂餐管理` ➡️ `🕒 檢查 Apps Script 時區與系統時間`」一鍵診斷。詳情參閱 [docs/deployment_guide.md#q9今日統計訂餐名單匯總原理與-apps-script-時區時間確認方式](docs/deployment_guide.md)。
 - **開單人身份防偽冒、更換開單人權限鎖定 (`ALLOW_SWITCH_ORGANIZER`) 與公式注入防護？**
   系統開單人管理權限判定嚴格採用 LINE 伺服器簽發的專屬加密 `ORGANIZER_ID` (`userId`)，徹底移除顯示名稱比對，杜絕透過竄改 LINE 暱稱進行的管理員身份偽冒。此外，在 `Config` 中新增 `ALLOW_SWITCH_ORGANIZER` 設定（預設 `true`，設為 `false` 即可鎖定僅限現任開單人重新開單或換店家，防止群組成員發送「開單」誤搶或覆寫開單人身份）。同時針對所有寫入試算表的欄位（包含餐點、小孩姓名備註、Logs）進行全面公式注入防護（`/^\s*[=+\-@\t\r]/` 自動轉義）。詳情請參閱 [docs/deployment_guide.md#q12系統安全性防護機制開單人防偽冒更換開單人權限鎖定與公式注入防護](docs/deployment_guide.md#q12系統安全性防護機制開單人防偽冒更換開單人權限鎖定與公式注入防護)。
+- **LINE Developers Webhook 按下 Verify 逾時或資安防偽驗證？**
+  LINE Developers Console 的「Verify」按鈕有嚴格的 1 秒逾時限制。本系統已全面實作驗證探針極速回應（< 100ms），跳過耗時的試算表連線，使 Verify 按鈕能立即返回綠色 `Success`。此外，由於 Google Apps Script 平台原生不提供 HTTP Request Headers，本專案支援 Webhook URL Token 雙軌驗證，可在 Webhook URL 加上 `?token=您的CHANNEL_SECRET`，由伺服器自動比對並阻擋未授權存取。詳情請參閱 [docs/deployment_guide.md#4-webhook-存取防偽驗證與-verify-探針加速-webhook-security--probe-fast-path](docs/deployment_guide.md)。
 
 ---
 
