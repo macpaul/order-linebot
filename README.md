@@ -148,7 +148,11 @@ npm run bundle
 
 ---
 
-## 📄 開發規範與授權
+## 📄 開發規範與開源授權 (AGPL-3.0 Compliance)
 
+- 本專案採用 [GNU Affero General Public License v3.0 (AGPLv3)](LICENSE) 授權。
+- **重要開源合規須知 (AGPL-3.0 要求)**：
+  - 本系統屬於透過網路提供互動的軟體服務（Network-Interactive Service）。依 AGPL-3.0 授權條款，**若您有修改任何程式碼並上線運行提供使用者使用，您必須將修改後的完整原始碼公開上傳至公開的 Git 儲存庫 (public git repo)**（例如 GitHub 或 GitLab）。
+  - 同時，請在您的 Google 試算表 `Config` 工作表中，將 **`SOURCE_CODE_URL`** 欄位修改為**您自己的公開 Git 儲存庫網址**。
+  - LINE 聊天室中「幫助」說明卡片底部的「服務授權：AGPL-3.0 原始碼」連結會動態讀取此欄位，確保群組使用者隨時可取得對應執行版本的完整原始碼。
 - 嚴格遵循 Git 原子化提交規範 (1 commit per file, Signed-off-by, detailed commit body)。
-- [GNU Affero General Public License v3.0 (AGPLv3)](LICENSE)。
