@@ -53,7 +53,14 @@ var CONFIG = {
   /**
    * Default Open Source Repository URL (AGPL-3.0)
    */
-  SOURCE_CODE_URL: 'https://tinyurl.com/4c92wtee'
+  SOURCE_CODE_URL: 'https://tinyurl.com/4c92wtee',
+
+  /**
+   * Allow group members to switch organizer when calling '開單'
+   * 'true': Anyone calling '開單' becomes the new organizer
+   * 'false': Only the existing ORGANIZER_ID can modify or open order
+   */
+  ALLOW_SWITCH_ORGANIZER: 'true'
 };
 
 /**
