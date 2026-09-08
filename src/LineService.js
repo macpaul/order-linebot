@@ -381,11 +381,14 @@ function validateSignature(bodyString, signature, channelSecret) {
     return false;
   }
 
-  // 1. Google Apps Script — Utilities.computeHmacSha256Signature (base64).
+  // 1. Google Apps Script — Utilities.computeHmacSha256 and base64Encode.
   try {
     if (typeof Utilities !== 'undefined' &&
-        typeof Utilities.computeHmacSha256Signature === 'function') {
-      var gasExpected = Utilities.computeHmacSha256Signature(bodyString, channelSecret, 'UTF-8');
+        typeof Utilities.computeHmacSha256 === 'function') {
+      var rawSig = Utilities.computeHmacSha256(bodyString, channelSecret);
+      var gasExpected = (typeof Utilities.base64Encode === 'function')
+        ? Utilities.base64Encode(rawSig)
+        : Utilities.base64EncodeWebSafe(rawSig);
       return gasExpected === signature;
     }
   } catch (e) {
