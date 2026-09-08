@@ -267,7 +267,10 @@ function doPost(e) {
       // 3. Join Group Event - Say Hello
       else if (event.type === 'join') {
         var joinReplyToken = event.replyToken;
-        var helpFlex = createHelpFlex();
+        var sourceCodeUrl = (typeof getConfigValue === 'function')
+          ? getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee')
+          : 'https://tinyurl.com/4c92wtee';
+        var helpFlex = createHelpFlex(sourceCodeUrl);
         replyFlex(joinReplyToken, '感謝邀請便當點餐小幫手！', helpFlex);
       }
     }
