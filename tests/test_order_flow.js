@@ -616,10 +616,12 @@ delete SheetModule._mockStore.Config['ORGANIZER_ID'];
 delete SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'];
 delete SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'];
 delete SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'];
+delete SheetModule._mockStore.Config['ALLOW_SWITCH_ORGANIZER'];
 assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'], undefined);
+assert.strictEqual(SheetModule._mockStore.Config['ALLOW_SWITCH_ORGANIZER'], undefined);
 
 const initRes = SheetModule.initSheets();
 assert.strictEqual(initRes, true);
@@ -627,6 +629,7 @@ assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], '');
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], '');
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'], '');
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'], '');
+assert.strictEqual(SheetModule._mockStore.Config['ALLOW_SWITCH_ORGANIZER'], 'true');
 assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_NAME'), '小幫手');
 assert.strictEqual(SheetModule.getConfigValue('CLOSE_ORDER_SCOPE'), 'WEEKLY');
 console.log('  ✔ initSheets automatically backfills all recently added Config variables.\n');
@@ -1347,6 +1350,122 @@ assert.ok(!lastReply || !lastReply.text || !lastReply.text.includes('已成功�
 // 11-5: Dialog function exported
 assert.strictEqual(typeof CodeModule.showCustomRestaurantImportDialog, 'function');
 console.log('  ✔ Custom restaurant tab menu import verified (chat command dormant).\n');
+
+// 12. Security Hardening Tests
+console.log('▶ Test 12: Security Hardening (Privilege Escalation, Formula Injection, Organizer Switching Lock)');
+
+// 12-1: Privilege escalation via LINE display name spoofing
+SheetModule.setConfigValue('ORGANIZER_ID', 'user_boss');
+SheetModule.setConfigValue('ORGANIZER_NAME', '老闆');
+
+// Legitimate organizer has permission
+assert.strictEqual(OrderModule.isUserOrganizer('user_boss', '任意暱稱'), true);
+// Impostor with matching display name but different userId is rejected
+assert.strictEqual(OrderModule.isUserOrganizer('attacker_eve', '老闆'), false);
+assert.strictEqual(OrderModule.isUserOrganizer('attacker_eve', '小幫手'), false);
+
+// Bob has an active order on Friday
+SheetModule.addOrder({
+  userId: 'user_bob',
+  groupId: groupId,
+  itemName: '脆皮燒肉飯',
+  quantity: 1,
+  price: 105,
+  userName: '小鮑伯',
+  userNickname: '小鮑伯',
+  dayOfWeek: '週五'
+});
+
+// Attacker Eve with display name "老闆" attempts to cancel Bob's meal -> REJECTED
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_eve_spoof_cancel',
+  source: { groupId: groupId, userId: 'attacker_eve' },
+  message: { type: 'text', text: '取消 小鮑伯 脆皮燒肉飯' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('除了開單人，不能取消其他使用者的餐點'), 'Eve cannot cancel Bob order despite spoofed display name');
+var bobOrderCheck = SheetModule.getUserOrders('user_bob', groupId, null, '週五', '小鮑伯');
+assert.strictEqual(bobOrderCheck.length, 1, 'Bob order remains intact');
+console.log('  ✔ Display name spoofing neutralized: only unforgeable userId authorized.');
+
+// 12-2: Formula Injection Sanitization
+assert.strictEqual(SheetModule._sanitizeSheetCell('=SUM(A1:B2)'), "'=SUM(A1:B2)");
+assert.strictEqual(SheetModule._sanitizeSheetCell('+cmd|/C calc!A0'), "'+cmd|/C calc!A0");
+assert.strictEqual(SheetModule._sanitizeSheetCell('-123'), "'-123");
+assert.strictEqual(SheetModule._sanitizeSheetCell('@SUM(A1)'), "'@SUM(A1)");
+assert.strictEqual(SheetModule._sanitizeSheetCell('   =SUM(A1)'), "'   =SUM(A1)");
+assert.strictEqual(SheetModule._sanitizeSheetCell('\t=SUM(A1)'), "'\t=SUM(A1)");
+assert.strictEqual(SheetModule._sanitizeSheetCell('\r-456'), "'\r-456");
+assert.strictEqual(SheetModule._sanitizeSheetCell('一般文字'), '一般文字');
+assert.strictEqual(SheetModule._sanitizeSheetCell(123), 123);
+assert.strictEqual(SheetModule._sanitizeSheetCell(null), null);
+assert.strictEqual(SheetModule._sanitizeSheetCell(undefined), undefined);
+
+// Formula injection sanitization in Children sheet
+SheetModule.saveChild('user_alice', '=Alice', '   +Ally', '@LittleAlice', '\t-NoteFormula');
+var aliceChildren = SheetModule.getChildrenProfiles('user_alice');
+var maliciousChild = aliceChildren.find(function (c) { return c.childName.includes('LittleAlice'); });
+assert.ok(maliciousChild, 'Child profile saved');
+assert.strictEqual(maliciousChild.childName, "'@LittleAlice");
+assert.strictEqual(maliciousChild.note, "'\t-NoteFormula");
+
+// Formula injection sanitization in setChildren
+SheetModule.setChildren('user_alice', 'Alice', 'Alice', ['=Kid1', '  +Kid2']);
+var aliceChildrenSet = SheetModule.getChildren('user_alice');
+assert.ok(aliceChildrenSet.includes("'=Kid1"));
+assert.ok(aliceChildrenSet.includes("'+Kid2"));
+
+// Formula injection sanitization in logToSheet
+SheetModule.logToSheet('=MALICIOUS_TYPE', '  +MALICIOUS_LOG', '\t@PAYLOAD');
+var lastLog = SheetModule._mockStore.Logs[SheetModule._mockStore.Logs.length - 1];
+assert.strictEqual(lastLog[1], "'=MALICIOUS_TYPE");
+assert.strictEqual(lastLog[2], "'  +MALICIOUS_LOG");
+assert.strictEqual(lastLog[3], "'\t@PAYLOAD");
+console.log('  ✔ Enhanced formula injection sanitization verified across cells, profiles, and logs.');
+
+// 12-3: Organizer Switch Lock (ALLOW_SWITCH_ORGANIZER)
+// Initially ALLOW_SWITCH_ORGANIZER is true
+SheetModule.setConfigValue('ALLOW_SWITCH_ORGANIZER', 'true');
+SheetModule.setConfigValue('ORGANIZER_ID', 'user_boss');
+
+// When true, anyone calling 開單 can switch organizer
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_alice_open_allowed',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '開單 福山排骨便當 11:30' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_ID'), 'user_alice');
+console.log('  ✔ ALLOW_SWITCH_ORGANIZER=true permits new organizer to take over on 開單.');
+
+// When false, non-organizer calling 開單 is rejected
+SheetModule.setConfigValue('ALLOW_SWITCH_ORGANIZER', 'false');
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_bob_open_forbidden',
+  source: { groupId: groupId, userId: 'user_bob' },
+  message: { type: 'text', text: '開單 金仙蝦捲飯 11:30' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已鎖定開單人，非現任開單人無法重新開單或更換開單人'));
+assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_ID'), 'user_alice', 'Organizer remains Alice');
+
+// Current organizer (Alice) calling 開單 while locked is allowed
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_alice_open_self',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '開單 金仙蝦捲飯 11:45' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_ID'), 'user_alice');
+console.log('  ✔ ALLOW_SWITCH_ORGANIZER=false blocks unauthorized takeover but allows existing organizer.');
+
+// Reset ALLOW_SWITCH_ORGANIZER back to true
+SheetModule.setConfigValue('ALLOW_SWITCH_ORGANIZER', 'true');
+console.log('  ✔ Security hardening test suite completed.\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
