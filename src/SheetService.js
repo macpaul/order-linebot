@@ -22,7 +22,8 @@ var _mockStore = {
     'PAYMENT_BANK_ACCOUNT_NAME': '',
     'PAYMENT_BANK_QR_URL': '',
     'PAYMENT_LINEPAY_QR_URL': '',
-    'SOURCE_CODE_URL': 'https://tinyurl.com/4c92wtee'
+    'SOURCE_CODE_URL': 'https://tinyurl.com/4c92wtee',
+    'ALLOW_SWITCH_ORGANIZER': 'true'
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -147,7 +148,8 @@ function initSheets() {
         ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)'],
         ['PAYMENT_BANK_QR_URL', '', '收款銀行 QR Code 圖片網址 (支援 Google Drive 分享連結或圖床)'],
         ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)'],
-        ['SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee', '開源原始碼網址 (AGPL-3.0 規定若修改本程式碼需開源並將此處更新為自己的 public git repo)']
+        ['SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee', '開源原始碼網址 (AGPL-3.0 規定若修改本程式碼需開源並將此處更新為自己的 public git repo)'],
+        ['ALLOW_SWITCH_ORGANIZER', 'true', '是否允許任意群組成員藉由「開單」更換開單人 (true: 允許 / false: 僅限現任開單人)']
       ]
     },
     {
@@ -629,11 +631,14 @@ function getMenuItems(dayOfWeek, restaurantName) {
 }
 
 /**
- * Sanitize cell values against Google Sheets formula injection (=, +, -, @)
+ * Sanitize cell values against Google Sheets formula injection (=, +, -, @, \t, \r)
+ * Neutralizes potential formula injection even if preceded by whitespace.
  */
 function _sanitizeSheetCell(val) {
-  if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
-    return "'" + val;
+  if (typeof val === 'string') {
+    if (/^\s*[=+\-@\t\r]/.test(val)) {
+      return "'" + val;
+    }
   }
   return val;
 }
@@ -1745,7 +1750,21 @@ function checkTimeZoneAndCurrentTime() {
  * Log diagnostic events directly into a 'Logs' sheet tab in Google Sheets
  */
 function logToSheet(type, message, detail) {
-  if (!isGasRuntime()) return;
+  var detailStr = '';
+  if (typeof detail === 'object') {
+    try { detailStr = JSON.stringify(detail); } catch (e) { detailStr = String(detail); }
+  } else if (detail !== undefined && detail !== null) {
+    detailStr = String(detail);
+  }
+  var safeType = _sanitizeSheetCell(type || 'INFO');
+  var safeMessage = _sanitizeSheetCell(message || '');
+  var safeDetail = _sanitizeSheetCell(detailStr);
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.Logs) _mockStore.Logs = [];
+    _mockStore.Logs.push([new Date().toISOString(), safeType, safeMessage, safeDetail]);
+    return;
+  }
   try {
     var ss = getSpreadsheet();
     if (!ss) return;
@@ -1755,13 +1774,7 @@ function logToSheet(type, message, detail) {
       logSheet.appendRow(['Timestamp', 'Type', 'Message', 'Detail']);
       logSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#EFEFEF');
     }
-    var detailStr = '';
-    if (typeof detail === 'object') {
-      try { detailStr = JSON.stringify(detail); } catch (e) { detailStr = String(detail); }
-    } else if (detail !== undefined && detail !== null) {
-      detailStr = String(detail);
-    }
-    logSheet.appendRow([new Date().toISOString(), type || 'INFO', message || '', detailStr]);
+    logSheet.appendRow([new Date().toISOString(), safeType, safeMessage, safeDetail]);
   } catch (e) {}
 }
 
@@ -1859,15 +1872,15 @@ function saveChild(userId, userName, userNickname, childName, note) {
       }
     }
     if (existing) {
-      if (note !== undefined && note !== null && note !== '') existing.note = note;
+      if (note !== undefined && note !== null && note !== '') existing.note = _sanitizeSheetCell(note);
       existing.updatedAt = nowStr;
     } else {
       _mockStore.Children.push({
         userId: userId,
-        userName: userName || '',
-        userNickname: userNickname || userName || '',
-        childName: cName,
-        note: note || '',
+        userName: _sanitizeSheetCell(userName || ''),
+        userNickname: _sanitizeSheetCell(userNickname || userName || ''),
+        childName: _sanitizeSheetCell(cName),
+        note: _sanitizeSheetCell(note || ''),
         createdAt: nowStr,
         updatedAt: nowStr
       });
@@ -1888,14 +1901,22 @@ function saveChild(userId, userName, userNickname, childName, note) {
   for (var r = 1; r < rows.length; r++) {
     if (String(rows[r][0]).trim() === userId && String(rows[r][3]).trim() === cName) {
       if (note !== undefined && note !== null && note !== '') {
-        sheet.getRange(r + 1, 5).setValue(note);
+        sheet.getRange(r + 1, 5).setValue(_sanitizeSheetCell(note));
       }
       sheet.getRange(r + 1, 7).setValue(nowStr);
       return true;
     }
   }
 
-  sheet.appendRow([userId, userName || '', userNickname || userName || '', cName, note || '', nowStr, nowStr]);
+  sheet.appendRow([
+    userId,
+    _sanitizeSheetCell(userName || ''),
+    _sanitizeSheetCell(userNickname || userName || ''),
+    _sanitizeSheetCell(cName),
+    _sanitizeSheetCell(note || ''),
+    nowStr,
+    nowStr
+  ]);
   return true;
 }
 
@@ -1918,9 +1939,9 @@ function setChildren(userId, userName, userNickname, childNames) {
     names.forEach(function (n) {
       _mockStore.Children.push({
         userId: userId,
-        userName: userName || '',
-        userNickname: userNickname || userName || '',
-        childName: n,
+        userName: _sanitizeSheetCell(userName || ''),
+        userNickname: _sanitizeSheetCell(userNickname || userName || ''),
+        childName: _sanitizeSheetCell(n),
         note: '',
         createdAt: nowStr,
         updatedAt: nowStr
@@ -1947,7 +1968,15 @@ function setChildren(userId, userName, userNickname, childNames) {
 
   var nowTime = new Date().toISOString();
   names.forEach(function (n) {
-    sheet.appendRow([userId, userName || '', userNickname || userName || '', n, '', nowTime, nowTime]);
+    sheet.appendRow([
+      userId,
+      _sanitizeSheetCell(userName || ''),
+      _sanitizeSheetCell(userNickname || userName || ''),
+      _sanitizeSheetCell(n),
+      '',
+      nowTime,
+      nowTime
+    ]);
   });
   return true;
 }
@@ -2031,6 +2060,7 @@ function deleteChild(userId, childName) {
   g.saveChild = saveChild;
   g.setChildren = setChildren;
   g.deleteChild = deleteChild;
+  g._sanitizeSheetCell = _sanitizeSheetCell;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -2071,6 +2101,7 @@ function deleteChild(userId, childName) {
       saveChild: saveChild,
       setChildren: setChildren,
       deleteChild: deleteChild,
+      _sanitizeSheetCell: _sanitizeSheetCell,
       _mockStore: _mockStore
     };
   }
