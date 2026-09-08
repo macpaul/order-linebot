@@ -107,6 +107,7 @@
 | `IS_ORDERING_OPEN` | `false` | 今日是否開放即時點餐（`true` / `false`）。管理員亦可於群組發送「開單」或「結單」自動切換。 |
 | `RESTAURANT_NAME` | `老王便當` | 今日配合店家名稱。 |
 | `CUTOFF_TIME` | `11:00` | 今日點餐截止時間。 |
+| `SOURCE_CODE_URL` | `https://tinyurl.com/4c92wtee` | **開源原始碼公開網址 (AGPL-3.0 合規)**：<br>• 預設指向官方原始碼儲存庫。<br>• **重要須知**：根據 AGPL-3.0 規定，若您**有修改任何程式碼並上線運行提供他人使用**，您**必須將修改後的完整程式碼公開至公開 Git 儲存庫 (public git repo)**，並將此欄位修改為**您自己的公開 Git 儲存庫網址**。此網址會即時呈現在 LINE 「幫助」卡片底部的服務授權連結中。 |
 
 ### 步驟 2：開啟 Apps Script 編輯器
 1. 在試算表上方工具列，點選 **擴充功能 (Extensions) -> Apps Script**。
