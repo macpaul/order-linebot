@@ -1005,10 +1005,24 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
  *   header  – title banner ("便當點餐使用說明")
  *   body     – list of commands, each with a quick-action button
  *   footer   – usage hint
- *
+ * @param {string} [sourceCodeUrl] - Open source repo URL (defaults to Config SOURCE_CODE_URL)
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createHelpFlex() {
+function createHelpFlex(sourceCodeUrl) {
+  var srcUrl = sourceCodeUrl;
+  if (!srcUrl) {
+    if (typeof getConfigValue === 'function') {
+      srcUrl = getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    } else if (typeof SheetModule !== 'undefined' && typeof SheetModule.getConfigValue === 'function') {
+      srcUrl = SheetModule.getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    } else if (typeof getConfigProperty === 'function') {
+      srcUrl = getConfigProperty('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    } else {
+      srcUrl = 'https://tinyurl.com/4c92wtee';
+    }
+  }
+  srcUrl = String(srcUrl || 'https://tinyurl.com/4c92wtee').trim();
+
   /* ---- header ---- */
   var header = _flexBox([
     _flexText('📖 便當點餐使用說明', {
@@ -1091,7 +1105,7 @@ function createHelpFlex() {
       color: FLEX_COLORS.primaryDark,
       align: 'center'
     }),
-    _flexText('服務授權：AGPL-3.0 原始碼 https://tinyurl.com/4c92wtee', {
+    _flexText('服務授權：AGPL-3.0 原始碼 ' + srcUrl, {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -1099,7 +1113,7 @@ function createHelpFlex() {
       wrap: true,
       action: {
         type: 'uri',
-        uri: 'https://tinyurl.com/4c92wtee'
+        uri: srcUrl
       }
     })
   ], {
