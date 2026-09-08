@@ -48,7 +48,12 @@ var CONFIG = {
    * Default daily cutoff time (24-hour clock)
    */
   DEFAULT_CUTOFF_HOUR: 11,
-  DEFAULT_CUTOFF_MINUTE: 0
+  DEFAULT_CUTOFF_MINUTE: 0,
+
+  /**
+   * Default Open Source Repository URL (AGPL-3.0)
+   */
+  SOURCE_CODE_URL: 'https://tinyurl.com/4c92wtee'
 };
 
 /**
