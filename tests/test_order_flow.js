@@ -1465,6 +1465,55 @@ console.log('  ✔ ALLOW_SWITCH_ORGANIZER=false blocks unauthorized takeover but
 
 // Reset ALLOW_SWITCH_ORGANIZER back to true
 SheetModule.setConfigValue('ALLOW_SWITCH_ORGANIZER', 'true');
+
+// 12-4: Webhook Security & LINE Verify Probe Fast-Path
+// A: Empty events (LINE Developers Verify probe) returns 200 immediately
+var verifyRes = CodeModule.doPost({
+  postData: { contents: JSON.stringify({ destination: 'xxx', events: [] }) }
+});
+assert.strictEqual(verifyRes.statusCode, 200);
+assert.strictEqual(verifyRes.body.status, 'success');
+assert.strictEqual(verifyRes.body.message, 'Webhook verified');
+
+// B: URL token verification
+process.env.CHANNEL_SECRET = 'secret_test_key_123';
+
+// Incorrect token when token query parameter is passed
+var badTokenRes = CodeModule.doPost({
+  parameter: { token: 'wrong_token' },
+  postData: { contents: JSON.stringify({ events: [{ type: 'message' }] }) }
+});
+assert.strictEqual(badTokenRes.statusCode, 403);
+assert.strictEqual(badTokenRes.body.error, 'Invalid secret token');
+
+// Matching token succeeds
+var goodTokenRes = CodeModule.doPost({
+  parameter: { token: 'secret_test_key_123' },
+  postData: { contents: JSON.stringify({ events: [] }) }
+});
+assert.strictEqual(goodTokenRes.statusCode, 200);
+
+// C: Header signature validation
+var testPayload = JSON.stringify({ events: [] });
+var crypto = require('crypto');
+var validSig = crypto.createHmac('sha256', 'secret_test_key_123').update(testPayload, 'utf8').digest('base64');
+
+var goodSigRes = CodeModule.doPost({
+  headers: { 'X-Line-Signature': validSig },
+  postData: { contents: testPayload }
+});
+assert.strictEqual(goodSigRes.statusCode, 200);
+
+var badSigRes = CodeModule.doPost({
+  headers: { 'X-Line-Signature': 'invalid_signature_xyz' },
+  postData: { contents: testPayload }
+});
+assert.strictEqual(badSigRes.statusCode, 403);
+assert.strictEqual(badSigRes.body.error, 'Invalid signature');
+
+// Clean up mock secret
+delete process.env.CHANNEL_SECRET;
+console.log('  ✔ Webhook security (URL Token, Header Signature, Verify Probe Fast-Path) verified.');
 console.log('  ✔ Security hardening test suite completed.\n');
 
 // Clean up mock date
