@@ -157,10 +157,11 @@
 1. 回到 **LINE Developers Console** -> 您的 Channel -> **Messaging API** 標籤頁。
 2. 找到 **Webhook settings**：
    - 將剛複製的 Google Web App URL 貼入 **Webhook URL** 欄位。
+   - 💡 **資安防偽強化（推薦）**：若您在指令碼屬性設定了 `CHANNEL_SECRET`，強烈建議將 Webhook URL 設定為帶有 Token 參數：`https://script.google.com/macros/s/.../exec?token=您的CHANNEL_SECRET`。系統將自動進行比對，任何未帶合法 Token 的外部偽造請求都會被 403 攔截。
    - 點擊 **Update**。
    - 開啟 **Use webhook** 開關。
 3. 點擊 **Verify** 按鈕：
-   - 若出現綠色 **Success**，代表 LINE 已成功連線至您的 Google Apps Script！
+   - 本專案已實作驗證探針極速回應（< 100ms），點擊 Verify 將立即出現綠色 **Success**，不再發生 Verify 逾時！
 
 ---
 
@@ -451,4 +452,10 @@ Google Apps Script 執行於 Google 雲端無伺服器環境中，為避免時�
 #### 3. 試算表公式注入防護 (Formula / CSV Injection Mitigation)
 - **風險**：若使用者點餐、輸入小孩姓名/備註、或自訂餐廳菜單時包含試算表公式特殊符號（例如 `=CMD(...)`、`+...`、`-...`、`@...`），在試算表開啟或匯出 CSV 時可能觸發惡意公式執行或資料外洩。此外，試算表會忽略前置空白或 Tab 字元，因此僅檢查第一個字元無法防禦 `  =1+1` 類型的繞過。
 - **防禦機制**：系統採用強化正規表達式 `/^\s*[=+\-@\t\r]/`，在將任何使用者輸入寫入 Google 試算表（涵蓋 `Orders`、`Children`、`Menu`、`Logs` 等工作表）前，均會自動補上前置單引號 `'` 進行純文字轉義中立化，確保在 Google Sheets 或 Excel 中均作為純字串安全儲存。
+
+#### 4. Webhook 存取防偽驗證與 Verify 探針加速 (Webhook Security & Probe Fast-Path)
+- **GAS 平台特性與雙軌驗證**：Google Apps Script 的 Web App 接收環境原生不提供 HTTP Request Headers，因此無法直接取得 LINE 的 `x-line-signature`。本專案支援雙軌驗證：
+  1. **URL Token 驗證（GAS 標準做法）**：在 LINE Developers 的 Webhook URL 後方帶入 `?token=YOUR_CHANNEL_SECRET`，系統於 `doPost` 中嚴格比對 Token，杜絕未授權存取 (HTTP 403)。
+  2. **Header Signature 簽章驗證**：在非 GAS 或代理伺服器環境中，若請求帶有 `X-Line-Signature`，系統會使用標準 HMAC-SHA256 進行加密簽章驗證。
+- **LINE Verify 探針極速回傳**：當 LINE Developers Console 點擊「Verify」時，LINE 會發送空事件陣列（`events: []`）。系統偵測到探針後立即以 HTTP 200 回應（耗時 < 100ms），跳過耗時的試算表連線，徹底根除 1 秒逾時問題。
 
