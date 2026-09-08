@@ -223,8 +223,16 @@ function doPost(e) {
                     (e.headers && (e.headers['X-Line-Signature'] || e.headers['x-line-signature']));
 
     var channelSecret = getConfigProperty('CHANNEL_SECRET', '');
+    var queryToken = (e.parameter && (e.parameter.token || e.parameter.secret)) || '';
 
-    // Signature verification (if secret is configured)
+    // 1. Webhook Security Verification
+    // Path A: If query token is provided, verify against CHANNEL_SECRET
+    if (channelSecret && queryToken) {
+      if (queryToken !== channelSecret) {
+        return _createResponse(403, { error: 'Invalid secret token' });
+      }
+    }
+    // Path B: If X-Line-Signature is present (e.g. proxy or test environment), verify signature
     if (channelSecret && signature) {
       var isValid = validateSignature(bodyString, signature, channelSecret);
       if (!isValid) {
@@ -234,6 +242,14 @@ function doPost(e) {
 
     var json = JSON.parse(bodyString);
     var events = json.events || [];
+
+    // 2. LINE Developers Console "Verify" Probe Fast-Path
+    // When LINE sends an empty event list ({"destination":"...","events":[]}) for webhook verification,
+    // respond immediately (< 100ms) with HTTP 200 without running heavy sheet operations,
+    // preventing the 1-second timeout in LINE Developers Console.
+    if (!events || events.length === 0) {
+      return _createResponse(200, { status: 'success', message: 'Webhook verified' });
+    }
 
     // Ensure database sheets exist on first run
     initSheets();
