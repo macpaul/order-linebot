@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-08T01:04:30.850Z
+ * Automatically generated on: 2026-09-08T13:21:25.721Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -64,7 +64,12 @@ var CONFIG = {
    * Default daily cutoff time (24-hour clock)
    */
   DEFAULT_CUTOFF_HOUR: 11,
-  DEFAULT_CUTOFF_MINUTE: 0
+  DEFAULT_CUTOFF_MINUTE: 0,
+
+  /**
+   * Default Open Source Repository URL (AGPL-3.0)
+   */
+  SOURCE_CODE_URL: 'https://tinyurl.com/4c92wtee'
 };
 
 /**
@@ -620,7 +625,8 @@ var _mockStore = {
     'PAYMENT_BANK_ACCOUNT': '',
     'PAYMENT_BANK_ACCOUNT_NAME': '',
     'PAYMENT_BANK_QR_URL': '',
-    'PAYMENT_LINEPAY_QR_URL': ''
+    'PAYMENT_LINEPAY_QR_URL': '',
+    'SOURCE_CODE_URL': 'https://tinyurl.com/4c92wtee'
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -744,7 +750,8 @@ function initSheets() {
         ['PAYMENT_BANK_ACCOUNT', '', '收款銀行帳號 (例如: 123456789012)'],
         ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)'],
         ['PAYMENT_BANK_QR_URL', '', '收款銀行 QR Code 圖片網址 (支援 Google Drive 分享連結或圖床)'],
-        ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)']
+        ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)'],
+        ['SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee', '開源原始碼網址 (AGPL-3.0 規定若修改本程式碼需開源並將此處更新為自己的 public git repo)']
       ]
     },
     {
@@ -4185,10 +4192,24 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
  *   header  – title banner ("便當點餐使用說明")
  *   body     – list of commands, each with a quick-action button
  *   footer   – usage hint
- *
+ * @param {string} [sourceCodeUrl] - Open source repo URL (defaults to Config SOURCE_CODE_URL)
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createHelpFlex() {
+function createHelpFlex(sourceCodeUrl) {
+  var srcUrl = sourceCodeUrl;
+  if (!srcUrl) {
+    if (typeof getConfigValue === 'function') {
+      srcUrl = getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    } else if (typeof SheetModule !== 'undefined' && typeof SheetModule.getConfigValue === 'function') {
+      srcUrl = SheetModule.getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    } else if (typeof getConfigProperty === 'function') {
+      srcUrl = getConfigProperty('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    } else {
+      srcUrl = 'https://tinyurl.com/4c92wtee';
+    }
+  }
+  srcUrl = String(srcUrl || 'https://tinyurl.com/4c92wtee').trim();
+
   /* ---- header ---- */
   var header = _flexBox([
     _flexText('📖 便當點餐使用說明', {
@@ -4271,7 +4292,7 @@ function createHelpFlex() {
       color: FLEX_COLORS.primaryDark,
       align: 'center'
     }),
-    _flexText('服務授權：AGPL-3.0 原始碼 https://tinyurl.com/4c92wtee', {
+    _flexText('服務授權：AGPL-3.0 原始碼 ' + srcUrl, {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -4279,7 +4300,7 @@ function createHelpFlex() {
       wrap: true,
       action: {
         type: 'uri',
-        uri: 'https://tinyurl.com/4c92wtee'
+        uri: srcUrl
       }
     })
   ], {
@@ -5468,7 +5489,8 @@ function handleTextMessage(event) {
 
   // 1. HELP: 幫助 / 說明 / 指令 / help
   if (/^(幫助|說明|指令|help|\/help)$/i.test(text)) {
-    var helpFlex = FlexModule.createHelpFlex();
+    var sourceCodeUrl = SheetModule.getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    var helpFlex = FlexModule.createHelpFlex(sourceCodeUrl);
     return LineModule.replyFlex(replyToken, '便當點餐指令說明', helpFlex);
   }
 
@@ -6631,7 +6653,10 @@ function doPost(e) {
       // 3. Join Group Event - Say Hello
       else if (event.type === 'join') {
         var joinReplyToken = event.replyToken;
-        var helpFlex = createHelpFlex();
+        var sourceCodeUrl = (typeof getConfigValue === 'function')
+          ? getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee')
+          : 'https://tinyurl.com/4c92wtee';
+        var helpFlex = createHelpFlex(sourceCodeUrl);
         replyFlex(joinReplyToken, '感謝邀請便當點餐小幫手！', helpFlex);
       }
     }
