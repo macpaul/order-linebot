@@ -87,6 +87,15 @@
 | `匯入菜單 [週X] [網址]` | 透過 Uber Eats 店家網址自動匯入菜單 | `匯入菜單 週一 https://www.ubereats.com/...` |
 | `幫助` | 顯示所有指令與使用教學卡片 | `幫助` |
 
+### 📖 幫助選單展示
+
+輸入「`幫助`」或「`說明`」時，機器人將傳送具備快捷按鈕的互動卡片：
+
+<p align="center">
+  <img src="docs/images/help_menu.jpg" alt="幫助選單" width="380" /><br>
+  <b>幫助選單</b>
+</p>
+
 ---
 
 ## 📁 專案檔案結構
@@ -98,7 +107,9 @@ order-linebot/
 ├── package.json                   # 專案腳本與元資料
 ├── README.md                      # 專案說明與操作指南
 ├── docs/
-│   └── deployment_guide.md        # 完整免費部署與後台管理圖文教學
+│   ├── deployment_guide.md        # 完整免費部署與後台管理圖文教學
+│   └── images/
+│       └── help_menu.jpg          # 幫助選單互動卡片範例圖
 ├── src/
 │   ├── Config.js                  # 系統環境變數、常數與週排程定義
 │   ├── LineService.js             # LINE Messaging API 通訊封裝與簽名驗證
