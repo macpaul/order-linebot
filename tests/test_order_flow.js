@@ -955,10 +955,11 @@ assert.ok(closedSumJson.includes('已截止'), 'Status should reflect closed ord
 assert.ok(!closedSumJson.includes('招牌鍋貼'), 'Closed today summary still strictly queries only today data');
 assert.ok(closedSumJson.includes('日式厚切豬排飯 x3'), 'Today order count remains exact');
 
-// Verify Help Card command for 今日統計
+// Verify Help Card command for 今日統計 & footer license
 var helpCard = FlexModule.createHelpFlex();
 var helpJson = JSON.stringify(helpCard);
 assert.ok(helpJson.includes('"text":"今日統計"'), 'Help card button for 今日統計 must explicitly dispatch 今日統計 command');
+assert.ok(helpJson.includes('服務授權：AGPL-3.0 原始碼 https://tinyurl.com/4c92wtee'), 'Help card footer must display AGPL license and source code link');
 
 console.log('  ✔ 今日統計 is completely independent of CLOSE_ORDER_SCOPE / ORDER_RECEIPT_SCOPE and strictly isolates today\'s data.');
 
