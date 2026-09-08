@@ -544,7 +544,8 @@ function handleTextMessage(event) {
 
   // 1. HELP: 幫助 / 說明 / 指令 / help
   if (/^(幫助|說明|指令|help|\/help)$/i.test(text)) {
-    var helpFlex = FlexModule.createHelpFlex();
+    var sourceCodeUrl = SheetModule.getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
+    var helpFlex = FlexModule.createHelpFlex(sourceCodeUrl);
     return LineModule.replyFlex(replyToken, '便當點餐指令說明', helpFlex);
   }
 
