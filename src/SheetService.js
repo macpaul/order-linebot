@@ -21,7 +21,8 @@ var _mockStore = {
     'PAYMENT_BANK_ACCOUNT': '',
     'PAYMENT_BANK_ACCOUNT_NAME': '',
     'PAYMENT_BANK_QR_URL': '',
-    'PAYMENT_LINEPAY_QR_URL': ''
+    'PAYMENT_LINEPAY_QR_URL': '',
+    'SOURCE_CODE_URL': 'https://tinyurl.com/4c92wtee'
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -145,7 +146,8 @@ function initSheets() {
         ['PAYMENT_BANK_ACCOUNT', '', '收款銀行帳號 (例如: 123456789012)'],
         ['PAYMENT_BANK_ACCOUNT_NAME', '', '收款帳戶戶名 (例如: 王大明)'],
         ['PAYMENT_BANK_QR_URL', '', '收款銀行 QR Code 圖片網址 (支援 Google Drive 分享連結或圖床)'],
-        ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)']
+        ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)'],
+        ['SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee', '開源原始碼網址 (AGPL-3.0 規定若修改本程式碼需開源並將此處更新為自己的 public git repo)']
       ]
     },
     {
