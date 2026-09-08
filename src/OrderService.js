@@ -297,10 +297,6 @@ function isUserOrganizer(userId, userDisplayName) {
   if (organizerId && organizerId === userId) {
     return true;
   }
-  var organizerName = (SheetModule.getConfigValue('ORGANIZER_NAME', '') || '').trim();
-  if (organizerName && organizerName !== '小幫手' && userDisplayName && organizerName === userDisplayName) {
-    return true;
-  }
   return false;
 }
 
@@ -618,6 +614,14 @@ function handleTextMessage(event) {
   // 5. OPEN ORDER: 開單 [店家] [時間] / 開始訂餐
   var openMatch = text.match(/^(?:\/)?(?:開單|開始訂餐)(?:\s+(.+?))?(?:\s+([0-9]{1,2}:[0-9]{2}))?$/);
   if (openMatch) {
+    var currentOrganizerId = (SheetModule.getConfigValue('ORGANIZER_ID', '') || '').trim();
+    var allowSwitch = SheetModule.getConfigValue('ALLOW_SWITCH_ORGANIZER', 'true');
+    var isSwitchForbidden = (String(allowSwitch).toLowerCase() === 'false' || allowSwitch === '0');
+
+    if (isSwitchForbidden && currentOrganizerId && currentOrganizerId !== userId) {
+      return LineModule.replyText(replyToken, '⚠️ 目前系統設定已鎖定開單人，非現任開單人無法重新開單或更換開單人！若需開單請洽現任開單人。');
+    }
+
     var restaurant = openMatch[1] ? openMatch[1].trim() : '今日便當';
     var cutoff = openMatch[2] ? openMatch[2].trim() : '11:00';
 
@@ -1415,6 +1419,7 @@ function handlePostbackEvent(event) {
   g.isTodayCutoffPassed = isTodayCutoffPassed;
   g.notifyOrganizer = notifyOrganizer;
   g.formatOrderSummaryText = formatOrderSummaryText;
+  g.isUserOrganizer = isUserOrganizer;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -1429,7 +1434,8 @@ function handlePostbackEvent(event) {
       isDayPast: isDayPast,
       isTodayCutoffPassed: isTodayCutoffPassed,
       notifyOrganizer: notifyOrganizer,
-      formatOrderSummaryText: formatOrderSummaryText
+      formatOrderSummaryText: formatOrderSummaryText,
+      isUserOrganizer: isUserOrganizer
     };
   }
 })();
