@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-07T16:59:09.376Z
+ * Automatically generated on: 2026-09-08T01:04:30.850Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -3221,6 +3221,7 @@ function _flexText(text, opts) {
   if (o.wrap !== undefined) txt.wrap = o.wrap;
   if (o.margin && o.margin !== 'none') txt.margin = o.margin;
   if (o.flex !== undefined) txt.flex = o.flex;
+  if (o.action) txt.action = o.action;
   return txt;
 }
 
@@ -4269,6 +4270,17 @@ function createHelpFlex() {
       weight: 'bold',
       color: FLEX_COLORS.primaryDark,
       align: 'center'
+    }),
+    _flexText('服務授權：AGPL-3.0 原始碼 https://tinyurl.com/4c92wtee', {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'xs',
+      wrap: true,
+      action: {
+        type: 'uri',
+        uri: 'https://tinyurl.com/4c92wtee'
+      }
     })
   ], {
     layout: 'vertical',
