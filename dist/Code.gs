@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-09T12:02:50.956Z
+ * Automatically generated on: 2026-09-09T13:21:43.398Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -4548,6 +4548,7 @@ function createHelpFlex(sourceCodeUrl) {
   var commands = [
     { label: '📅 本週菜單', desc: '查看週一至週五排程', cmd: '本週菜單', btnText: '看本週' },
     { label: '🍱 今日菜單', desc: '查看今日菜單並點餐', cmd: '菜單', btnText: '看菜單' },
+    { label: '👶 設定小孩', desc: '小孩名冊與用餐分配設定', cmd: '設定小孩', btnText: '設定小孩' },
     { label: '📝 我的訂單', desc: '查詢個人今日點餐紀錄', cmd: '我的訂單', btnText: '查今日' },
     { label: '📦 我的本週訂單', desc: '查詢本週全梯次預訂', cmd: '我的本週訂單', btnText: '查全週' },
     { label: '🗑️ 取消餐點', desc: '自選退訂特定餐點', cmd: '取消餐點', btnText: '去取消' },
@@ -5210,6 +5211,130 @@ function createChildrenListFlex(userName, children) {
   };
 }
 
+/**
+ * createChildrenHelpFlex — Interactive submenu for children & dining profile management
+ *
+ * @returns {Object} LINE Flex bubble
+ */
+function createChildrenHelpFlex() {
+  /* ---- header ---- */
+  var header = _flexBox([
+    _flexText('👶 小孩與用餐對象管理選單', {
+      size: 'lg',
+      weight: 'bold',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start'
+    }),
+    _flexText('點擊按鈕直接查詢或帶入指令範例', {
+      size: 'xs',
+      color: FLEX_COLORS.textOnColor,
+      margin: 'xs'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'lg',
+    backgroundColor: FLEX_COLORS.primary
+  });
+
+  /* ---- body: buttonized command list ---- */
+  var commands = [
+    {
+      label: '👦 我的小孩 / 小孩名單',
+      desc: '圖文卡片瀏覽名下小孩清單',
+      cmd: '我的小孩',
+      btnText: '看名單'
+    },
+    {
+      label: '👶 設定小孩 大寶, 二寶',
+      desc: '批次綁定小孩（覆蓋現有名冊）',
+      cmd: '設定小孩 大寶, 二寶',
+      btnText: '批次登記'
+    },
+    {
+      label: '➕ 新增小孩 小寶 附小一年一班',
+      desc: '新增單一小孩姓名與班級備註',
+      cmd: '新增小孩 小寶 附小一年一班',
+      btnText: '新增小孩'
+    },
+    {
+      label: '🗑️ 刪除小孩 小寶',
+      desc: '移除指定小孩名冊紀錄',
+      cmd: '刪除小孩 小寶',
+      btnText: '刪除小孩'
+    }
+  ];
+
+  var bodyContents = [];
+  commands.forEach(function (cmd, i) {
+    bodyContents.push(_flexBox([
+      _flexBox([
+        _flexText(cmd.label, {
+          size: 'sm',
+          weight: 'bold',
+          color: FLEX_COLORS.textPrimary
+        }),
+        _flexText(cmd.desc, {
+          size: 'xxs',
+          color: FLEX_COLORS.textSecondary,
+          margin: 'xs'
+        })
+      ], {
+        layout: 'vertical',
+        spacing: 'none',
+        flex: 3,
+        justifyContent: 'center'
+      }),
+      {
+        type: 'button',
+        action: {
+          type: 'message',
+          label: cmd.btnText,
+          text: cmd.cmd
+        },
+        style: 'primary',
+        color: FLEX_COLORS.primary,
+        height: 'sm',
+        flex: 2
+      }
+    ], {
+      layout: 'horizontal',
+      alignItems: 'center',
+      paddingAll: 'sm',
+      backgroundColor: i % 2 === 0 ? FLEX_COLORS.background : FLEX_COLORS.surface,
+      cornerRadius: 'md',
+      margin: 'xs'
+    }));
+  });
+
+  var body = _flexBox(bodyContents, {
+    layout: 'vertical',
+    paddingAll: 'md',
+    backgroundColor: FLEX_COLORS.surface
+  });
+
+  /* ---- footer ---- */
+  var footer = _flexBox([
+    _flexText('💡 點擊「批次登記 / 新增 / 刪除」將送出範例指令，您亦可在對話框自行編輯小孩姓名與班級備註！', {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      wrap: true,
+      align: 'center'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'sm',
+    backgroundColor: FLEX_COLORS.background
+  });
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: header,
+    body: body,
+    footer: footer
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Dual-Environment Export (GAS + Node.js)
  * ------------------------------------------------------------------ */
@@ -5229,6 +5354,7 @@ function createChildrenListFlex(userName, children) {
   g.createWeeklyScheduleFlex = createWeeklyScheduleFlex;
   g.createWeeklySummaryFlex = createWeeklySummaryFlex;
   g.createChildrenListFlex = createChildrenListFlex;
+  g.createChildrenHelpFlex = createChildrenHelpFlex;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -5242,6 +5368,7 @@ function createChildrenListFlex(userName, children) {
       createWeeklyScheduleFlex: createWeeklyScheduleFlex,
       createWeeklySummaryFlex: createWeeklySummaryFlex,
       createChildrenListFlex: createChildrenListFlex,
+      createChildrenHelpFlex: createChildrenHelpFlex,
       // Internal helpers exposed for Node.js testing.
       _flexText: _flexText,
       _flexBox: _flexBox,
@@ -5256,6 +5383,7 @@ function createChildrenListFlex(userName, children) {
     };
   }
 })();
+
 
 
 
@@ -6141,6 +6269,12 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '👶 我的小孩與用餐對象名冊', kidsFlex);
   }
 
+  // 8.5.1 CHILDREN SUBMENU: 設定小孩 / 小孩設定 / 登記小孩 / 小孩選單 / 小孩管理 (無帶參數時回覆按鈕子選單)
+  if (/^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i.test(text.trim())) {
+    var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex();
+    return LineModule.replyFlex(replyToken, '👶 小孩與用餐對象管理選單', childrenSubmenuFlex);
+  }
+
   var setKidsMatch = text.match(/^(?:\/)?(?:設定小孩|小孩設定|登記小孩)\s+(.+)$/i);
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
@@ -6154,17 +6288,25 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
   }
 
+  if (/^(?:\/)?(?:新增小孩|加小孩)$/i.test(text.trim())) {
+    return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名與班級備註，例如：「新增小孩 小寶 附小一年一班」');
+  }
+
   var addKidMatch = text.match(/^(?:\/)?(?:新增小孩|加小孩)\s+([^\s]+)(?:\s+(.+))?$/i);
   if (addKidMatch) {
     var newKidName = addKidMatch[1].trim();
     var kidNote = (addKidMatch[2] || '').trim();
     if (!newKidName) {
-      return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名，例如：「新增小孩 小寶 三年二班」');
+      return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名，例如：「新增小孩 小寶 附小一年一班」');
     }
     if (SheetModule.saveChild) {
       SheetModule.saveChild(userId, userDisplayName, userDisplayName, newKidName, kidNote);
     }
     return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
+  }
+
+  if (/^(?:\/)?(?:刪除小孩|移除小孩)$/i.test(text.trim())) {
+    return LineModule.replyText(replyToken, '⚠️ 請輸入欲刪除的小孩姓名，例如：「刪除小孩 小寶」');
   }
 
   var delKidMatch = text.match(/^(?:\/)?(?:刪除小孩|移除小孩)\s+([^\s]+)$/i);
