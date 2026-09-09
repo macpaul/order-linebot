@@ -266,7 +266,12 @@ function doPost(e) {
           console.log('📨 [收到 LINE 文字訊息] 來源: ' + srcId + '，內容: ' + msgText);
         }
         if (typeof logToSheet === 'function') {
-          logToSheet('MSG_RECV', msgText, srcId);
+          var safeSrcId = srcId;
+          // If source is a direct 1-on-1 user, de-identify using getEffectiveUserId if available
+          if (event.source && event.source.type === 'user' && typeof getEffectiveUserId === 'function') {
+            safeSrcId = getEffectiveUserId(srcId);
+          }
+          logToSheet('MSG_RECV', msgText, safeSrcId);
         }
         var result = handleTextMessage(event);
         if (typeof console !== 'undefined') {
