@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-09T00:43:32.490Z
+ * Automatically generated on: 2026-09-09T00:59:23.308Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -5365,6 +5365,117 @@ function isTodayCutoffPassed(day, refDate) {
 }
 
 /**
+ * Resolve target LINE User IDs to receive push notification based on comma-separated config
+ * Supports:
+ * - Specific key mapping: '暱稱:U...', 'usr_hash:U...', 'key=U...'
+ * - Auto-hash matching for standalone IDs: 'U111..., U222...' matches against HASHED_ID
+ * - Always-notify / broadcast prefix: '*:U...', 'all:U...', '@all:U...'
+ * - Standalone fallback broadcast: if no specific match, send to all standalone IDs
+ * @param {string} organizerId - Current ORGANIZER_ID from Sheet
+ * @param {string} organizerName - Current ORGANIZER_NAME from Sheet
+ * @param {string} rawPushSetting - Raw setting string from Script Properties or Config
+ * @returns {Array<string>} Array of distinct LINE User IDs to push to
+ */
+function resolveOrganizerPushTargets(organizerId, organizerName, rawPushSetting) {
+  var targets = [];
+  var setting = (rawPushSetting || '').trim();
+  var orgId = (organizerId || '').trim();
+  var orgName = (organizerName || '').trim();
+
+  if (!setting) {
+    // Scheme A: If no setting, check if organizerId itself is an unhashed LINE User ID
+    if (orgId && orgId.indexOf('usr_') !== 0) {
+      targets.push(orgId);
+    }
+    return targets;
+  }
+
+  // Split by comma, semicolon, or newline
+  var tokens = setting.split(/[,;\n]+/).map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
+  if (tokens.length === 0) return targets;
+
+  var specificMatches = [];
+  var alwaysNotify = [];
+  var standaloneList = [];
+
+  tokens.forEach(function (token) {
+    var sepIdx = token.indexOf(':');
+    if (sepIdx === -1) {
+      sepIdx = token.indexOf('=');
+    }
+
+    if (sepIdx !== -1) {
+      var key = token.substring(0, sepIdx).trim();
+      var val = token.substring(sepIdx + 1).trim();
+      if (!val) return;
+
+      // Check for always-notify wildcard: *, all, @all
+      var lowerKey = key.toLowerCase();
+      if (lowerKey === '*' || lowerKey === 'all' || lowerKey === '@all') {
+        alwaysNotify.push(val);
+        return;
+      }
+
+      // Check if key matches current organizer:
+      var isMatch = false;
+      if (orgId && key.toLowerCase() === orgId.toLowerCase()) {
+        isMatch = true;
+      } else if (orgName && key.toLowerCase() === orgName.toLowerCase()) {
+        isMatch = true;
+      } else if (SheetModule && typeof SheetModule.hashUserId === 'function') {
+        var hashedKey = SheetModule.hashUserId(key);
+        if (hashedKey && hashedKey === orgId) {
+          isMatch = true;
+        }
+      }
+
+      if (isMatch) {
+        specificMatches.push(val);
+      }
+    } else {
+      // Standalone ID without key (e.g. U1234567890abcdef... or mock test ID)
+      standaloneList.push(token);
+    }
+  });
+
+  // Check standalone IDs for match with current organizer
+  standaloneList.forEach(function (stdId) {
+    if (orgId) {
+      if (stdId === orgId) {
+        specificMatches.push(stdId);
+      } else if (SheetModule && typeof SheetModule.hashUserId === 'function') {
+        var hashedStd = SheetModule.hashUserId(stdId);
+        if (hashedStd && hashedStd === orgId) {
+          specificMatches.push(stdId);
+        }
+      }
+    }
+  });
+
+  // Selection decision:
+  if (specificMatches.length > 0) {
+    // Specific organizer(s) found! Notify matched organizer(s) + any wildcard always-notify
+    targets = specificMatches.concat(alwaysNotify);
+  } else if (alwaysNotify.length > 0) {
+    targets = alwaysNotify;
+  } else {
+    // No specific organizer identified; broadcast to all standalone IDs
+    targets = standaloneList;
+  }
+
+  // Deduplicate and filter out hashed IDs (usr_...) or empty strings
+  var uniqueTargets = [];
+  targets.forEach(function (t) {
+    var cleanT = String(t).trim();
+    if (cleanT && cleanT.indexOf('usr_') !== 0 && uniqueTargets.indexOf(cleanT) === -1) {
+      uniqueTargets.push(cleanT);
+    }
+  });
+
+  return uniqueTargets;
+}
+
+/**
  * Send LINE push notification to the organizer if ORGANIZER_ID or ORGANIZER_PUSH_ID is configured
  * @param {string} notificationText
  */
@@ -5372,19 +5483,18 @@ function notifyOrganizer(notificationText) {
   if (!SheetModule || !LineModule || !LineModule.pushText) return;
   try {
     var organizerId = SheetModule.getConfigValue('ORGANIZER_ID', '');
-    var pushTarget = '';
+    var organizerName = SheetModule.getConfigValue('ORGANIZER_NAME', '');
+    var rawPushSetting = '';
     if (typeof getConfigProperty === 'function') {
-      pushTarget = getConfigProperty('ORGANIZER_PUSH_ID', '');
+      rawPushSetting = getConfigProperty('ORGANIZER_PUSH_ID', '') || getConfigProperty('ORGANIZER_PUSH_MAP', '');
     }
-    if (!pushTarget && organizerId) {
-      var orgStr = String(organizerId).trim();
-      // Only attempt LINE push if the target is not a de-identified hashed user ID (starts with usr_)
-      if (orgStr && orgStr.indexOf('usr_') !== 0) {
-        pushTarget = orgStr;
-      }
+    if (!rawPushSetting) {
+      rawPushSetting = SheetModule.getConfigValue('ORGANIZER_PUSH_ID', '');
     }
-    if (pushTarget && String(pushTarget).trim() !== '') {
-      LineModule.pushText(String(pushTarget).trim(), notificationText);
+
+    var targets = resolveOrganizerPushTargets(organizerId, organizerName, rawPushSetting);
+    for (var i = 0; i < targets.length; i++) {
+      LineModule.pushText(targets[i], notificationText);
     }
   } catch (e) {
     if (typeof console !== 'undefined') {
@@ -6543,6 +6653,7 @@ function handlePostbackEvent(event) {
   g.isDayPast = isDayPast;
   g.isTodayCutoffPassed = isTodayCutoffPassed;
   g.notifyOrganizer = notifyOrganizer;
+  g.resolveOrganizerPushTargets = resolveOrganizerPushTargets;
   g.formatOrderSummaryText = formatOrderSummaryText;
   g.isUserOrganizer = isUserOrganizer;
 
@@ -6559,6 +6670,7 @@ function handlePostbackEvent(event) {
       isDayPast: isDayPast,
       isTodayCutoffPassed: isTodayCutoffPassed,
       notifyOrganizer: notifyOrganizer,
+      resolveOrganizerPushTargets: resolveOrganizerPushTargets,
       formatOrderSummaryText: formatOrderSummaryText,
       isUserOrganizer: isUserOrganizer
     };
