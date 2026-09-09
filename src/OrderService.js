@@ -268,15 +268,26 @@ function isTodayCutoffPassed(day, refDate) {
 }
 
 /**
- * Send LINE push notification to the organizer if ORGANIZER_ID is configured
+ * Send LINE push notification to the organizer if ORGANIZER_ID or ORGANIZER_PUSH_ID is configured
  * @param {string} notificationText
  */
 function notifyOrganizer(notificationText) {
   if (!SheetModule || !LineModule || !LineModule.pushText) return;
   try {
     var organizerId = SheetModule.getConfigValue('ORGANIZER_ID', '');
-    if (organizerId && String(organizerId).trim() !== '') {
-      LineModule.pushText(String(organizerId).trim(), notificationText);
+    var pushTarget = '';
+    if (typeof getConfigProperty === 'function') {
+      pushTarget = getConfigProperty('ORGANIZER_PUSH_ID', '');
+    }
+    if (!pushTarget && organizerId) {
+      var orgStr = String(organizerId).trim();
+      // Only attempt LINE push if the target is not a de-identified hashed user ID (starts with usr_)
+      if (orgStr && orgStr.indexOf('usr_') !== 0) {
+        pushTarget = orgStr;
+      }
+    }
+    if (pushTarget && String(pushTarget).trim() !== '') {
+      LineModule.pushText(String(pushTarget).trim(), notificationText);
     }
   } catch (e) {
     if (typeof console !== 'undefined') {
@@ -292,9 +303,20 @@ function notifyOrganizer(notificationText) {
  * @returns {boolean}
  */
 function isUserOrganizer(userId, userDisplayName) {
-  if (!userId) return false;
+  if (!userId && !userDisplayName) return false;
   var organizerId = (SheetModule.getConfigValue('ORGANIZER_ID', '') || '').trim();
-  if (organizerId && organizerId === userId) {
+  if (!organizerId) return false;
+
+  if (userId && organizerId === userId) {
+    return true;
+  }
+  if (SheetModule && typeof SheetModule.getEffectiveUserId === 'function') {
+    var effUserId = SheetModule.getEffectiveUserId(userId, userDisplayName, userDisplayName);
+    if (effUserId && organizerId === effUserId) {
+      return true;
+    }
+  }
+  if (userDisplayName && organizerId === userDisplayName) {
     return true;
   }
   return false;
@@ -618,7 +640,8 @@ function handleTextMessage(event) {
     var allowSwitch = SheetModule.getConfigValue('ALLOW_SWITCH_ORGANIZER', 'true');
     var isSwitchForbidden = (String(allowSwitch).toLowerCase() === 'false' || allowSwitch === '0');
 
-    if (isSwitchForbidden && currentOrganizerId && currentOrganizerId !== userId) {
+    var isOrganizer = isUserOrganizer(userId, userDisplayName);
+    if (isSwitchForbidden && currentOrganizerId && !isOrganizer) {
       return LineModule.replyText(replyToken, '⚠️ 目前系統設定已鎖定開單人，非現任開單人無法重新開單或更換開單人！若需開單請洽現任開單人。');
     }
 
@@ -628,7 +651,10 @@ function handleTextMessage(event) {
     SheetModule.setConfigValue('IS_ORDERING_OPEN', 'true');
     SheetModule.setConfigValue('RESTAURANT_NAME', restaurant);
     SheetModule.setConfigValue('CUTOFF_TIME', cutoff);
-    SheetModule.setConfigValue('ORGANIZER_ID', userId);
+    var effOrganizerId = (SheetModule && typeof SheetModule.getEffectiveUserId === 'function')
+      ? SheetModule.getEffectiveUserId(userId, userDisplayName, userDisplayName)
+      : userId;
+    SheetModule.setConfigValue('ORGANIZER_ID', effOrganizerId);
 
     var menuList = SheetModule.getMenuItems(todayDay, restaurant);
     var menuFlex = FlexModule.createMenuFlex(restaurant, cutoff, menuList, todayDay);
@@ -679,7 +705,7 @@ function handleTextMessage(event) {
     var grandTotal = 0;
 
     allDays.forEach(function (d) {
-      var dOrders = SheetModule.getUserOrders(userId, groupId, null, d);
+      var dOrders = SheetModule.getUserOrders(userId, groupId, null, d, userDisplayName);
       if (dOrders && dOrders.length > 0) {
         var daySub = 0;
         var isPast = isDayPast(d);
@@ -707,9 +733,9 @@ function handleTextMessage(event) {
 
   // 8. MY TODAY ORDERS: 我的訂單 / 查詢訂單 / 查單
   if (/^(?:\/)?(?:我的訂單|查詢訂單|查單)$/.test(text)) {
-    var myOrders = SheetModule.getUserOrders(userId, groupId, null, todayDay);
+    var myOrders = SheetModule.getUserOrders(userId, groupId, null, todayDay, userDisplayName);
     if (!myOrders || myOrders.length === 0) {
-      myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null);
+      myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null, userDisplayName);
     }
     if (!myOrders || myOrders.length === 0) {
       return LineModule.replyText(replyToken, '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。');
@@ -731,9 +757,9 @@ function handleTextMessage(event) {
 
   // 8.5 CHILDREN MANAGEMENT: 我的小孩 / 小孩名冊 / 小孩名單 / 設定小孩 / 新增小孩 / 刪除小孩
   if (/^(?:\/)?(?:我的小孩|小孩名單|小孩名冊|我的孩子)$/i.test(text.trim())) {
-    var kidsProfiles = SheetModule.getChildrenProfiles ? SheetModule.getChildrenProfiles(userId) : [];
+    var kidsProfiles = SheetModule.getChildrenProfiles ? SheetModule.getChildrenProfiles(userId, userDisplayName, userDisplayName) : [];
     if (kidsProfiles.length === 0) {
-      var kidNames = SheetModule.getChildren ? SheetModule.getChildren(userId) : [];
+      var kidNames = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
       kidsProfiles = kidNames.map(function (k) { return { childName: k, note: '' }; });
     }
     var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles);
@@ -769,7 +795,7 @@ function handleTextMessage(event) {
   var delKidMatch = text.match(/^(?:\/)?(?:刪除小孩|移除小孩)\s+([^\s]+)$/i);
   if (delKidMatch) {
     var delKidName = delKidMatch[1].trim();
-    var deleted = SheetModule.deleteChild ? SheetModule.deleteChild(userId, delKidName) : false;
+    var deleted = SheetModule.deleteChild ? SheetModule.deleteChild(userId, delKidName, userDisplayName, userDisplayName) : false;
     if (deleted) {
       return LineModule.replyText(replyToken, '✅ 已成功移除小孩「' + delKidName + '」的名冊紀錄。');
     } else {
@@ -890,7 +916,8 @@ function handleTextMessage(event) {
           }
         }
         if (userId && userId !== 'anonymous') {
-          if (o.userId && o.userId !== 'anonymous' && o.userId !== userId) {
+          var effUserId = SheetModule && SheetModule.getEffectiveUserId ? SheetModule.getEffectiveUserId(userId, userDisplayName, userDisplayName) : userId;
+          if (o.userId && o.userId !== 'anonymous' && o.userId !== userId && o.userId !== effUserId) {
             return false;
           }
         }
@@ -987,7 +1014,7 @@ function handleTextMessage(event) {
     }
 
     // Check if remainder starts with a registered child name or child in active orders
-    var myChildren = SheetModule.getChildren ? SheetModule.getChildren(userId) : [];
+    var myChildren = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
     if (!cancelChild && remainder) {
       var childTokens = remainder.split(/\s+/);
       var candidateChild = childTokens[0];
@@ -1013,7 +1040,8 @@ function handleTextMessage(event) {
           var cleanName = firstToken.slice(1);
           if (cleanName !== userDisplayName) isOtherToken = true;
         } else if (userInGroup) {
-          var matchSelf = (userInGroup.userId && userId && userInGroup.userId === userId) ||
+          var effSelfId = SheetModule && SheetModule.getEffectiveUserId ? SheetModule.getEffectiveUserId(userId, userDisplayName, userDisplayName) : userId;
+          var matchSelf = (userInGroup.userId && userId && (userInGroup.userId === userId || userInGroup.userId === effSelfId)) ||
                           (userInGroup.userName && userDisplayName && userInGroup.userName === userDisplayName) ||
                           (userInGroup.userNickname && userDisplayName && userInGroup.userNickname === userDisplayName);
           if (!matchSelf) isOtherToken = true;
@@ -1229,7 +1257,7 @@ function handleTextMessage(event) {
     // If ordering items have no child assigned and caller has registered children in Children tab,
     // pop up Quick Reply floating buttons for children selection plus openKeyboard note button.
     var allNoChild = orderItems.every(function (oi) { return !oi.childName; });
-    var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId) : [];
+    var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
 
     if (allNoChild && userKids && userKids.length > 0 && orderItems.length === 1) {
       var oiPrompt = orderItems[0];
@@ -1338,8 +1366,8 @@ function handleTextMessage(event) {
     var isWeekly = (receiptScope !== 'DAILY' && receiptScope !== 'TODAY' && receiptScope !== '今日');
 
     var allMyOrders = isWeekly
-      ? SheetModule.getUserOrders(userId, groupId, null, null)
-      : SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek);
+      ? SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName)
+      : SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek, userDisplayName);
 
     var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly });
     var altSuffix = isWeekly ? '（本週）' : '';
