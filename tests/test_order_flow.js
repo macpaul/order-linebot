@@ -38,8 +38,10 @@ globalThis.replyMessages = LineModule.replyMessages = function (token, messages)
   return { statusCode: 200 };
 };
 let lastPush = null;
+let allPushes = [];
 globalThis.pushText = LineModule.pushText = function (to, text) {
   lastPush = { to: to, text: text };
+  allPushes.push(lastPush);
   globalThis._lastPush = lastPush;
   return { statusCode: 200 };
 };
@@ -1694,6 +1696,61 @@ console.log('  ✔ NICKNAME mode: Zero technical User ID storage and display nam
 SheetModule.setConfigValue('USER_IDENTIFIER_MODE', 'HASHED_ID');
 SheetModule.setConfigValue('HASH_SALT', '');
 console.log('  ✔ User privacy & storage modes test suite completed.\n');
+
+// 13-5: Test Multi-Organizer Push Notification (Schemes A, B, C via unified comma-separated format)
+console.log('▶ Test 13-5: Multi-Organizer Push Target Resolution (Schemes A, B, C)');
+
+// Scheme A: Zero push ID configured
+var targetsA1 = OrderModule.resolveOrganizerPushTargets('usr_8f9c21b4a7d3e5f0', '小幫手', '');
+assert.deepStrictEqual(targetsA1, []); // No raw ID exposed, gracefully empty
+
+var targetsA2 = OrderModule.resolveOrganizerPushTargets('U1234567890abcdef1234567890abcdef', '小幫手', '');
+assert.deepStrictEqual(targetsA2, ['U1234567890abcdef1234567890abcdef']); // Raw ID retained in legacy mode
+
+// Scheme B: Comma-separated Key-Value mapping
+var settingB = '小明媽媽:U11111111111111111111111111111111, 小華爸爸:U22222222222222222222222222222222';
+var targetsB1 = OrderModule.resolveOrganizerPushTargets('usr_xxxx', '小華爸爸', settingB);
+assert.deepStrictEqual(targetsB1, ['U22222222222222222222222222222222']);
+
+var targetsB2 = OrderModule.resolveOrganizerPushTargets('usr_xxxx', '小明媽媽', settingB);
+assert.deepStrictEqual(targetsB2, ['U11111111111111111111111111111111']);
+
+// Key can also be hashed ID
+var hashedKey1 = SheetModule.hashUserId('U11111111111111111111111111111111');
+var settingBHashed = hashedKey1 + ':U11111111111111111111111111111111, usr_other:U22222222222222222222222222222222';
+var targetsBHashed = OrderModule.resolveOrganizerPushTargets(hashedKey1, '任一暱稱', settingBHashed);
+assert.deepStrictEqual(targetsBHashed, ['U11111111111111111111111111111111']);
+
+// Scheme B: Auto-hash matching with pure comma-separated LINE IDs
+var idAlice = 'Uaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+var idBob = 'Ubbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+var settingPureIds = idAlice + ', ' + idBob;
+var hashedAlice = SheetModule.hashUserId(idAlice);
+// When Alice is organizer in HASHED_ID mode, system hashes standalone IDs and matches Alice only!
+var targetsAutoHash = OrderModule.resolveOrganizerPushTargets(hashedAlice, '愛麗絲', settingPureIds);
+assert.deepStrictEqual(targetsAutoHash, [idAlice]);
+
+// Scheme C: Broadcast to all standalone IDs when no specific match found
+var targetsBroadcast = OrderModule.resolveOrganizerPushTargets('usr_unmatched_organizer', '路人開單', settingPureIds);
+assert.deepStrictEqual(targetsBroadcast, [idAlice, idBob]);
+
+// Wildcard Always-Notify (*:UID or all:UID) combined with specific organizer mapping
+var settingWildcard = '小明媽媽:U11111111111111111111111111111111, *:U99999999999999999999999999999999';
+var targetsWildcard = OrderModule.resolveOrganizerPushTargets('usr_xxxx', '小明媽媽', settingWildcard);
+assert.deepStrictEqual(targetsWildcard, ['U11111111111111111111111111111111', 'U99999999999999999999999999999999']);
+
+// End-to-end notifyOrganizer verification
+process.env.ORGANIZER_PUSH_ID = settingWildcard;
+SheetModule.setConfigValue('ORGANIZER_NAME', '小明媽媽');
+SheetModule.setConfigValue('ORGANIZER_ID', 'usr_mock_ming_mom');
+allPushes = [];
+OrderModule.notifyOrganizer('測試通知訊息');
+assert.strictEqual(allPushes.length, 2);
+assert.strictEqual(allPushes[0].to, 'U11111111111111111111111111111111');
+assert.strictEqual(allPushes[1].to, 'U99999999999999999999999999999999');
+delete process.env.ORGANIZER_PUSH_ID;
+
+console.log('  ✔ Multi-organizer push target resolution (Schemes A, B, C & Wildcard) verified.\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
