@@ -109,6 +109,8 @@
 | `CUTOFF_TIME` | `11:00` | 今日點餐截止時間。 |
 | `SOURCE_CODE_URL` | `https://tinyurl.com/4c92wtee` | **開源原始碼公開網址 (AGPL-3.0 合規)**：<br>• 預設指向官方原始碼儲存庫。<br>• **重要須知**：根據 AGPL-3.0 規定，若您**有修改任何程式碼並上線運行提供他人使用**，您**必須將修改後的完整程式碼公開至公開 Git 儲存庫 (public git repo)**，並將此欄位修改為**您自己的公開 Git 儲存庫網址**。此網址會即時呈現在 LINE 「幫助」卡片底部的服務授權連結中。 |
 | `ALLOW_SWITCH_ORGANIZER` | `true` | **更換開單人權限鎖定**：<br>• `true`（預設）：允許群組任意成員透過發送「開單」指令更換開單人，自動更新 `ORGANIZER_ID`。<br>• `false`（鎖定開單人）：僅限現任開單人 (`ORGANIZER_ID`) 才能重新開單或變更開單店家；其餘成員發送「開單」將被系統攔截並提示警告，防止開單人身份被群組成員無意或惡意覆寫。 |
+| `USER_IDENTIFIER_MODE` | `HASHED_ID` | **使用者識別與個資保護模式**：<br>• `HASHED_ID`（預設/推薦）：採用單向加鹽 HMAC-SHA256 雜湊去識別化（產生如 `usr_8f9c21b4a7d3e5f0`），Google 試算表中絕不留存真實 LINE User ID，無法被逆向解碼反查個資，同時保證防偽冒與無碰撞衝突。<br>• `USER_ID`：傳統模式，儲存原始 LINE User ID（如 `U12345...`）。<br>• `NICKNAME`：純暱稱模式，以成員顯示名稱/暱稱為索引，試算表中完全零技術 User ID 紀錄。 |
+| `HASH_SALT` | *(留空)* | **去識別化雜湊自訂密鑰 (Salt)**：用於 `HASHED_ID` 模式的加鹽雜湊。留空時系統會自動使用私密的 `CHANNEL_SECRET` 或內建密鑰進行雜湊。 |
 
 ### 步驟 2：開啟 Apps Script 編輯器
 1. 在試算表上方工具列，點選 **擴充功能 (Extensions) -> Apps Script**。
@@ -458,4 +460,27 @@ Google Apps Script 執行於 Google 雲端無伺服器環境中，為避免時�
   1. **URL Token 驗證（GAS 標準做法）**：在 LINE Developers 的 Webhook URL 後方帶入 `?token=YOUR_CHANNEL_SECRET`，系統於 `doPost` 中嚴格比對 Token，杜絕未授權存取 (HTTP 403)。
   2. **Header Signature 簽章驗證**：在非 GAS 或代理伺服器環境中，若請求帶有 `X-Line-Signature`，系統會使用標準 HMAC-SHA256 進行加密簽章驗證。
 - **LINE Verify 探針極速回傳**：當 LINE Developers Console 點擊「Verify」時，LINE 會發送空事件陣列（`events: []`）。系統偵測到探針後立即以 HTTP 200 回應（耗時 < 100ms），跳過耗時的試算表連線，徹底根除 1 秒逾時問題。
+
+---
+
+### Q13：使用者個人資料保護與隱私去識別化機制 (Privacy Protection & De-identification)
+
+在團購與家長社群點餐情境中，試算表常需開放檢視權限供成員對帳或查看餐點明細。然而，若試算表中直接留存真實 LINE User ID（格式如 `U1234567890abcdef...`），可能延伸出個資疑慮。系統提供三種索引模式與開單人私密推播機制：
+
+#### 1. 三種使用者識別模式 (`USER_IDENTIFIER_MODE`)
+
+| 模式名稱 | 預設狀態 | 試算表 `UserId` 欄位儲存內容 | 個資安全性與運作特性 |
+| :--- | :---: | :--- | :--- |
+| **`HASHED_ID`** | **預設 / 推薦** | 雜湊代號（如 `usr_8f9c21b4a7d3e5f0`） | **單向加鹽 HMAC-SHA256 去識別化**：<br>• 結合自訂密鑰 `HASH_SALT`（或系統私密 `CHANNEL_SECRET`）計算 64-bit 雜湊。<br>• 具備不可逆性，任何檢視試算表的人員**完全無法逆向解碼反查原始 LINE 帳號**。<br>• 具備無碰撞性與一致性，能確保同群組成員訂單、小孩名冊與退訂權限精準對齊。<br>• **雙軌平滑升級**：即便試算表中留有升級前儲存的舊版未雜湊 ID，查詢與退訂均可同時相容，無需費心手動遷移歷史資料。 |
+| **`USER_ID`** | 選用 | 原始 LINE User ID（`U...`） | **傳統明文模式**：直接儲存原始 LINE 內部代碼。適合僅有管理員單獨持有的內部私密試算表。 |
+| **`NICKNAME`** | 選用 | 成員顯示名稱或暱稱（如 `愛麗絲`） | **零技術 User ID 模式**：完全不儲存任何技術 ID，直接以 LINE 顯示名稱或個人暱稱作為訂單與小孩名冊之識別主鍵。 |
+
+#### 2. 開單人 LINE 推播通知與私密性兼顧 (`ORGANIZER_PUSH_ID`)
+- **推播需求**：LINE 平台的 `pushText` API 規範嚴格要求必須傳入真實未雜湊的 LINE User ID (`U...`)。
+- **解決方案**：在 `HASHED_ID` 或 `NICKNAME` 隱私保護模式下，若開單人仍希望在成員加訂或退訂時接收 LINE 官方帳號的一對一私密推播通知：
+  - 開單人只需在 Apps Script 專案設定中的 **「指令碼屬性 (Script Properties)」** 新增屬性：
+    - 屬性名稱：`ORGANIZER_PUSH_ID`
+    - 屬性值：開單人自己的原始 LINE User ID（例如 `U1234567890abcdef...`）
+  - **安全性優勢**：Google Apps Script 的「指令碼屬性」存放於 Google 雲端專案內部，**Google 試算表的所有共用檢視者均完全無法看到**，既能享有即時推播，又能確保試算表對外完全去識別化！若未設定此屬性，系統在去識別化模式下會自動安全略過推播，絕不噴錯或中斷點餐流程。
+
 
