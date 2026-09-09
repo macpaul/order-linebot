@@ -23,7 +23,9 @@ var _mockStore = {
     'PAYMENT_BANK_QR_URL': '',
     'PAYMENT_LINEPAY_QR_URL': '',
     'SOURCE_CODE_URL': 'https://tinyurl.com/4c92wtee',
-    'ALLOW_SWITCH_ORGANIZER': 'true'
+    'ALLOW_SWITCH_ORGANIZER': 'true',
+    'USER_IDENTIFIER_MODE': 'HASHED_ID',
+    'HASH_SALT': ''
   },
   WeeklySchedule: [
     { dayOfWeek: '週一', restaurantName: '福山排骨便當', cutoffTime: '10:30', uberEatsUrl: '', notes: '招牌排骨', isActive: 'TRUE' },
@@ -149,7 +151,9 @@ function initSheets() {
         ['PAYMENT_BANK_QR_URL', '', '收款銀行 QR Code 圖片網址 (支援 Google Drive 分享連結或圖床)'],
         ['PAYMENT_LINEPAY_QR_URL', '', 'LINE Pay 收款碼/條碼圖片網址 (支援 Google Drive 分享連結或圖床)'],
         ['SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee', '開源原始碼網址 (AGPL-3.0 規定若修改本程式碼需開源並將此處更新為自己的 public git repo)'],
-        ['ALLOW_SWITCH_ORGANIZER', 'true', '是否允許任意群組成員藉由「開單」更換開單人 (true: 允許 / false: 僅限現任開單人)']
+        ['ALLOW_SWITCH_ORGANIZER', 'true', '是否允許任意群組成員藉由「開單」更換開單人 (true: 允許 / false: 僅限現任開單人)'],
+        ['USER_IDENTIFIER_MODE', 'HASHED_ID', '使用者識別索引模式 (HASHED_ID: 單向加鹽雜湊去識別化 / USER_ID: 原始 LINE ID / NICKNAME: 純暱稱代號)'],
+        ['HASH_SALT', '', '去識別化雜湊自訂密鑰 Salt (選填，留空自動使用安全預設密鑰)']
       ]
     },
     {
@@ -644,6 +648,76 @@ function _sanitizeSheetCell(val) {
 }
 
 /**
+ * Compute one-way salted HMAC-SHA256 hash for LINE User ID de-identification.
+ * Returns pseudonymous string e.g. 'usr_8f9c21b4a7d3e5f0'
+ * @param {string} userId - Raw LINE User ID (e.g. U12345...)
+ * @param {string} [customSalt] - Optional secret salt
+ * @returns {string} Hashed user identifier
+ */
+function hashUserId(userId, customSalt) {
+  if (!userId) return '';
+  var uidStr = String(userId).trim();
+  if (!uidStr) return '';
+  // If already hashed, return as-is to avoid double-hashing
+  if (uidStr.indexOf('usr_') === 0 && uidStr.length >= 20) {
+    return uidStr;
+  }
+
+  var salt = customSalt ||
+             getConfigValue('HASH_SALT', '') ||
+             (typeof getConfigProperty === 'function' ? getConfigProperty('CHANNEL_SECRET', '') : '') ||
+             'LINE_MEAL_ORDER_SALT_DEFAULT';
+
+  // 1. Google Apps Script
+  try {
+    if (typeof Utilities !== 'undefined' && typeof Utilities.computeHmacSha256 === 'function') {
+      var raw = Utilities.computeHmacSha256(uidStr, salt);
+      var hex = raw.map(function (b) {
+        var n = (b < 0 ? b + 256 : b).toString(16);
+        return n.length === 1 ? '0' + n : n;
+      }).join('');
+      return 'usr_' + hex.substring(0, 16);
+    }
+  } catch (e) {}
+
+  // 2. Node.js runtime
+  try {
+    var crypto = require('crypto');
+    var hexNode = crypto.createHmac('sha256', salt).update(uidStr).digest('hex');
+    return 'usr_' + hexNode.substring(0, 16);
+  } catch (e) {}
+
+  // 3. Fallback simple hash
+  var h = 0;
+  for (var i = 0; i < uidStr.length; i++) {
+    h = ((h << 5) - h) + uidStr.charCodeAt(i);
+    h |= 0;
+  }
+  return 'usr_' + Math.abs(h).toString(16);
+}
+
+/**
+ * Get effective user identifier according to USER_IDENTIFIER_MODE
+ * @param {string} userId
+ * @param {string} [userName]
+ * @param {string} [userNickname]
+ * @returns {string}
+ */
+function getEffectiveUserId(userId, userName, userNickname) {
+  var mode = (getConfigValue('USER_IDENTIFIER_MODE', (CONFIG && CONFIG.USER_IDENTIFIER_MODE) || 'HASHED_ID') || 'HASHED_ID').toUpperCase();
+
+  if (mode === 'NICKNAME') {
+    var nick = (userNickname || userName || userId || '').trim();
+    return nick || '匿名成員';
+  } else if (mode === 'USER_ID') {
+    return (userId || '').trim();
+  } else {
+    // Default: 'HASHED_ID'
+    return hashUserId(userId);
+  }
+}
+
+/**
  * Save / Import menu items for a specific day and restaurant
  */
 function saveMenuItems(dayOfWeek, restaurantName, items) {
@@ -1047,13 +1121,16 @@ function addOrder(orderData) {
   var price = Number(orderData.price) || 0;
   var subtotal = quantity * price;
 
+  var rawUserId = orderData.userId || '';
+  var effUserId = getEffectiveUserId(rawUserId, orderData.userName, orderData.userNickname);
+
   var record = {
     orderId: orderId,
     timestamp: timestamp,
     date: date,
     dayOfWeek: dayOfWeek,
     groupId: orderData.groupId || '',
-    userId: orderData.userId || '',
+    userId: effUserId,
     userName: orderData.userName || '成員',
     userNickname: orderData.userNickname || orderData.userName || '成員',
     childName: (orderData.childName || '').trim(),
@@ -1066,7 +1143,7 @@ function addOrder(orderData) {
   };
 
   if (record.childName && record.childName !== '本人' && record.childName !== '自己') {
-    saveChild(record.userId, record.userName, record.userNickname, record.childName);
+    saveChild(effUserId, record.userName, record.userNickname, record.childName);
   }
 
   if (!isGasRuntime()) {
@@ -1115,6 +1192,8 @@ function addOrder(orderData) {
  * @returns {Array} Array of order objects
  */
 function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
+  var effUserId = userId ? getEffectiveUserId(userId, userName, userName) : '';
+
   if (!isGasRuntime()) {
     return _mockStore.Orders.filter(function (o) {
       if (o.status !== 'ACTIVE') return false;
@@ -1132,9 +1211,9 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
         }
       }
 
-      // If userId is provided and not 'anonymous', order MUST match userId
+      // If userId is provided and not 'anonymous', order MUST match userId or effUserId
       if (userId && userId !== 'anonymous') {
-        if (o.userId && o.userId !== 'anonymous' && o.userId !== userId) {
+        if (o.userId && o.userId !== 'anonymous' && o.userId !== userId && o.userId !== effUserId) {
           return false;
         }
       }
@@ -1192,7 +1271,7 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
     }
 
     if (hasValidUserId) {
-      if (rUserId && rUserId !== 'anonymous' && rUserId !== userId) {
+      if (rUserId && rUserId !== 'anonymous' && rUserId !== userId && rUserId !== effUserId) {
         continue;
       }
     }
@@ -1230,6 +1309,8 @@ function getUserOrders(userId, groupId, date, dayOfWeek, userName) {
  * @returns {number} Count of cancelled orders
  */
 function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, childName) {
+  var effUserId = userId ? getEffectiveUserId(userId, userName, userName) : '';
+
   // If neither userId nor userName is provided, do NOT cancel anything
   var hasValidUserId = (userId && userId !== 'anonymous');
   var hasValidUserName = (userName && userName !== '成員');
@@ -1259,7 +1340,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
       }
 
       if (hasValidUserId) {
-        if (o.userId && o.userId !== 'anonymous' && o.userId !== userId) {
+        if (o.userId && o.userId !== 'anonymous' && o.userId !== userId && o.userId !== effUserId) {
           return;
         }
       }
@@ -1312,7 +1393,7 @@ function cancelOrder(userId, groupId, itemName, date, dayOfWeek, userName, child
     }
 
     if (hasValidUserId) {
-      if (rUserId && rUserId !== 'anonymous' && rUserId !== userId) {
+      if (rUserId && rUserId !== 'anonymous' && rUserId !== userId && rUserId !== effUserId) {
         continue;
       }
     }
@@ -1783,13 +1864,14 @@ function logToSheet(type, message, detail) {
  * @param {string} userId
  * @returns {Array<string>} Array of child names (e.g. ['大寶', '二寶'])
  */
-function getChildren(userId) {
+function getChildren(userId, userName, userNickname) {
   if (!userId) return [];
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
   if (!isGasRuntime()) {
     if (!_mockStore.Children) _mockStore.Children = [];
     var kids = [];
     _mockStore.Children.forEach(function (c) {
-      if (c.userId === userId && c.childName && kids.indexOf(c.childName) === -1) {
+      if ((c.userId === userId || c.userId === effUserId) && c.childName && kids.indexOf(c.childName) === -1) {
         kids.push(c.childName);
       }
     });
@@ -1805,7 +1887,7 @@ function getChildren(userId) {
   for (var i = 1; i < rows.length; i++) {
     var rUid = String(rows[i][0] || '').trim();
     var rChild = String(rows[i][3] || '').trim();
-    if (rUid === userId && rChild && kids.indexOf(rChild) === -1) {
+    if ((rUid === userId || rUid === effUserId) && rChild && kids.indexOf(rChild) === -1) {
       kids.push(rChild);
     }
   }
@@ -1815,13 +1897,16 @@ function getChildren(userId) {
 /**
  * Get detailed children profiles for a specific user
  * @param {string} userId
+ * @param {string} [userName]
+ * @param {string} [userNickname]
  * @returns {Array<{ userId: string, userName: string, userNickname: string, childName: string, note: string, createdAt: string, updatedAt: string }>}
  */
-function getChildrenProfiles(userId) {
+function getChildrenProfiles(userId, userName, userNickname) {
   if (!userId) return [];
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
   if (!isGasRuntime()) {
     if (!_mockStore.Children) _mockStore.Children = [];
-    return _mockStore.Children.filter(function (c) { return c.userId === userId; });
+    return _mockStore.Children.filter(function (c) { return c.userId === userId || c.userId === effUserId; });
   }
   var ss = getSpreadsheet();
   if (!ss) return [];
@@ -1832,7 +1917,7 @@ function getChildrenProfiles(userId) {
   var list = [];
   for (var i = 1; i < rows.length; i++) {
     var rUid = String(rows[i][0] || '').trim();
-    if (rUid === userId) {
+    if (rUid === userId || rUid === effUserId) {
       list.push({
         userId: rUid,
         userName: String(rows[i][1] || ''),
@@ -1860,13 +1945,14 @@ function saveChild(userId, userName, userNickname, childName, note) {
   if (!userId || !childName) return false;
   var cName = childName.trim();
   if (!cName || cName === '本人' || cName === '自己') return false;
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
   var nowStr = new Date().toISOString();
 
   if (!isGasRuntime()) {
     if (!_mockStore.Children) _mockStore.Children = [];
     var existing = null;
     for (var i = 0; i < _mockStore.Children.length; i++) {
-      if (_mockStore.Children[i].userId === userId && _mockStore.Children[i].childName === cName) {
+      if ((_mockStore.Children[i].userId === userId || _mockStore.Children[i].userId === effUserId) && _mockStore.Children[i].childName === cName) {
         existing = _mockStore.Children[i];
         break;
       }
@@ -1876,7 +1962,7 @@ function saveChild(userId, userName, userNickname, childName, note) {
       existing.updatedAt = nowStr;
     } else {
       _mockStore.Children.push({
-        userId: userId,
+        userId: effUserId,
         userName: _sanitizeSheetCell(userName || ''),
         userNickname: _sanitizeSheetCell(userNickname || userName || ''),
         childName: _sanitizeSheetCell(cName),
@@ -1899,7 +1985,8 @@ function saveChild(userId, userName, userNickname, childName, note) {
 
   var rows = sheet.getDataRange().getValues();
   for (var r = 1; r < rows.length; r++) {
-    if (String(rows[r][0]).trim() === userId && String(rows[r][3]).trim() === cName) {
+    var rUid = String(rows[r][0]).trim();
+    if ((rUid === userId || rUid === effUserId) && String(rows[r][3]).trim() === cName) {
       if (note !== undefined && note !== null && note !== '') {
         sheet.getRange(r + 1, 5).setValue(_sanitizeSheetCell(note));
       }
@@ -1909,7 +1996,7 @@ function saveChild(userId, userName, userNickname, childName, note) {
   }
 
   sheet.appendRow([
-    userId,
+    effUserId,
     _sanitizeSheetCell(userName || ''),
     _sanitizeSheetCell(userNickname || userName || ''),
     _sanitizeSheetCell(cName),
@@ -1930,15 +2017,16 @@ function saveChild(userId, userName, userNickname, childName, note) {
  */
 function setChildren(userId, userName, userNickname, childNames) {
   if (!userId) return false;
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
   var names = (childNames || []).map(function (n) { return String(n).trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
 
   if (!isGasRuntime()) {
     if (!_mockStore.Children) _mockStore.Children = [];
-    _mockStore.Children = _mockStore.Children.filter(function (c) { return c.userId !== userId; });
+    _mockStore.Children = _mockStore.Children.filter(function (c) { return c.userId !== userId && c.userId !== effUserId; });
     var nowStr = new Date().toISOString();
     names.forEach(function (n) {
       _mockStore.Children.push({
-        userId: userId,
+        userId: effUserId,
         userName: _sanitizeSheetCell(userName || ''),
         userNickname: _sanitizeSheetCell(userNickname || userName || ''),
         childName: _sanitizeSheetCell(n),
@@ -1961,7 +2049,8 @@ function setChildren(userId, userName, userNickname, childNames) {
 
   var rows = sheet.getDataRange().getValues();
   for (var r = rows.length - 1; r >= 1; r--) {
-    if (String(rows[r][0]).trim() === userId) {
+    var rUid = String(rows[r][0]).trim();
+    if (rUid === userId || rUid === effUserId) {
       sheet.deleteRow(r + 1);
     }
   }
@@ -1969,7 +2058,7 @@ function setChildren(userId, userName, userNickname, childNames) {
   var nowTime = new Date().toISOString();
   names.forEach(function (n) {
     sheet.appendRow([
-      userId,
+      effUserId,
       _sanitizeSheetCell(userName || ''),
       _sanitizeSheetCell(userNickname || userName || ''),
       _sanitizeSheetCell(n),
@@ -1985,17 +2074,20 @@ function setChildren(userId, userName, userNickname, childNames) {
  * Delete a specific child profile
  * @param {string} userId
  * @param {string} childName
+ * @param {string} [userName]
+ * @param {string} [userNickname]
  * @returns {boolean}
  */
-function deleteChild(userId, childName) {
+function deleteChild(userId, childName, userName, userNickname) {
   if (!userId || !childName) return false;
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
   var cName = childName.trim();
 
   if (!isGasRuntime()) {
     if (!_mockStore.Children) return false;
     var lenBefore = _mockStore.Children.length;
     _mockStore.Children = _mockStore.Children.filter(function (c) {
-      return !(c.userId === userId && c.childName === cName);
+      return !((c.userId === userId || c.userId === effUserId) && c.childName === cName);
     });
     return _mockStore.Children.length < lenBefore;
   }
@@ -2008,7 +2100,8 @@ function deleteChild(userId, childName) {
   var rows = sheet.getDataRange().getValues();
   var deleted = false;
   for (var r = rows.length - 1; r >= 1; r--) {
-    if (String(rows[r][0]).trim() === userId && String(rows[r][3]).trim() === cName) {
+    var rUid = String(rows[r][0]).trim();
+    if ((rUid === userId || rUid === effUserId) && String(rows[r][3]).trim() === cName) {
       sheet.deleteRow(r + 1);
       deleted = true;
     }
@@ -2061,6 +2154,8 @@ function deleteChild(userId, childName) {
   g.setChildren = setChildren;
   g.deleteChild = deleteChild;
   g._sanitizeSheetCell = _sanitizeSheetCell;
+  g.hashUserId = hashUserId;
+  g.getEffectiveUserId = getEffectiveUserId;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -2102,6 +2197,8 @@ function deleteChild(userId, childName) {
       setChildren: setChildren,
       deleteChild: deleteChild,
       _sanitizeSheetCell: _sanitizeSheetCell,
+      hashUserId: hashUserId,
+      getEffectiveUserId: getEffectiveUserId,
       _mockStore: _mockStore
     };
   }
