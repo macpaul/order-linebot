@@ -162,6 +162,8 @@ npm run bundle
   LINE Developers Console 的「Verify」按鈕有嚴格的 1 秒逾時限制。本系統已全面實作驗證探針極速回應（< 100ms），跳過耗時的試算表連線，使 Verify 按鈕能立即返回綠色 `Success`。此外，由於 Google Apps Script 平台原生不提供 HTTP Request Headers，本專案支援 Webhook URL Token 雙軌驗證，可在 Webhook URL 加上 `?token=您的CHANNEL_SECRET`，由伺服器自動比對並阻擋未授權存取。詳情請參閱 [docs/deployment_guide.md#4-webhook-存取防偽驗證與-verify-探針加速-webhook-security--probe-fast-path](docs/deployment_guide.md)。
 - **使用者個人資料保護與 LINE User ID 隱私去識別化？**
   預設啟用 **`USER_IDENTIFIER_MODE: 'HASHED_ID'`**，採用不可逆的單向加鹽 HMAC-SHA256 雜湊（產生如 `usr_8f9c21b4a7d3e5f0`）取代明文 User ID，在 Google 試算表中絕不留存真實 LINE User ID，即使開放共用試算表檢視權限亦完全無從反查真實帳號。系統同時提供 `NICKNAME`（零技術 ID 純暱稱索引）與 `USER_ID`（傳統模式）供自訂，並可透過 Apps Script 內部屬性 `ORGANIZER_PUSH_ID` 以逗號分隔格式靈活支援「多開單人家長自動辨識推播」或「幹部廣播」，兼顧群組輪流開單與個資私密性。詳情請參閱 [docs/deployment_guide.md#q13使用者個人資料保護與隱私去識別化機制-privacy-protection--de-identification](docs/deployment_guide.md#q13使用者個人資料保護與隱私去識別化機制-privacy-protection--de-identification)。
+- **如何將現有存有明文 LINE User ID 的舊試算表升級為雜湊去識別化？**
+  本系統提供**雙軌向下相容**（無需修改歷史資料，新訂單自動雜湊且舊訂單依然能正常查單/退訂）。若想徹底抹除歷史明文 User ID，只需更新 [`dist/Code.gs`](dist/Code.gs) 後，點選 Google 試算表選單「`🍱 便當訂餐管理` ➡️ `🔒 一鍵升級歷史 ID 為去識別化雜湊`」，系統即會以批次作業自動將 `Orders`、`Children`、`Config` 內的所有歷史明文 User ID 轉換為 `usr_...` 雜湊代號，具備不重複轉換之冪等性保護。詳情請參閱 [docs/deployment_guide.md#3-如何將現有存有明文-line-user-id-的試算表升級為去識別化雜湊-id](docs/deployment_guide.md#3-如何將現有存有明文-line-user-id-的試算表升級為去識別化雜湊-id)。
 
 ---
 
