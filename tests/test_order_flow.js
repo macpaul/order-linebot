@@ -164,14 +164,36 @@ assert.strictEqual(lastReply.type, 'flex');
 assert.strictEqual(lastReply.altText, '便當點餐指令說明');
 const helpBody = lastReply.flex.body.contents;
 const helpButtons = helpBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
-assert.strictEqual(helpButtons.length, 8);
+assert.strictEqual(helpButtons.length, 9);
 assert.strictEqual(helpButtons[0].action.text, '本週菜單');
 assert.strictEqual(helpButtons[1].action.text, '菜單');
-assert.strictEqual(helpButtons[2].action.text, '我的訂單');
-assert.strictEqual(helpButtons[3].action.text, '我的本週訂單');
-assert.strictEqual(helpButtons[4].action.text, '取消餐點');
-assert.strictEqual(helpButtons[7].action.text, '結單');
-console.log('  ✔ Buttonized Help card verified with 8 quick-action buttons.');
+assert.strictEqual(helpButtons[2].action.text, '設定小孩');
+assert.strictEqual(helpButtons[3].action.text, '我的訂單');
+assert.strictEqual(helpButtons[4].action.text, '我的本週訂單');
+assert.strictEqual(helpButtons[5].action.text, '取消餐點');
+assert.strictEqual(helpButtons[8].action.text, '結單');
+console.log('  ✔ Buttonized Help card verified with 9 quick-action buttons.');
+
+// Verify clicking the 設定小孩 button from Help invokes children submenu
+OrderModule.handleTextMessage({
+  replyToken: 'token_help_kids_button',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: helpButtons[2].action.text }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, '👶 小孩與用餐對象管理選單');
+const kidsSubmenuBody = lastReply.flex.body.contents;
+const kidsSubmenuButtons = kidsSubmenuBody.filter(c => c.layout === 'horizontal').map(c => c.contents.find(i => i.type === 'button'));
+assert.strictEqual(kidsSubmenuButtons.length, 4);
+assert.strictEqual(kidsSubmenuButtons[0].action.text, '我的小孩');
+assert.strictEqual(kidsSubmenuButtons[0].action.label, '看名單');
+assert.strictEqual(kidsSubmenuButtons[1].action.text, '設定小孩 大寶, 二寶');
+assert.strictEqual(kidsSubmenuButtons[1].action.label, '批次登記');
+assert.strictEqual(kidsSubmenuButtons[2].action.text, '新增小孩 小寶 附小一年一班');
+assert.strictEqual(kidsSubmenuButtons[2].action.label, '新增小孩');
+assert.strictEqual(kidsSubmenuButtons[3].action.text, '刪除小孩 小寶');
+assert.strictEqual(kidsSubmenuButtons[3].action.label, '刪除小孩');
+console.log('  ✔ Children submenu flex card triggered from 設定小孩 button with 4 interactive actions verified.');
 
 // Step A: View Weekly Schedule
 console.log('  [Step A] Member queries weekly schedule (本週菜單)');
@@ -1190,6 +1212,31 @@ assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['寶一', '寶二
 
 // Reset Alice kids back to 大寶, 二寶
 SheetModule.setChildren('user_alice', 'Alice', '愛麗絲', ['大寶', '二寶']);
+
+// Test parameter-less fallback checks and children submenu commands
+OrderModule.handleTextMessage({
+  replyToken: 'token_kids_menu_cmd',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '小孩選單' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, '👶 小孩與用餐對象管理選單');
+
+OrderModule.handleTextMessage({
+  replyToken: 'token_add_kid_empty',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '新增小孩' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('請輸入小孩姓名與班級備註'));
+
+OrderModule.handleTextMessage({
+  replyToken: 'token_del_kid_empty',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '刪除小孩' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('請輸入欲刪除的小孩姓名'));
 
 console.log('  ✔ Children tab CRUD API, flex card, and management commands verified.');
 
