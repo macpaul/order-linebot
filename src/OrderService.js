@@ -876,6 +876,12 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '👶 我的小孩與用餐對象名冊', kidsFlex);
   }
 
+  // 8.5.1 CHILDREN SUBMENU: 設定小孩 / 小孩設定 / 登記小孩 / 小孩選單 / 小孩管理 (無帶參數時回覆按鈕子選單)
+  if (/^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i.test(text.trim())) {
+    var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex();
+    return LineModule.replyFlex(replyToken, '👶 小孩與用餐對象管理選單', childrenSubmenuFlex);
+  }
+
   var setKidsMatch = text.match(/^(?:\/)?(?:設定小孩|小孩設定|登記小孩)\s+(.+)$/i);
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
@@ -889,17 +895,25 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
   }
 
+  if (/^(?:\/)?(?:新增小孩|加小孩)$/i.test(text.trim())) {
+    return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名與班級備註，例如：「新增小孩 小寶 附小一年一班」');
+  }
+
   var addKidMatch = text.match(/^(?:\/)?(?:新增小孩|加小孩)\s+([^\s]+)(?:\s+(.+))?$/i);
   if (addKidMatch) {
     var newKidName = addKidMatch[1].trim();
     var kidNote = (addKidMatch[2] || '').trim();
     if (!newKidName) {
-      return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名，例如：「新增小孩 小寶 三年二班」');
+      return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名，例如：「新增小孩 小寶 附小一年一班」');
     }
     if (SheetModule.saveChild) {
       SheetModule.saveChild(userId, userDisplayName, userDisplayName, newKidName, kidNote);
     }
     return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
+  }
+
+  if (/^(?:\/)?(?:刪除小孩|移除小孩)$/i.test(text.trim())) {
+    return LineModule.replyText(replyToken, '⚠️ 請輸入欲刪除的小孩姓名，例如：「刪除小孩 小寶」');
   }
 
   var delKidMatch = text.match(/^(?:\/)?(?:刪除小孩|移除小孩)\s+([^\s]+)$/i);
