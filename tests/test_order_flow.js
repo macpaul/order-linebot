@@ -1752,6 +1752,99 @@ delete process.env.ORGANIZER_PUSH_ID;
 
 console.log('  ✔ Multi-organizer push target resolution (Schemes A, B, C & Wildcard) verified.\n');
 
+// 13-6: Test migrateToHashedUserIds One-Click Migration Tool
+console.log('▶ Test 13-6: One-Click Migration Tool (migrateToHashedUserIds)');
+
+var rawUserX = 'U11112222333344445555666677778888';
+var rawUserY = 'U99998888777766665555444433332222';
+var effUserX = SheetModule.hashUserId(rawUserX);
+var effUserY = SheetModule.hashUserId(rawUserY);
+
+SheetModule._mockStore.Orders.push({
+  orderId: 'ord_mig_1',
+  timestamp: '2026-09-09 10:00:00',
+  date: '2026-09-09',
+  dayOfWeek: '週一',
+  groupId: 'grp_mig',
+  userId: rawUserX,
+  userName: '老張',
+  userNickname: '老張',
+  childName: '',
+  itemName: '排骨便當',
+  quantity: 1,
+  price: 100,
+  subtotal: 100,
+  status: 'ACTIVE',
+  paid: 'UNPAID'
+});
+SheetModule._mockStore.Orders.push({
+  orderId: 'ord_mig_2',
+  timestamp: '2026-09-09 10:00:00',
+  date: '2026-09-09',
+  dayOfWeek: '週一',
+  groupId: 'grp_mig',
+  userId: rawUserY,
+  userName: '老李',
+  userNickname: '老李',
+  childName: '',
+  itemName: '雞腿便當',
+  quantity: 1,
+  price: 120,
+  subtotal: 120,
+  status: 'ACTIVE',
+  paid: 'UNPAID'
+});
+
+// Setup mock Children with raw user ID
+SheetModule._mockStore.Children.push({
+  userId: rawUserX,
+  userName: '老張',
+  userNickname: '老張',
+  childName: '張小弟',
+  note: '三年一班',
+  createdAt: '2026-09-09 10:00:00',
+  updatedAt: '2026-09-09 10:00:00'
+});
+
+// Setup mock Config with raw ORGANIZER_ID and USER_ID mode
+SheetModule._mockStore.Config['ORGANIZER_ID'] = rawUserX;
+SheetModule._mockStore.Config['USER_IDENTIFIER_MODE'] = 'USER_ID';
+
+// Run migration!
+var migRes = SheetModule.migrateToHashedUserIds();
+assert.strictEqual(migRes.success, true);
+assert.ok(migRes.ordersMigrated >= 2);
+assert.ok(migRes.childrenMigrated >= 1);
+assert.strictEqual(migRes.organizerMigrated, true);
+
+// Verify Orders records have been converted to hashed ID
+var migOrder1 = SheetModule._mockStore.Orders.find(function (o) { return o.orderId === 'ord_mig_1'; });
+assert.strictEqual(migOrder1.userId, effUserX);
+var migOrder2 = SheetModule._mockStore.Orders.find(function (o) { return o.orderId === 'ord_mig_2'; });
+assert.strictEqual(migOrder2.userId, effUserY);
+
+// Verify Children record converted to hashed ID
+var migKid = SheetModule._mockStore.Children.find(function (c) { return c.childName === '張小弟'; });
+assert.strictEqual(migKid.userId, effUserX);
+
+// Verify Config updated
+assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], effUserX);
+assert.strictEqual(SheetModule._mockStore.Config['USER_IDENTIFIER_MODE'], 'HASHED_ID');
+
+// Test Idempotency: running migration again does not re-hash already hashed records
+var migRes2 = SheetModule.migrateToHashedUserIds();
+assert.strictEqual(migRes2.ordersMigrated, 0);
+assert.strictEqual(migRes2.childrenMigrated, 0);
+assert.strictEqual(migRes2.organizerMigrated, false);
+assert.strictEqual(migOrder1.userId, effUserX);
+
+// Clean up mock records
+SheetModule.cancelOrder(effUserX, 'grp_mig', '排骨便當', null, '週一');
+SheetModule.cancelOrder(effUserY, 'grp_mig', '雞腿便當', null, '週一');
+SheetModule.deleteChild(effUserX, '張小弟');
+
+console.log('  ✔ migrateToHashedUserIds: Batch migration & idempotency verified.\n');
+
 // Clean up mock date
 globalThis._mockCurrentDate = null;
 
