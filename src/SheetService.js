@@ -1689,6 +1689,171 @@ function getWeeklyOrderSummary(groupId) {
 }
 
 /**
+ * One-click migration: Migrate all existing unhashed LINE User IDs across Orders, Children, and Config to HASHED_ID format.
+ * Safe, idempotent, batch-updates Google Sheets, and updates USER_IDENTIFIER_MODE to 'HASHED_ID'.
+ * @returns {{ success: boolean, ordersMigrated: number, childrenMigrated: number, organizerMigrated: boolean, message: string }}
+ */
+function migrateToHashedUserIds() {
+  var ordersMigrated = 0;
+  var childrenMigrated = 0;
+  var organizerMigrated = false;
+
+  // 1. Mock / Node.js runtime
+  if (!isGasRuntime()) {
+    if (_mockStore.Orders && _mockStore.Orders.length > 0) {
+      _mockStore.Orders.forEach(function (o) {
+        var u = String(o.userId || '').trim();
+        if (u && u !== 'anonymous' && u.indexOf('usr_') !== 0) {
+          o.userId = hashUserId(u);
+          ordersMigrated++;
+        }
+      });
+    }
+
+    if (_mockStore.Children && _mockStore.Children.length > 0) {
+      _mockStore.Children.forEach(function (c) {
+        var u = String(c.userId || '').trim();
+        if (u && u.indexOf('usr_') !== 0) {
+          c.userId = hashUserId(u);
+          childrenMigrated++;
+        }
+      });
+    }
+
+    if (_mockStore.Config) {
+      var orgId = String(_mockStore.Config['ORGANIZER_ID'] || '').trim();
+      if (orgId && orgId.indexOf('usr_') !== 0) {
+        _mockStore.Config['ORGANIZER_ID'] = hashUserId(orgId);
+        organizerMigrated = true;
+      }
+      _mockStore.Config['USER_IDENTIFIER_MODE'] = 'HASHED_ID';
+    }
+
+    var mockMsg = '🔒 歷史資料去識別化遷移完成！\n' +
+                  '• 訂單記錄已轉換: ' + ordersMigrated + ' 筆\n' +
+                  '• 小孩名冊已轉換: ' + childrenMigrated + ' 筆\n' +
+                  '• 開單人 ID: ' + (organizerMigrated ? '已更新為雜湊 ID' : '無須更動') + '\n' +
+                  '• USER_IDENTIFIER_MODE 已設定為 HASHED_ID';
+
+    return {
+      success: true,
+      ordersMigrated: ordersMigrated,
+      childrenMigrated: childrenMigrated,
+      organizerMigrated: organizerMigrated,
+      message: mockMsg
+    };
+  }
+
+  // 2. Google Apps Script Runtime
+  var ss = getSpreadsheet();
+  if (!ss) {
+    return { success: false, ordersMigrated: 0, childrenMigrated: 0, organizerMigrated: false, message: '找不到試算表！' };
+  }
+
+  // A. Migrate Orders sheet
+  try {
+    var orderSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.ORDERS);
+    if (orderSheet && orderSheet.getLastRow() > 1) {
+      var oRange = orderSheet.getDataRange();
+      var oData = oRange.getValues();
+      var colMap = _getOrderColumnIndexes(oData[0]);
+      if (colMap.userId !== -1) {
+        var oModified = false;
+        for (var r = 1; r < oData.length; r++) {
+          var rUid = String(oData[r][colMap.userId] || '').trim();
+          if (rUid && rUid !== 'anonymous' && rUid.indexOf('usr_') !== 0) {
+            oData[r][colMap.userId] = hashUserId(rUid);
+            ordersMigrated++;
+            oModified = true;
+          }
+        }
+        if (oModified) {
+          oRange.setValues(oData);
+        }
+      }
+    }
+  } catch (e) {
+    if (typeof console !== 'undefined') console.error('Error migrating Orders:', e);
+  }
+
+  // B. Migrate Children sheet
+  try {
+    var childSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CHILDREN);
+    if (childSheet && childSheet.getLastRow() > 1) {
+      var cRange = childSheet.getDataRange();
+      var cData = cRange.getValues();
+      var cModified = false;
+      for (var cr = 1; cr < cData.length; cr++) {
+        var cUid = String(cData[cr][0] || '').trim();
+        if (cUid && cUid.indexOf('usr_') !== 0) {
+          cData[cr][0] = hashUserId(cUid);
+          childrenMigrated++;
+          cModified = true;
+        }
+      }
+      if (cModified) {
+        cRange.setValues(cData);
+      }
+    }
+  } catch (e) {
+    if (typeof console !== 'undefined') console.error('Error migrating Children:', e);
+  }
+
+  // C. Migrate Config sheet
+  try {
+    var cfgSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.CONFIG);
+    if (cfgSheet && cfgSheet.getLastRow() > 1) {
+      var cfgRange = cfgSheet.getDataRange();
+      var cfgData = cfgRange.getValues();
+      var cfgModified = false;
+      for (var k = 1; k < cfgData.length; k++) {
+        var key = String(cfgData[k][0] || '').trim();
+        if (key === 'ORGANIZER_ID') {
+          var curOrg = String(cfgData[k][1] || '').trim();
+          if (curOrg && curOrg.indexOf('usr_') !== 0) {
+            cfgData[k][1] = hashUserId(curOrg);
+            organizerMigrated = true;
+            cfgModified = true;
+          }
+        } else if (key === 'USER_IDENTIFIER_MODE') {
+          if (String(cfgData[k][1] || '').trim() !== 'HASHED_ID') {
+            cfgData[k][1] = 'HASHED_ID';
+            cfgModified = true;
+          }
+        }
+      }
+      if (cfgModified) {
+        cfgRange.setValues(cfgData);
+      }
+    }
+  } catch (e) {
+    if (typeof console !== 'undefined') console.error('Error migrating Config:', e);
+  }
+
+  var msg = '🔒 歷史資料去識別化遷移完成！\n' +
+            '• 訂單記錄已轉換: ' + ordersMigrated + ' 筆\n' +
+            '• 小孩名冊已轉換: ' + childrenMigrated + ' 筆\n' +
+            '• 開單人 ID: ' + (organizerMigrated ? '已更新為雜湊 ID' : '無須更動') + '\n' +
+            '• USER_IDENTIFIER_MODE 已設定為 HASHED_ID';
+
+  try {
+    ss.toast('已成功將 ' + ordersMigrated + ' 筆歷史訂單去識別化！', '遷移完成', 5);
+    var ui = SpreadsheetApp.getUi();
+    if (ui) {
+      ui.alert('🎉 歷史資料去識別化遷移成功', msg, ui.ButtonSet.OK);
+    }
+  } catch (e) {}
+
+  return {
+    success: true,
+    ordersMigrated: ordersMigrated,
+    childrenMigrated: childrenMigrated,
+    organizerMigrated: organizerMigrated,
+    message: msg
+  };
+}
+
+/**
  * Google Sheets UI onOpen menu builder
  */
 function onOpenSpreadsheet() {
@@ -1697,6 +1862,7 @@ function onOpenSpreadsheet() {
     var ui = SpreadsheetApp.getUi();
     ui.createMenu('🍱 便當訂餐管理')
       .addItem('📅 檢查/初始化試算表結構', 'initSheets')
+      .addItem('🔒 一鍵升級歷史 ID 為去識別化雜湊', 'migrateToHashedUserIds')
       .addItem('📊 重新產生今日統計表', 'refreshDailySummary')
       .addItem('📈 重新產生本週梯次統計表', 'refreshWeeklySummary')
       .addSeparator()
@@ -2138,6 +2304,7 @@ function deleteChild(userId, childName, userName, userNickname) {
   g.getPaymentConfig = getPaymentConfig;
   g.normalizeImageUrl = normalizeImageUrl;
   g.onOpenSpreadsheet = onOpenSpreadsheet;
+  g.migrateToHashedUserIds = migrateToHashedUserIds;
   g.checkTimeZoneAndCurrentTime = checkTimeZoneAndCurrentTime;
   g.findUserInGroup = findUserInGroup;
   g.logToSheet = logToSheet;
@@ -2186,6 +2353,7 @@ function deleteChild(userId, childName, userName, userNickname) {
       getPaymentConfig: getPaymentConfig,
       normalizeImageUrl: normalizeImageUrl,
       onOpenSpreadsheet: onOpenSpreadsheet,
+      migrateToHashedUserIds: migrateToHashedUserIds,
       checkTimeZoneAndCurrentTime: checkTimeZoneAndCurrentTime,
       logToSheet: logToSheet,
       _getOrderColumnIndexes: _getOrderColumnIndexes,
