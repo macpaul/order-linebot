@@ -606,7 +606,8 @@ assert.strictEqual(colIndices13.itemName, 7);
 assert.strictEqual(colIndices13.status, 11);
 
 // Verify order record in mock store has userNickname
-const bobOrdersInStore = SheetModule._mockStore.Orders.filter(function (o) { return o.userId === 'user_bob'; });
+const effBobId = SheetModule.getEffectiveUserId ? SheetModule.getEffectiveUserId('user_bob') : 'user_bob';
+const bobOrdersInStore = SheetModule._mockStore.Orders.filter(function (o) { return o.userId === 'user_bob' || o.userId === effBobId; });
 assert.ok(bobOrdersInStore.length > 0);
 assert.strictEqual(bobOrdersInStore[0].userNickname, '小鮑伯');
 console.log('  ✔ Orders sheet UserNickname column and dynamic header mapping verified.');
@@ -617,11 +618,15 @@ delete SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'];
 delete SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'];
 delete SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'];
 delete SheetModule._mockStore.Config['ALLOW_SWITCH_ORGANIZER'];
+delete SheetModule._mockStore.Config['USER_IDENTIFIER_MODE'];
+delete SheetModule._mockStore.Config['HASH_SALT'];
 assert.strictEqual(SheetModule._mockStore.Config['ORGANIZER_ID'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'], undefined);
 assert.strictEqual(SheetModule._mockStore.Config['ALLOW_SWITCH_ORGANIZER'], undefined);
+assert.strictEqual(SheetModule._mockStore.Config['USER_IDENTIFIER_MODE'], undefined);
+assert.strictEqual(SheetModule._mockStore.Config['HASH_SALT'], undefined);
 
 const initRes = SheetModule.initSheets();
 assert.strictEqual(initRes, true);
@@ -630,6 +635,8 @@ assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_BANK_QR_URL'], '');
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_NAME'], '');
 assert.strictEqual(SheetModule._mockStore.Config['PAYMENT_LINEPAY_USER_ID'], '');
 assert.strictEqual(SheetModule._mockStore.Config['ALLOW_SWITCH_ORGANIZER'], 'true');
+assert.strictEqual(SheetModule._mockStore.Config['USER_IDENTIFIER_MODE'], 'HASHED_ID');
+assert.strictEqual(SheetModule._mockStore.Config['HASH_SALT'], '');
 assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_NAME'), '小幫手');
 assert.strictEqual(SheetModule.getConfigValue('CLOSE_ORDER_SCOPE'), 'WEEKLY');
 console.log('  ✔ initSheets automatically backfills all recently added Config variables.\n');
@@ -1437,7 +1444,9 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '開單 福山排骨便當 11:30' }
 });
 assert.strictEqual(lastReply.type, 'flex');
-assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_ID'), 'user_alice');
+const effAliceId = SheetModule.getEffectiveUserId ? SheetModule.getEffectiveUserId('user_alice') : 'user_alice';
+assert.ok(SheetModule.getConfigValue('ORGANIZER_ID') === 'user_alice' || SheetModule.getConfigValue('ORGANIZER_ID') === effAliceId);
+assert.ok(OrderModule.isUserOrganizer('user_alice'));
 console.log('  ✔ ALLOW_SWITCH_ORGANIZER=true permits new organizer to take over on 開單.');
 
 // When false, non-organizer calling 開單 is rejected
@@ -1450,7 +1459,7 @@ OrderModule.handleTextMessage({
 });
 assert.strictEqual(lastReply.type, 'text');
 assert.ok(lastReply.text.includes('已鎖定開單人，非現任開單人無法重新開單或更換開單人'));
-assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_ID'), 'user_alice', 'Organizer remains Alice');
+assert.ok(SheetModule.getConfigValue('ORGANIZER_ID') === 'user_alice' || SheetModule.getConfigValue('ORGANIZER_ID') === effAliceId, 'Organizer remains Alice');
 
 // Current organizer (Alice) calling 開單 while locked is allowed
 lastReply = null;
@@ -1460,7 +1469,8 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '開單 金仙蝦捲飯 11:45' }
 });
 assert.strictEqual(lastReply.type, 'flex');
-assert.strictEqual(SheetModule.getConfigValue('ORGANIZER_ID'), 'user_alice');
+assert.ok(SheetModule.getConfigValue('ORGANIZER_ID') === 'user_alice' || SheetModule.getConfigValue('ORGANIZER_ID') === effAliceId);
+assert.ok(OrderModule.isUserOrganizer('user_alice'));
 console.log('  ✔ ALLOW_SWITCH_ORGANIZER=false blocks unauthorized takeover but allows existing organizer.');
 
 // Reset ALLOW_SWITCH_ORGANIZER back to true
@@ -1515,6 +1525,175 @@ assert.strictEqual(badSigRes.body.error, 'Invalid signature');
 delete process.env.CHANNEL_SECRET;
 console.log('  ✔ Webhook security (URL Token, Header Signature, Verify Probe Fast-Path) verified.');
 console.log('  ✔ Security hardening test suite completed.\n');
+
+// 13. Test User Identifier Storage Modes & Privacy De-identification (HASHED_ID, USER_ID, NICKNAME)
+console.log('▶ Test 13: User Privacy & User Identifier Storage Modes (HASHED_ID, USER_ID, NICKNAME)');
+
+// 13-1: Test hashUserId functionality and idempotency
+var testRawId = 'U1234567890abcdef1234567890abcdef';
+var hashed1 = SheetModule.hashUserId(testRawId, 'my_test_salt_abc');
+assert.ok(hashed1.startsWith('usr_'));
+assert.strictEqual(hashed1.length, 20); // 'usr_' (4) + 16 hex chars = 20
+
+// Consistency
+var hashed2 = SheetModule.hashUserId(testRawId, 'my_test_salt_abc');
+assert.strictEqual(hashed1, hashed2);
+
+// Different salt generates different hash
+var hashedDiffSalt = SheetModule.hashUserId(testRawId, 'different_salt_xyz');
+assert.notStrictEqual(hashed1, hashedDiffSalt);
+
+// Idempotency: hashing already hashed ID returns it as-is
+assert.strictEqual(SheetModule.hashUserId(hashed1), hashed1);
+
+// 13-2: Mode 1 - HASHED_ID (Default & Recommended for Privacy)
+SheetModule.setConfigValue('USER_IDENTIFIER_MODE', 'HASHED_ID');
+SheetModule.setConfigValue('HASH_SALT', 'privacy_salt_123');
+var rawIdDavid = 'U9876543210fedcba9876543210fedcba';
+var effDavid = SheetModule.getEffectiveUserId(rawIdDavid, '大衛', '大衛');
+assert.ok(effDavid.startsWith('usr_'));
+assert.strictEqual(effDavid.length, 20);
+assert.notStrictEqual(effDavid, rawIdDavid);
+
+// Place order in HASHED_ID mode
+var recHashed = SheetModule.addOrder({
+  userId: rawIdDavid,
+  groupId: 'grp_privacy_test',
+  userName: '大衛',
+  userNickname: '小衛',
+  itemName: '排骨便當',
+  quantity: 1,
+  price: 100,
+  dayOfWeek: '週一'
+});
+// Verify stored record in mock store has hashed ID, NEVER the raw LINE User ID
+assert.strictEqual(recHashed.userId, effDavid);
+var storedOrder = SheetModule._mockStore.Orders.find(function (o) { return o.orderId === recHashed.orderId; });
+assert.ok(storedOrder);
+assert.strictEqual(storedOrder.userId, effDavid);
+assert.strictEqual(storedOrder.userId.indexOf('U9876543210'), -1);
+
+// Query order using raw userId: seamlessly resolves via effUserId
+var davidOrders = SheetModule.getUserOrders(rawIdDavid, 'grp_privacy_test', null, '週一');
+assert.strictEqual(davidOrders.length, 1);
+assert.strictEqual(davidOrders[0].orderId, recHashed.orderId);
+
+// Query order using effUserId directly: also seamlessly resolves
+var davidOrdersHashed = SheetModule.getUserOrders(effDavid, 'grp_privacy_test', null, '週一');
+assert.strictEqual(davidOrdersHashed.length, 1);
+
+// Backward compatibility: legacy unhashed order stored with raw ID
+var legacyRec = {
+  orderId: 'ord_legacy_999',
+  timestamp: '2026-09-09 10:00:00',
+  date: '2026-09-09',
+  dayOfWeek: '週一',
+  groupId: 'grp_privacy_test',
+  userId: rawIdDavid, // raw ID stored previously before upgrading
+  userName: '大衛',
+  userNickname: '小衛',
+  childName: '',
+  itemName: '雞腿便當',
+  quantity: 1,
+  price: 120,
+  subtotal: 120,
+  status: 'ACTIVE',
+  paid: 'UNPAID'
+};
+SheetModule._mockStore.Orders.push(legacyRec);
+
+// Both hashed and legacy orders are returned
+var davidAllOrders = SheetModule.getUserOrders(rawIdDavid, 'grp_privacy_test', null, '週一');
+assert.strictEqual(davidAllOrders.length, 2);
+
+// Children profile in HASHED_ID mode stores effDavid
+SheetModule.saveChild(rawIdDavid, '大衛', '小衛', '小衛一號', '一年甲班');
+var davidKids = SheetModule.getChildren(rawIdDavid, '大衛', '小衛');
+assert.ok(davidKids.includes('小衛一號'));
+var storedKid = SheetModule._mockStore.Children.find(function (c) { return c.childName === '小衛一號'; });
+assert.ok(storedKid);
+assert.strictEqual(storedKid.userId, effDavid);
+
+// Cancel order works seamlessly
+var cancelCountHashed = SheetModule.cancelOrder(rawIdDavid, 'grp_privacy_test', '排骨便當', null, '週一');
+assert.strictEqual(cancelCountHashed, 1);
+assert.strictEqual(storedOrder.status, 'CANCELLED');
+
+// Clean up legacy order
+SheetModule.cancelOrder(rawIdDavid, 'grp_privacy_test', '雞腿便當', null, '週一');
+SheetModule.deleteChild(rawIdDavid, '小衛一號', '大衛', '小衛');
+
+console.log('  ✔ HASHED_ID mode: One-way HMAC-SHA256 salted hash de-identification and dual backward compatibility verified.');
+
+// 13-3: Mode 2 - USER_ID (Legacy mode storing raw LINE User ID)
+SheetModule.setConfigValue('USER_IDENTIFIER_MODE', 'USER_ID');
+var rawIdEmma = 'Uabcdef1234567890abcdef1234567890';
+var effEmma = SheetModule.getEffectiveUserId(rawIdEmma, '艾瑪', '艾瑪');
+assert.strictEqual(effEmma, rawIdEmma);
+
+var recRaw = SheetModule.addOrder({
+  userId: rawIdEmma,
+  groupId: 'grp_privacy_test',
+  userName: '艾瑪',
+  userNickname: '艾瑪',
+  itemName: '魚排便當',
+  quantity: 1,
+  price: 110,
+  dayOfWeek: '週二'
+});
+assert.strictEqual(recRaw.userId, rawIdEmma);
+
+var emmaOrders = SheetModule.getUserOrders(rawIdEmma, 'grp_privacy_test', null, '週二');
+assert.strictEqual(emmaOrders.length, 1);
+SheetModule.cancelOrder(rawIdEmma, 'grp_privacy_test', '魚排便當', null, '週二');
+
+console.log('  ✔ USER_ID mode: Raw LINE User ID storage verified.');
+
+// 13-4: Mode 3 - NICKNAME (Zero User ID mode using display name/nickname as index)
+SheetModule.setConfigValue('USER_IDENTIFIER_MODE', 'NICKNAME');
+var rawIdFrank = 'U55555555555555555555555555555555';
+var effFrank = SheetModule.getEffectiveUserId(rawIdFrank, '法蘭克', '小法');
+assert.strictEqual(effFrank, '小法');
+
+var recNick = SheetModule.addOrder({
+  userId: rawIdFrank,
+  groupId: 'grp_privacy_test',
+  userName: '法蘭克',
+  userNickname: '小法',
+  itemName: '叉燒便當',
+  quantity: 1,
+  price: 95,
+  dayOfWeek: '週三'
+});
+// Verify stored record in mock store has nickname as index, completely eliminating raw LINE User ID
+assert.strictEqual(recNick.userId, '小法');
+var storedNickOrder = SheetModule._mockStore.Orders.find(function (o) { return o.orderId === recNick.orderId; });
+assert.strictEqual(storedNickOrder.userId, '小法');
+
+// Query order using nickname works seamlessly
+var frankOrders = SheetModule.getUserOrders(rawIdFrank, 'grp_privacy_test', null, '週三', '小法');
+assert.strictEqual(frankOrders.length, 1);
+assert.strictEqual(frankOrders[0].itemName, '叉燒便當');
+
+// Children profile in NICKNAME mode
+SheetModule.saveChild(rawIdFrank, '法蘭克', '小法', '法寶', '');
+var frankKids = SheetModule.getChildren(rawIdFrank, '法蘭克', '小法');
+assert.ok(frankKids.includes('法寶'));
+var storedFrankKid = SheetModule._mockStore.Children.find(function (c) { return c.childName === '法寶'; });
+assert.strictEqual(storedFrankKid.userId, '小法');
+
+// Cancel order works in NICKNAME mode
+var cancelNickCount = SheetModule.cancelOrder(rawIdFrank, 'grp_privacy_test', '叉燒便當', null, '週三', '小法');
+assert.strictEqual(cancelNickCount, 1);
+assert.strictEqual(storedNickOrder.status, 'CANCELLED');
+SheetModule.deleteChild(rawIdFrank, '法寶', '法蘭克', '小法');
+
+console.log('  ✔ NICKNAME mode: Zero technical User ID storage and display name indexing verified.');
+
+// Reset config back to default HASHED_ID
+SheetModule.setConfigValue('USER_IDENTIFIER_MODE', 'HASHED_ID');
+SheetModule.setConfigValue('HASH_SALT', '');
+console.log('  ✔ User privacy & storage modes test suite completed.\n');
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
