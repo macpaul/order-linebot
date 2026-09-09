@@ -60,7 +60,21 @@ var CONFIG = {
    * 'true': Anyone calling '開單' becomes the new organizer
    * 'false': Only the existing ORGANIZER_ID can modify or open order
    */
-  ALLOW_SWITCH_ORGANIZER: 'true'
+  ALLOW_SWITCH_ORGANIZER: 'true',
+
+  /**
+   * User Identifier Storage Mode
+   * 'HASHED_ID': One-way HMAC-SHA256 salted hash (e.g. usr_8f9c21b4a7d3e5f0). Default for privacy.
+   * 'USER_ID': Raw LINE User ID (e.g. U12345...).
+   * 'NICKNAME': User Display Name / Nickname as index. Zero User ID storage.
+   */
+  USER_IDENTIFIER_MODE: 'HASHED_ID',
+
+  /**
+   * Optional custom salt for HASHED_ID mode.
+   * If left blank, falls back to CHANNEL_SECRET or default internal salt.
+   */
+  HASH_SALT: ''
 };
 
 /**
