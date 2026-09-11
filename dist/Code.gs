@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-09T13:21:43.398Z
+ * Automatically generated on: 2026-09-11T02:58:56.602Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -5924,12 +5924,41 @@ function _pushParsedOrderItem(list, dayOfWeek, rawItem, qty, explicitChild) {
   list.push({ dayOfWeek: dayOfWeek, itemName: cleanItem, quantity: qty, childName: childName });
 }
 
+/**
+ * Detect whether a text is an announcement, order reconciliation, or audit notice
+ * to prevent accidental order placement.
+ */
+function isAnnouncementOrReconciliation(text) {
+  if (!text) return false;
+  var clean = text.trim();
+  // 1. Header/intent check: e.g. "目前訂餐記錄（請大家核對）", "訂餐公告", "如果需要修改訂單"
+  if (/(?:目前)?(?:訂餐|點餐|訂單|訂購)(?:記錄|紀錄|明細|名單|總表|統計).*(?:核對|確認|注意|如下)/i.test(clean)) return true;
+  if (/(?:請大家核對|請各位核對|請同仁核對|請核對訂單|請核對明細|核對訂單|核對名單|核對明細)/i.test(clean)) return true;
+  if (/(?:訂餐公告|點餐公告|開單公告|結單公告|訂單公告)/i.test(clean)) return true;
+  if (/(?:如果需要修改訂單|若需修改訂單|修改訂單請|如需更動訂單|需修改訂單)/i.test(clean)) return true;
+  if (/(?:統計名單如下|訂單明細如下|目前訂餐如下)/i.test(clean)) return true;
+  return false;
+}
+
 function parseOrderText(text) {
-  if (!text) return [];
+  if (!text || isAnnouncementOrReconciliation(text)) return [];
   var protectedText = _protectBrackets(text);
   var clean = protectedText.replace(/，|；/g, ',');
   var lines = clean.split(/[\n,]+/);
   var parsedItems = [];
+
+  // Helper to test if candidate item string is actually price calculation or math
+  var isMathOrPriceStr = function (str) {
+    if (!str) return true;
+    var s = str.trim();
+    // Math operators +, -, *, /, = (e.g. 43+48, 341-313, 20=7)
+    if (/[+\-*\/=]/.test(s)) return true;
+    // Standalone numbers or trailing price, e.g. "45", "90", "便當 45", "餡餅 90"
+    if (/(?:^|[\s$])\$?\d+$/.test(s)) return true;
+    // Contains price/fee keywords
+    if (/(?:元|塊|買一送一|折價|運費|差價|手續費)/.test(s)) return true;
+    return false;
+  };
 
   for (var i = 0; i < lines.length; i++) {
     var raw = _restoreBrackets(lines[i]).trim();
@@ -5947,7 +5976,8 @@ function parseOrderText(text) {
     var prefixMatch = raw.match(/^([^\s:+*xX0-9]{1,10})\s*[:：]\s*(.+)$/);
     if (prefixMatch) {
       var pKid = prefixMatch[1].trim();
-      if (pKid !== '點餐' && pKid !== '取消' && pKid !== '訂單' && pKid !== '開單' && pKid !== '說明' && pKid !== '菜單') {
+      var nonKidKeywords = ['點餐', '取消', '訂單', '開單', '說明', '菜單', '注意', '備註', '時間', '預訂', '金額', '費用', '總計', '統計', '記錄', '紀錄', '公告', '地點', '取餐', '店家'];
+      if (nonKidKeywords.indexOf(pKid) === -1) {
         childPrefix = pKid;
         raw = prefixMatch[2].trim();
       }
@@ -5968,37 +5998,49 @@ function parseOrderText(text) {
     // Pattern 1: +1 排骨飯 or +2 雞腿飯
     var match1 = raw.match(/^\+([0-9]+)\s*(.+)$/);
     if (match1) {
-      qty = parseInt(match1[1], 10);
-      itemName = match1[2].trim();
-      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
-      continue;
+      var cand1 = match1[2].trim();
+      if (!isMathOrPriceStr(cand1)) {
+        qty = parseInt(match1[1], 10);
+        itemName = cand1;
+        _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
+        continue;
+      }
     }
 
     // Pattern 2: 排骨飯+1 or 雞腿飯 + 2
     var match2 = raw.match(/^(.+?)\s*\+\s*([0-9]+)$/);
     if (match2) {
-      itemName = match2[1].trim();
-      qty = parseInt(match2[2], 10);
-      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
-      continue;
+      var cand2 = match2[1].trim();
+      if (!isMathOrPriceStr(cand2)) {
+        itemName = cand2;
+        qty = parseInt(match2[2], 10);
+        _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
+        continue;
+      }
     }
 
     // Pattern 3: 排骨飯*1 or 雞腿飯 * 2 or 排骨飯x2
     var match3 = raw.match(/^(.+?)\s*[*xX]\s*([0-9]+)$/);
     if (match3) {
-      itemName = match3[1].trim();
-      qty = parseInt(match3[2], 10);
-      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
-      continue;
+      var cand3 = match3[1].trim();
+      if (!isMathOrPriceStr(cand3)) {
+        itemName = cand3;
+        qty = parseInt(match3[2], 10);
+        _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
+        continue;
+      }
     }
 
     // Pattern 4: 點餐 排骨飯 2 or 點餐 排骨飯
     var match4 = raw.match(/^點餐\s+(.+?)(?:\s+([0-9]+))?$/);
     if (match4) {
-      itemName = match4[1].trim();
-      qty = match4[2] ? parseInt(match4[2], 10) : 1;
-      _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
-      continue;
+      var cand4 = match4[1].trim();
+      if (!isMathOrPriceStr(cand4)) {
+        itemName = cand4;
+        qty = match4[2] ? parseInt(match4[2], 10) : 1;
+        _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
+        continue;
+      }
     }
   }
 
@@ -6026,8 +6068,15 @@ function matchMenuItem(rawItemName, menuList) {
   for (var j = 0; j < menuList.length; j++) {
     var itemN = menuList[j].itemName || menuList[j].ItemName || '';
     var itemP = menuList[j].price !== undefined ? menuList[j].price : menuList[j].Price;
-    if (itemN && (itemN.indexOf(rawItemName) !== -1 || rawItemName.indexOf(itemN) !== -1)) {
-      return { itemName: itemN, price: itemP || 0 };
+    if (itemN) {
+      // Menu item contains raw user query (e.g. "招牌排骨飯" contains "排骨飯")
+      if (itemN.indexOf(rawItemName) !== -1) {
+        return { itemName: itemN, price: itemP || 0 };
+      }
+      // User query contains menu item, only if query is reasonably short and lacks arithmetic/punctuation
+      if (rawItemName.indexOf(itemN) !== -1 && rawItemName.length <= itemN.length + 4 && !/[+\-*\/=0-9]/.test(rawItemName)) {
+        return { itemName: itemN, price: itemP || 0 };
+      }
     }
   }
 
@@ -6062,6 +6111,12 @@ function handleTextMessage(event) {
       }
     }
   } catch (e) {}
+
+  // 0. ANNOUNCEMENT / RECONCILIATION FILTER:
+  // Avoid misinterpreting group announcements or order verification lists as commands or orders
+  if (isAnnouncementOrReconciliation(text)) {
+    return null;
+  }
 
   // 1. HELP: 幫助 / 說明 / 指令 / help
   if (/^(幫助|說明|指令|help|\/help)$/i.test(text)) {
@@ -6966,6 +7021,7 @@ function handlePostbackEvent(event) {
   g.resolveOrganizerPushTargets = resolveOrganizerPushTargets;
   g.formatOrderSummaryText = formatOrderSummaryText;
   g.isUserOrganizer = isUserOrganizer;
+  g.isAnnouncementOrReconciliation = isAnnouncementOrReconciliation;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -6982,7 +7038,8 @@ function handlePostbackEvent(event) {
       notifyOrganizer: notifyOrganizer,
       resolveOrganizerPushTargets: resolveOrganizerPushTargets,
       formatOrderSummaryText: formatOrderSummaryText,
-      isUserOrganizer: isUserOrganizer
+      isUserOrganizer: isUserOrganizer,
+      isAnnouncementOrReconciliation: isAnnouncementOrReconciliation
     };
   }
 })();
