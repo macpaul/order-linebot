@@ -10,6 +10,7 @@ const SheetModule = require('../src/SheetService.js');
 const FlexModule = require('../src/FlexMessage.js');
 const LineModule = require('../src/LineService.js');
 const UberEatsModule = require('../src/UberEatsService.js');
+const I18nModule = require('../src/I18n.js');
 const OrderModule = require('../src/OrderService.js');
 const CodeModule = require('../src/Code.js');
 
@@ -1927,5 +1928,152 @@ console.log('  ✔ migrateToHashedUserIds: Batch migration & idempotency verifie
 
 // Clean up mock date
 globalThis._mockCurrentDate = null;
+
+// ============================================================================
+// Test 14: Internationalization (i18n), Single-Locale & User-Locale Customization
+// ============================================================================
+console.log('▶ Test 14: Internationalization (i18n), Single-Locale & User-Locale Customization');
+
+// 14.1 Basic i18n translation and fallback
+assert.strictEqual(I18nModule.t('common.member', null, 'zh-TW'), '成員');
+assert.strictEqual(I18nModule.t('common.member', null, 'en'), 'Member');
+assert.strictEqual(I18nModule.t('common.member', null, 'ja'), 'メンバー');
+assert.strictEqual(I18nModule.t('common.member', null, 'ko'), '멤버');
+assert.strictEqual(I18nModule.t('common.member', null, 'th'), 'สมาชิก');
+assert.strictEqual(I18nModule.t('common.member', null, 'id'), 'Anggota');
+
+// Fallback to zh-TW when key is missing in target language
+assert.strictEqual(I18nModule.t('non_existent_key_xyz', null, 'en'), 'non_existent_key_xyz');
+
+// Param replacement
+assert.strictEqual(
+  I18nModule.t('lang.set_success', { lang: 'English' }, 'en'),
+  '✅ Language successfully set to "English"! Future messages will be in this language.'
+);
+
+// 14.2 Weekday localization
+assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'zh-TW'), '週一');
+assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'en'), 'Mon');
+assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'ja'), '月曜');
+assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'ko'), '월');
+assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'th'), 'จันทร์');
+assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'id'), 'Senin');
+
+// 14.3 Multi-language command aliases regex builder
+var helpRegex = I18nModule.buildCommandRegex('cmd.help');
+assert.ok(helpRegex.test('幫助'));
+assert.ok(helpRegex.test('/help'));
+assert.ok(helpRegex.test('help'));
+assert.ok(helpRegex.test('ヘルプ'));
+assert.ok(helpRegex.test('도움말'));
+assert.ok(helpRegex.test('ช่วยเหลือ'));
+assert.ok(helpRegex.test('bantuan'));
+
+// 14.4 Default Config Behavior: ENABLE_USER_LOCALE is 'false' by default
+SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'false';
+SheetModule._mockStore.Config['DEFAULT_LOCALE'] = 'zh-TW';
+
+// When ENABLE_USER_LOCALE is false, createHelpFlex must have 9 buttons (no language button)
+var helpFlexDefault = FlexModule.createHelpFlex();
+var helpButtonsDefault = helpFlexDefault.body.contents.map(function (row) {
+  return row.contents[1].action.label;
+});
+assert.strictEqual(helpButtonsDefault.length, 9, 'Default help card must have 9 buttons when user locale disabled');
+assert.strictEqual(helpButtonsDefault.includes('切換語言'), false);
+
+// When user triggers language command with ENABLE_USER_LOCALE=false, receives disabled notice
+OrderModule.handleTextMessage({
+  replyToken: 'tok_lang_1',
+  source: { userId: 'usr_locale_1' },
+  message: { type: 'text', text: '設定語言' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('尚未開放個人切換語言功能') || lastReply.text.includes('disabled'));
+
+// 14.5 Enable User Locale Customization: ENABLE_USER_LOCALE = 'true'
+SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'true';
+assert.strictEqual(I18nModule.isUserLocaleEnabled(), true);
+
+// When ENABLE_USER_LOCALE is true, createHelpFlex must show 10 buttons (including language button)
+var helpFlexWithLang = FlexModule.createHelpFlex();
+var helpButtonsWithLang = helpFlexWithLang.body.contents.map(function (row) {
+  return row.contents[1].action.label;
+});
+assert.strictEqual(helpButtonsWithLang.length, 10, 'Help card must have 10 buttons when user locale is enabled');
+assert.strictEqual(helpButtonsWithLang.includes('切換語言'), true);
+
+// User queries '設定語言' -> returns language select Flex card with 6 language options
+OrderModule.handleTextMessage({
+  replyToken: 'tok_lang_2',
+  source: { userId: 'usr_locale_1' },
+  message: { type: 'text', text: '設定語言' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+var langFlexBubble = lastReply.flex;
+assert.strictEqual(langFlexBubble.body.contents.length, 6, 'Must show 6 supported languages');
+
+// User sets language to English via command
+OrderModule.handleTextMessage({
+  replyToken: 'tok_lang_3',
+  source: { userId: 'usr_locale_1', displayName: 'John' },
+  message: { type: 'text', text: '設定語言 en' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('Language successfully set to "English"'));
+
+// Verify UserPreferences stored
+var userPrefLoc = SheetModule.getUserLocalePreference('usr_locale_1');
+assert.strictEqual(userPrefLoc, 'en');
+
+// Now user usr_locale_1 queries help -> receives English help card
+OrderModule.handleTextMessage({
+  replyToken: 'tok_lang_4',
+  source: { userId: 'usr_locale_1', displayName: 'John' },
+  message: { type: 'text', text: 'help' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, 'Meal Ordering Bot Guide');
+var engHelpButtons = lastReply.flex.body.contents.map(function (row) {
+  return row.contents[1].action.label;
+});
+assert.strictEqual(engHelpButtons[0], 'Weekly');
+assert.strictEqual(engHelpButtons[9], 'Language');
+
+// User sets language to Japanese via Postback
+OrderModule.handlePostbackEvent({
+  replyToken: 'tok_lang_5',
+  source: { userId: 'usr_locale_1', displayName: 'John' },
+  postback: { data: 'action=set_lang&lang=ja' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('言語を「日本語」に設定しました'));
+
+// Verify UserPreferences updated to ja
+assert.strictEqual(SheetModule.getUserLocalePreference('usr_locale_1'), 'ja');
+
+// Now user usr_locale_1 queries help -> receives Japanese help card
+OrderModule.handleTextMessage({
+  replyToken: 'tok_lang_6',
+  source: { userId: 'usr_locale_1', displayName: 'John' },
+  message: { type: 'text', text: 'ヘルプ' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, 'お弁当注文コマンド案内');
+var jaHelpButtons = lastReply.flex.body.contents.map(function (row) {
+  return row.contents[1].action.label;
+});
+assert.strictEqual(jaHelpButtons[0], '今週確認');
+assert.strictEqual(jaHelpButtons[9], '言語設定');
+
+// Reset Config & clean up test preference
+SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'false';
+SheetModule._mockStore.Config['DEFAULT_LOCALE'] = 'zh-TW';
+if (SheetModule._mockStore.UserPreferences) {
+  SheetModule._mockStore.UserPreferences = SheetModule._mockStore.UserPreferences.filter(function (p) {
+    return p.userId !== 'usr_locale_1';
+  });
+}
+
+console.log('  ✔ i18n core, single-locale, user-locale toggle, 6 languages & aliases verified.\n');
 
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
