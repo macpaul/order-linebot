@@ -33,6 +33,39 @@ var FLEX_COLORS = {
   danger: '#EF4444'
 };
 
+function _resolveLocale(locale) {
+  if (locale) return locale;
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.getDefaultLocale) {
+    return I18nModule.getDefaultLocale();
+  }
+  if (typeof getDefaultLocale === 'function') {
+    return getDefaultLocale();
+  }
+  return 'zh-TW';
+}
+
+function _translateHelper(key, params, locale) {
+  var loc = _resolveLocale(locale);
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.t) {
+    return I18nModule.t(key, params, loc);
+  }
+  if (typeof t === 'function') {
+    return t(key, params, loc);
+  }
+  return key;
+}
+
+function _displayDayHelper(sheetDay, locale) {
+  var loc = _resolveLocale(locale);
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.displayDayOfWeek) {
+    return I18nModule.displayDayOfWeek(sheetDay, loc);
+  }
+  if (typeof displayDayOfWeek === 'function') {
+    return displayDayOfWeek(sheetDay, loc);
+  }
+  return sheetDay;
+}
+
 /* ------------------------------------------------------------------ *
  * Internal helpers — Flex component builders
  * ------------------------------------------------------------------ */
@@ -244,10 +277,13 @@ function _calcOrderTotal(orders) {
  * @param {string} [dayOfWeek] - Optional day of week (e.g. "週一", "週二").
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
+function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale) {
+  var loc = _resolveLocale(locale);
   var groups = _groupMenuByCategory(menuItems);
-  var headerTitle = restaurantName || '今日菜單';
-  var dayBadge = dayOfWeek ? '【' + dayOfWeek + '】' : '';
+  var displayDay = dayOfWeek ? _displayDayHelper(dayOfWeek, loc) : '';
+  var dayBadge = displayDay ? '【' + displayDay + '】' : '';
+  var titleSuffix = _translateHelper('menu.title_suffix', {}, loc);
+  var headerTitle = restaurantName ? (restaurantName + titleSuffix) : _translateHelper('stats.today_title', {}, loc);
 
   /* ---- header ---- */
   var header = _flexBox([
@@ -257,7 +293,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText('⏰ 點餐截止：' + (cutoffTime || '--'), {
+    _flexText(_translateHelper('menu.cutoff_prefix', {}, loc) + (cutoffTime || '--'), {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -277,7 +313,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
   var MAX_ITEMS_PER_MENU = 35;
 
   if (groups.length === 0) {
-    bodyContents.push(_flexText('（目前此店家尚無菜單項目）', {
+    bodyContents.push(_flexText('（' + _translateHelper('stats.no_orders', {}, loc) + '）', {
       size: 'sm',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -336,7 +372,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
             type: 'button',
             action: {
               type: 'message',
-              label: '+1 點餐',
+              label: _translateHelper('menu.btn_order', {}, loc),
               text: orderText
             },
             style: 'primary',
@@ -349,8 +385,8 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
             type: 'button',
             action: {
               type: 'message',
-              label: '已售完',
-              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + ' 已售完'
+              label: (loc === 'zh-TW' ? '已售完' : 'Sold Out'),
+              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + (loc === 'zh-TW' ? ' 已售完' : ' Sold Out')
             },
             style: 'secondary',
             height: 'sm',
@@ -386,14 +422,21 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
   });
 
   /* ---- footer ---- */
+  var footerText1 = (loc === 'zh-TW')
+    ? '💡 點擊「+1 點餐」按鈕即可直接加訂！'
+    : ('💡 ' + _translateHelper('menu.btn_order', {}, loc));
+  var footerText2 = (loc === 'zh-TW')
+    ? ('亦可輸入「' + (dayOfWeek ? dayOfWeek + ' ' : '') + '菜名+數量」或「取消 菜名」')
+    : ('e.g. ' + (displayDay ? displayDay + ' ' : '') + '+1 [item]');
+
   var footer = _flexBox([
-    _flexText('💡 點擊「+1 點餐」按鈕即可直接加訂！', {
+    _flexText(footerText1, {
       size: 'xs',
       weight: 'bold',
       color: FLEX_COLORS.primaryDark,
       align: 'center'
     }),
-    _flexText('亦可輸入「' + (dayOfWeek ? dayOfWeek + ' ' : '') + '菜名+數量」或「取消 菜名」', {
+    _flexText(footerText2, {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -770,20 +813,23 @@ function _buildPaymentContents(paymentInfo) {
  * @param {Object} [paymentInfo] - Optional payment configuration (LINE Pay & Bank Transfer).
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
+function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, locale) {
+  var loc = _resolveLocale(locale);
   var data = summaryData || {};
   var items = data.items || [];
   var totalQty = data.totalQuantity || 0;
   var totalAmt = data.totalAmount || 0;
   var dateStr = data.date || '';
 
-  var statusLabel = isClosed ? '已截止' : '開放中';
+  var statusLabel = isClosed ? (loc === 'zh-TW' ? '已截止' : 'Closed') : (loc === 'zh-TW' ? '開放中' : 'Open');
   var statusColor = isClosed ? FLEX_COLORS.danger : FLEX_COLORS.success;
 
   /* ---- header ---- */
-  var headerDateText = (dateStr ? dateStr : '今日') + (data.dayOfWeek ? ' (' + data.dayOfWeek + ')' : '');
+  var dayName = data.dayOfWeek ? _displayDayHelper(data.dayOfWeek, loc) : '';
+  var headerDateText = (dateStr ? dateStr : (loc === 'zh-TW' ? '今日' : 'Today')) + (dayName ? ' (' + dayName + ')' : '');
+  var defaultTitle = isClosed ? _translateHelper('stats.today_title_closed', {}, loc) : _translateHelper('stats.today_title', {}, loc);
   var header = _flexBox([
-    _flexText(restaurantName || '訂單統計', {
+    _flexText(restaurantName || defaultTitle, {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -825,7 +871,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   var bodyContents = [];
 
   if (items.length === 0) {
-    bodyContents.push(_flexText('（今日尚無訂單）', {
+    bodyContents.push(_flexText('（' + _translateHelper('stats.no_orders', {}, loc) + '）', {
       size: 'md',
       color: FLEX_COLORS.textSecondary,
       align: 'center'
@@ -885,14 +931,14 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   // Grand total
   bodyContents.push(_flexSeparator({ margin: 'md' }));
   bodyContents.push(_flexBox([
-    _flexText('總計', {
+    _flexText((loc === 'zh-TW' ? '總計' : 'Total'), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textPrimary,
       align: 'start',
       flex: 1
     }),
-    _flexText(totalQty + ' 份 / ' + _formatPrice(totalAmt), {
+    _flexText(_translateHelper('stats.total_summary', { qty: totalQty, amount: totalAmt }, loc), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.primary,
@@ -909,7 +955,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   // Member billing & order roster (今日成員應付明細與點餐名冊)
   if (data.users && data.users.length > 0) {
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    bodyContents.push(_flexText('👤 今日成員應付名冊', {
+    bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 今日成員應付名冊' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), {
       weight: 'bold',
       size: 'sm',
       color: FLEX_COLORS.textPrimary,
@@ -919,7 +965,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
     data.users.forEach(function (u) {
       var userItemsStr = (u.items && u.items.length > 0) ? u.items.join('、') : '';
       var userColChildren = [
-        _flexText(u.userName || '成員', {
+        _flexText(u.userName || (loc === 'zh-TW' ? '成員' : 'Member'), {
           size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.textPrimary
@@ -939,7 +985,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
           layout: 'vertical',
           flex: 3
         }),
-        _flexText('$' + u.total + ' 元', {
+        _flexText('$' + u.total + (loc === 'zh-TW' ? ' 元' : ''), {
           size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.danger,
@@ -972,7 +1018,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       type: 'button',
       action: {
         type: 'message',
-        label: '🔒 截止今日訂餐（結單）',
+        label: (loc === 'zh-TW' ? '🔒 截止今日訂餐（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
         text: '今日結單'
       },
       style: 'secondary',
@@ -989,9 +1035,9 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   });
 
   /* ---- footer ---- */
-  var footerMsg = isClosed
-    ? '⏰ 已截止，請各成員儘速完成付款'
-    : '🟢 目前開放點餐中';
+  var footerMsg = (loc === 'zh-TW')
+    ? (isClosed ? '⏰ 已截止，請各成員儘速完成付款' : '🟢 目前開放點餐中')
+    : (isClosed ? _translateHelper('stats.today_subtitle_closed', {}, loc) : _translateHelper('stats.today_subtitle_open', {}, loc));
 
   var footer = _flexBox([
     _flexText(footerMsg, {
@@ -1190,7 +1236,8 @@ function createHelpFlex(sourceCodeUrl, locale) {
  * @param {boolean} [isOrganizer] - Whether the requester is the organizer
  * @returns {Object} LINE Flex bubble
  */
-function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
+function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, locale) {
+  var loc = _resolveLocale(locale);
   var orders = activeOrders || [];
   var locks = lockMap || {};
 
@@ -1215,14 +1262,20 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
     dayMap[d].push(o);
   });
 
+  var headerTitle = isOrganizer
+    ? _translateHelper('cancel.title_org', {}, loc)
+    : _translateHelper('cancel.title', {}, loc);
+  var memberDisplayName = userName || (loc === 'zh-TW' ? '成員' : 'Member');
+  var headerSub = _translateHelper('cancel.subtitle', { name: memberDisplayName }, loc);
+
   var header = _flexBox([
-    _flexText(isOrganizer ? '👑 取消訂單選單 (開單人)' : '🗑️ 取消訂單選單', {
+    _flexText(headerTitle, {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText((userName || '成員') + ' 的個人進行中訂單', {
+    _flexText(headerSub, {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -1236,7 +1289,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
 
   var bodyContents = [];
   if (dayOrder.length === 0) {
-    bodyContents.push(_flexText('（目前沒有任何進行中的訂餐紀錄）', {
+    bodyContents.push(_flexText(_translateHelper('cancel.no_orders', {}, loc), {
       size: 'sm',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -1246,15 +1299,26 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
     var anyDayUnlocked = false;
 
     dayOrder.forEach(function (day, di) {
+      var displayDay = _displayDayHelper(day, loc);
       var dayItems = dayMap[day];
       var dayLock = locks[day];
       var isDayLocked = dayLock && dayLock.locked;
-      var lockReason = isDayLocked ? (dayLock.reason || '已截止') : '';
+      var rawReason = dayLock ? dayLock.reason : '';
+      var lockReason = '';
+      if (isDayLocked) {
+        if (rawReason === '已過期') {
+          lockReason = _translateHelper('cancel.reason_expired', {}, loc);
+        } else if (rawReason === '已截止') {
+          lockReason = _translateHelper('cancel.reason_cutoff', {}, loc);
+        } else {
+          lockReason = rawReason || _translateHelper('cancel.locked', {}, loc);
+        }
+      }
       if (!isDayLocked) {
         anyDayUnlocked = true;
       }
 
-      var dayHeaderTitle = '【' + day + ' 預訂項目】' + (isDayLocked ? ' 🔒[' + lockReason + '無法取消]' : '');
+      var dayHeaderTitle = _translateHelper('cancel.day_items', { day: displayDay }, loc) + (isDayLocked ? ' 🔒[' + lockReason + ' ' + _translateHelper('cancel.locked', {}, loc) + ']' : '');
 
       bodyContents.push(_flexText(dayHeaderTitle, {
         size: 'md',
@@ -1286,7 +1350,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
               type: 'button',
               action: {
                 type: 'message',
-                label: '取消此項',
+                label: _translateHelper('cancel.btn_cancel_item', {}, loc),
                 text: cancelCmd
               },
               style: 'primary',
@@ -1326,7 +1390,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
           type: 'button',
           action: {
             type: 'message',
-            label: '取消我的【' + day + '】餐點',
+            label: _translateHelper('cancel.btn_cancel_day', { day: displayDay }, loc),
             text: '取消我的 ' + day + ' 全部'
           },
           style: 'secondary',
@@ -1343,7 +1407,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
         type: 'button',
         action: {
           type: 'message',
-          label: '❌ 取消我的所有未截止預訂',
+          label: '❌ ' + _translateHelper('cancel.btn_cancel_all', {}, loc),
           text: '取消我的 全部'
         },
         style: 'secondary',
@@ -1352,7 +1416,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       });
     } else if (!anyDayUnlocked && dayOrder.length > 0) {
       bodyContents.push(_flexSeparator({ margin: 'md' }));
-      bodyContents.push(_flexText('⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。', {
+      bodyContents.push(_flexText(loc === 'zh-TW' ? '⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。' : '⚠️ ' + _translateHelper('cancel.footer_member', {}, loc), {
         size: 'xs',
         color: FLEX_COLORS.warning,
         align: 'center',
@@ -1365,7 +1429,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   // If user is organizer, provide full group management buttons with warning prompt
   if (isOrganizer) {
     bodyContents.push(_flexSeparator({ margin: 'lg' }));
-    bodyContents.push(_flexText('👑 開單人管理專區', {
+    bodyContents.push(_flexText((loc === 'zh-TW') ? '👑 開單人管理專區' : _translateHelper('cancel.org_section', {}, loc), {
       size: 'sm',
       weight: 'bold',
       color: FLEX_COLORS.danger,
@@ -1375,7 +1439,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       type: 'button',
       action: {
         type: 'message',
-        label: '⚠️ 取消全體當日餐點 (需確認)',
+        label: _translateHelper('cancel.btn_org_day', {}, loc),
         text: '取消當日所有餐點'
       },
       style: 'secondary',
@@ -1386,7 +1450,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       type: 'button',
       action: {
         type: 'message',
-        label: '🚨 取消全體未截止預訂 (需確認)',
+        label: _translateHelper('cancel.btn_org_all', {}, loc),
         text: '取消所有未截止預約訂單'
       },
       style: 'secondary',
@@ -1402,8 +1466,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   });
 
   var footerText = isOrganizer
-    ? '💡 開單人可協助管理訂單；全體取消操作將跳出警告確認卡，需再次確認。'
-    : '💡 您只能退訂自己訂購的餐點；如需退訂他人餐點或取消全體訂單，請洽開單人。';
+    ? _translateHelper('cancel.footer_org', {}, loc)
+    : _translateHelper('cancel.footer_member', {}, loc);
 
   var footer = _flexBox([
     _flexText(footerText, {
@@ -1432,11 +1496,13 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
  * @param {string} warningDesc
  * @param {string} targetActionText
  * @param {string} targetButtonLabel
+ * @param {string} [locale]
  * @returns {Object} LINE Flex bubble
  */
-function createConfirmCancelFlex(title, warningDesc, targetActionText, targetButtonLabel) {
+function createConfirmCancelFlex(title, warningDesc, targetActionText, targetButtonLabel, locale) {
+  var loc = _resolveLocale(locale);
   var header = _flexBox([
-    _flexText('🚨 取消確認警告 (開單人專用)', {
+    _flexText(_translateHelper('cancel.confirm_header', {}, loc), {
       size: 'md',
       weight: 'bold',
       color: '#FFFFFF'
@@ -1446,6 +1512,8 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
     backgroundColor: FLEX_COLORS.danger,
     paddingAll: 'md'
   });
+
+  var abortCmd = (loc === 'zh-TW') ? '放棄取消' : ((typeof I18nModule !== 'undefined' && I18nModule.I18N_COMMANDS && I18nModule.I18N_COMMANDS[loc] && I18nModule.I18N_COMMANDS[loc]['cmd.abort_cancel']) ? I18nModule.I18N_COMMANDS[loc]['cmd.abort_cancel'][0] : '放棄取消');
 
   var body = _flexBox([
     _flexText(title, {
@@ -1462,7 +1530,7 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
       wrap: true
     }),
     _flexBox([
-      _flexText('⚠️ 警告：此操作將影響全體成員且無法復原！', {
+      _flexText((loc === 'zh-TW') ? '⚠️ 警告：此操作將影響全體成員且無法復原！' : _translateHelper('cancel.confirm_footer', {}, loc), {
         size: 'xs',
         color: FLEX_COLORS.danger,
         weight: 'bold',
@@ -1491,8 +1559,8 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
         type: 'button',
         action: {
           type: 'message',
-          label: '放棄取消 (保留所有訂單)',
-          text: '放棄取消'
+          label: _translateHelper('cancel.btn_abort', {}, loc),
+          text: abortCmd
         },
         style: 'secondary',
         height: 'sm',
@@ -1519,15 +1587,17 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
  * @param {Array<Object>} schedule - List of { dayOfWeek, restaurantName, cutoffTime, notes, isActive }
  * @returns {Object} LINE Flex bubble
  */
-function createWeeklyScheduleFlex(schedule) {
+function createWeeklyScheduleFlex(schedule, locale) {
+  var loc = _resolveLocale(locale);
   var rows = [];
   var days = schedule || [];
 
   for (var i = 0; i < days.length; i++) {
     var s = days[i];
+    var displayDay = _displayDayHelper(s.dayOfWeek, loc);
     rows.push(_flexBox([
       _flexBox([
-        _flexText(s.dayOfWeek, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
+        _flexText(displayDay, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
       ], {
         backgroundColor: FLEX_COLORS.primary,
         cornerRadius: 'sm',
@@ -1535,14 +1605,14 @@ function createWeeklyScheduleFlex(schedule) {
         width: '45px'
       }),
       _flexBox([
-        _flexText(s.restaurantName || '尚未指定店家', { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText('⏰ 截止 ' + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
+        _flexText(s.restaurantName || _translateHelper('schedule.no_restaurant', {}, loc), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText(_translateHelper('schedule.cutoff_prefix', {}, loc) + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
       ], { layout: 'vertical', margin: 'md', flex: 1 }),
       {
         type: 'button',
         action: {
           type: 'message',
-          label: '看菜單',
+          label: _translateHelper('schedule.btn_menu', {}, loc),
           text: s.dayOfWeek + '菜單'
         },
         style: 'secondary',
@@ -1563,12 +1633,12 @@ function createWeeklyScheduleFlex(schedule) {
     type: 'bubble',
     size: 'mega',
     header: _flexBox([
-      _flexText('📅 本週訂餐排程表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
-      _flexText('週一至週五每日店家 · 支援一梯次預訂', { size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs' })
+      _flexText(_translateHelper('schedule.title', {}, loc), { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
+      _flexText(_translateHelper('schedule.subtitle', {}, loc), { size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs' })
     ], { backgroundColor: FLEX_COLORS.primaryDark, paddingAll: 'lg' }),
     body: _flexBox(rows, { layout: 'vertical', paddingAll: 'md' }),
     footer: _flexBox([
-      _flexText('💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
+      _flexText(_translateHelper('schedule.footer', {}, loc), { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
     ], { backgroundColor: FLEX_COLORS.background, paddingAll: 'sm' })
   };
 }
@@ -1578,22 +1648,25 @@ function createWeeklyScheduleFlex(schedule) {
  * @param {Object} weeklySummary - { daySummaries, grandTotalQuantity, grandTotalAmount, users }
  * @param {boolean} [isClosed] - Whether weekly ordering has ended.
  * @param {Object} [paymentInfo] - Optional payment configuration (LINE Pay & Bank Transfer).
+ * @param {string} [locale]
  * @returns {Object} LINE Flex bubble
  */
-function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
+function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
+  var loc = _resolveLocale(locale);
   var summary = weeklySummary || { daySummaries: [], users: [] };
   var bodyContents = [];
 
   for (var i = 0; i < summary.daySummaries.length; i++) {
     var ds = summary.daySummaries[i];
+    var displayDay = _displayDayHelper(ds.dayOfWeek, loc);
     var dayItemsText = ds.items && ds.items.length > 0
       ? ds.items.map(function (it) { return it.itemName + 'x' + it.quantity; }).join('、')
-      : '無訂單';
+      : _translateHelper('stats.no_orders', {}, loc);
 
     bodyContents.push(_flexBox([
       _flexBox([
-        _flexText(ds.dayOfWeek + ' ' + (ds.restaurantName || ''), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText('共 ' + ds.totalQuantity + ' 份 · $' + ds.totalAmount + ' 元', { size: 'xs', color: FLEX_COLORS.primary, weight: 'bold' })
+        _flexText(displayDay + ' ' + (ds.restaurantName || ''), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText(_translateHelper('stats.total_summary', { qty: ds.totalQuantity, amount: ds.totalAmount }, loc), { size: 'xs', color: FLEX_COLORS.primary, weight: 'bold' })
       ], { layout: 'horizontal', justifyContent: 'space-between' }),
       _flexText(dayItemsText, { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' })
     ], {
@@ -1606,18 +1679,18 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
   }
 
   bodyContents.push(_flexSeparator({ margin: 'md' }));
-  bodyContents.push(_flexText('👤 成員本週梯次應付明細', { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
+  bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 成員本週梯次應付明細' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
 
   if (summary.users && summary.users.length > 0) {
     for (var u = 0; u < summary.users.length; u++) {
       var user = summary.users[u];
       bodyContents.push(_flexBox([
         _flexText(user.userName, { size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText('$' + user.total + ' 元', { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
+        _flexText('$' + user.total + (loc === 'zh-TW' ? ' 元' : ''), { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
       ], { layout: 'horizontal', justifyContent: 'space-between', margin: 'xs' }));
     }
   } else {
-    bodyContents.push(_flexText('尚無成員訂購紀錄', { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
+    bodyContents.push(_flexText((loc === 'zh-TW' ? '尚無成員訂購紀錄' : _translateHelper('stats.no_orders', {}, loc)), { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
   }
 
   // Append payment contents if provided
@@ -1634,7 +1707,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
       type: 'button',
       action: {
         type: 'message',
-        label: '🔒 截止本週預訂（結單）',
+        label: (loc === 'zh-TW' ? '🔒 截止本週預訂（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
         text: '本週結單'
       },
       style: 'secondary',
@@ -1643,16 +1716,23 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
     });
   }
 
-  var titleText = isClosed ? '📊 本週梯次結單總表' : '📊 本週梯次訂餐統計總表';
+  var titleText = (loc === 'zh-TW')
+    ? (isClosed ? '📊 本週梯次結單總表' : '📊 本週梯次訂餐統計總表')
+    : (isClosed ? _translateHelper('stats.weekly_title_closed', {}, loc) : _translateHelper('stats.weekly_title', {}, loc));
+  var headerSub = (loc === 'zh-TW')
+    ? ('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元')
+    : _translateHelper('stats.total_summary', { qty: summary.grandTotalQuantity || 0, amount: summary.grandTotalAmount || 0 }, loc);
   var headerBg = isClosed ? FLEX_COLORS.primaryDark : FLEX_COLORS.primary;
-  var footerMsg = isClosed ? '⏰ 本週預訂已截止，請各成員依此表金額完成付款' : '📋 請各成員依此表金額完成對帳與付款';
+  var footerMsg = (loc === 'zh-TW')
+    ? (isClosed ? '⏰ 本週預訂已截止，請各成員依此表金額完成付款' : '📋 請各成員依此表金額完成對帳與付款')
+    : (isClosed ? _translateHelper('stats.weekly_subtitle_closed', {}, loc) : _translateHelper('stats.weekly_subtitle_open', {}, loc));
 
   return {
     type: 'bubble',
     size: 'mega',
     header: _flexBox([
       _flexText(titleText, { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
-      _flexText('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元', {
+      _flexText(headerSub, {
         size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs'
       })
     ], { backgroundColor: headerBg, paddingAll: 'lg' }),
@@ -1669,15 +1749,17 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
  * @param {Array<string|Object>} children
  * @returns {Object} LINE Flex bubble
  */
-function createChildrenListFlex(userName, children) {
+function createChildrenListFlex(userName, children, locale) {
+  var loc = _resolveLocale(locale);
   var kids = children || [];
+  var memberName = userName || (loc === 'zh-TW' ? '成員' : 'Member');
   var header = _flexBox([
-    _flexText('👶 我的小孩與用餐對象名冊', {
+    _flexText(_translateHelper('children_list.title', {}, loc), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor
     }),
-    _flexText('同仁：' + (userName || '成員'), {
+    _flexText(_translateHelper('children_list.subtitle', { name: memberName }, loc), {
       size: 'xs',
       color: FLEX_COLORS.textOnColor,
       margin: 'xs'
@@ -1690,20 +1772,26 @@ function createChildrenListFlex(userName, children) {
 
   var bodyContents = [];
   if (kids.length === 0) {
-    bodyContents.push(_flexText('您目前尚未登記任何小孩或用餐對象。', {
+    bodyContents.push(_flexText(_translateHelper('children_list.empty', {}, loc), {
       size: 'sm',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
       margin: 'md'
     }));
-    bodyContents.push(_flexText('💡 您可以在點餐時直接加註，如「+1 招牌便當 (大寶)」，系統會自動為您建檔！\n或輸入「設定小孩 大寶, 二寶」完成登記。', {
-      size: 'xs',
-      color: FLEX_COLORS.textSecondary,
-      margin: 'md',
-      wrap: true
-    }));
+    bodyContents.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: _translateHelper('children_list.btn_setup', {}, loc),
+        text: _translateHelper('children_list.cmd_setup', {}, loc)
+      },
+      style: 'primary',
+      color: FLEX_COLORS.primary,
+      height: 'sm',
+      margin: 'md'
+    });
   } else {
-    bodyContents.push(_flexText('已登記的對象名冊（點餐時可一鍵指定）：', {
+    bodyContents.push(_flexText(loc === 'zh-TW' ? '已登記的對象名冊（點餐時可一鍵指定）：' : _translateHelper('children_list.title', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textSecondary,
       margin: 'xs'
@@ -1730,7 +1818,7 @@ function createChildrenListFlex(userName, children) {
     });
 
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    bodyContents.push(_flexText('💡 點餐方式：\n1. 點擊菜單上的「+1 點餐」按鈕，系統會自動彈出小孩捷徑按鈕供您挑選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！', {
+    bodyContents.push(_flexText(loc === 'zh-TW' ? '💡 點餐方式：\n1. 點擊菜單上的「+1 點餐」按鈕，系統會自動彈出小孩捷徑按鈕供您挑選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！' : '💡 ' + _translateHelper('children_menu.footer', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.primaryDark,
       wrap: true,
@@ -1754,19 +1842,20 @@ function createChildrenListFlex(userName, children) {
 
 /**
  * createChildrenHelpFlex — Interactive submenu for children & dining profile management
- *
+ * @param {string} [locale]
  * @returns {Object} LINE Flex bubble
  */
-function createChildrenHelpFlex() {
+function createChildrenHelpFlex(locale) {
+  var loc = _resolveLocale(locale);
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText('👶 小孩與用餐對象管理選單', {
+    _flexText(_translateHelper('children_menu.title', {}, loc), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText('點擊按鈕直接查詢或帶入指令範例', {
+    _flexText(_translateHelper('children_menu.subtitle', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textOnColor,
       margin: 'xs'
@@ -1780,28 +1869,28 @@ function createChildrenHelpFlex() {
   /* ---- body: buttonized command list ---- */
   var commands = [
     {
-      label: '👦 我的小孩 / 小孩名單',
-      desc: '圖文卡片瀏覽名下小孩清單',
-      cmd: '我的小孩',
-      btnText: '看名單'
+      label: _translateHelper('children_menu.item_list_title', {}, loc),
+      desc: _translateHelper('children_menu.item_list_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_list', {}, loc),
+      btnText: _translateHelper('children_menu.btn_list', {}, loc)
     },
     {
-      label: '👶 設定小孩 大寶, 二寶',
-      desc: '批次綁定小孩（覆蓋現有名冊）',
-      cmd: '設定小孩 大寶, 二寶',
-      btnText: '批次登記'
+      label: _translateHelper('children_menu.item_batch_title', {}, loc),
+      desc: _translateHelper('children_menu.item_batch_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_batch', {}, loc),
+      btnText: _translateHelper('children_menu.btn_batch', {}, loc)
     },
     {
-      label: '➕ 新增小孩 小寶 附小一年一班',
-      desc: '新增單一小孩姓名與班級備註',
-      cmd: '新增小孩 小寶 附小一年一班',
-      btnText: '新增小孩'
+      label: _translateHelper('children_menu.item_add_title', {}, loc),
+      desc: _translateHelper('children_menu.item_add_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_add', {}, loc),
+      btnText: _translateHelper('children_menu.btn_add', {}, loc)
     },
     {
-      label: '🗑️ 刪除小孩 小寶',
-      desc: '移除指定小孩名冊紀錄',
-      cmd: '刪除小孩 小寶',
-      btnText: '刪除小孩'
+      label: _translateHelper('children_menu.item_del_title', {}, loc),
+      desc: _translateHelper('children_menu.item_del_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_delete', {}, loc),
+      btnText: _translateHelper('children_menu.btn_delete', {}, loc)
     }
   ];
 
@@ -1855,7 +1944,7 @@ function createChildrenHelpFlex() {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 點擊「批次登記 / 新增 / 刪除」將送出範例指令，您亦可在對話框自行編輯小孩姓名與班級備註！', {
+    _flexText(_translateHelper('children_menu.footer', {}, loc), {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       wrap: true,
