@@ -26,8 +26,21 @@ var CONFIG = {
     MENU: 'Menu',
     ORDERS: 'Orders',
     SUMMARY: 'Summary',
-    CHILDREN: 'Children'
+    CHILDREN: 'Children',
+    USER_PREFERENCES: 'UserPreferences'
   },
+
+  /**
+   * Default system locale ('zh-TW', 'en', 'ja', 'ko', 'th', 'id')
+   */
+  DEFAULT_LOCALE: 'zh-TW',
+
+  /**
+   * Allow individual users to customize their preferred language via menu
+   * 'true': Users can switch language; help flex shows language button
+   * 'false': Fixed to DEFAULT_LOCALE across the entire system
+   */
+  ENABLE_USER_LOCALE: 'false',
 
   /**
    * Mon to Fri days of week in Chinese
