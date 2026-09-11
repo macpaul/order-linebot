@@ -74,7 +74,40 @@ assert.strictEqual(p3[1].quantity, 2);
 assert.strictEqual(p3[2].dayOfWeek, '週四');
 assert.strictEqual(p3[2].itemName, '水煮雞胸');
 assert.strictEqual(p3[2].quantity, 1);
-console.log('  ✔ Text parsing (single-day and Mon-Fri batch) passed.\n');
+
+// Test prevention of announcement / price arithmetic false triggers (e.g. 北平餡餅 announcement)
+const announcementText = `9/11 北平餡餅 目前訂餐記錄（請大家核對） 麻煩注意價錢有更動喔！
+RaeRae ：高麗菜盒+三星蔥蛋餅  43+48 +7
+Ginny：豬肉餡餅（買一送一） 90 +7
+Bertha：豬肉餡餅 45 +7
+Colin：高麗菜盒+豬肉餡餅 45+43 +7
+約中午預訂餐點，16：15前到~~
+因為品項湊買一送一，單價有變。（其實就是買二個便宜一點點）
+豬肉餡餅買一送一價格是90
+高麗菜盒買一送一價格是85
+另外UBER目前收較高的額外費用，如果我的系統本身可以折抵差價，在20元內我付，超過20元就以訂餐人數平均。今天9/11 （341-313）/4= 7
+如果需要修改訂單，請中午前回訊息給我~~`;
+
+assert.strictEqual(OrderModule.isAnnouncementOrReconciliation(announcementText), true, 'Must detect announcement pattern');
+assert.strictEqual(OrderModule.parseOrderText(announcementText).length, 0, 'Full announcement must not parse any orders');
+
+// Test arithmetic price lines individually (without announcement header)
+assert.strictEqual(OrderModule.parseOrderText('RaeRae ：高麗菜盒+三星蔥蛋餅  43+48 +7').length, 0);
+assert.strictEqual(OrderModule.parseOrderText('Ginny：豬肉餡餅（買一送一） 90 +7').length, 0);
+assert.strictEqual(OrderModule.parseOrderText('Bertha：豬肉餡餅 45 +7').length, 0);
+assert.strictEqual(OrderModule.parseOrderText('Colin：高麗菜盒+豬肉餡餅 45+43 +7').length, 0);
+assert.strictEqual(OrderModule.parseOrderText('便當 50 + 10').length, 0);
+assert.strictEqual(OrderModule.parseOrderText('+7 運費').length, 0);
+
+// Verify announcement text sent via handleTextMessage is completely ignored (no order created, returns null)
+const annResult = OrderModule.handleTextMessage({
+  replyToken: 'token_announcement_test',
+  source: { groupId: 'g_ann_test', userId: 'user_mom_test' },
+  message: { type: 'text', text: announcementText }
+});
+assert.strictEqual(annResult, null, 'Announcement message must be ignored by handleTextMessage');
+
+console.log('  ✔ Text parsing (single-day, Mon-Fri batch, announcement & math formula rejection) passed.\n');
 
 // 2. Menu Matching Tests
 console.log('▶ Test 2: Menu Matching & Price Lookup');
