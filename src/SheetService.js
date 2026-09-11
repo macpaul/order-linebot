@@ -153,7 +153,9 @@ function initSheets() {
         ['SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee', '開源原始碼網址 (AGPL-3.0 規定若修改本程式碼需開源並將此處更新為自己的 public git repo)'],
         ['ALLOW_SWITCH_ORGANIZER', 'true', '是否允許任意群組成員藉由「開單」更換開單人 (true: 允許 / false: 僅限現任開單人)'],
         ['USER_IDENTIFIER_MODE', 'HASHED_ID', '使用者識別索引模式 (HASHED_ID: 單向加鹽雜湊去識別化 / USER_ID: 原始 LINE ID / NICKNAME: 純暱稱代號)'],
-        ['HASH_SALT', '', '去識別化雜湊自訂密鑰 Salt (選填，留空自動使用安全預設密鑰)']
+        ['HASH_SALT', '', '去識別化雜湊自訂密鑰 Salt (選填，留空自動使用安全預設密鑰)'],
+        ['DEFAULT_LOCALE', 'zh-TW', '全域預設語系 (zh-TW: 繁中 / en: 英文 / ja: 日文 / ko: 韓文 / th: 泰文 / id: 印尼文)'],
+        ['ENABLE_USER_LOCALE', 'false', '是否允許使用者透過選單自訂語言 (true: 允許並在選單顯示 / false: 統一使用預設語系)']
       ]
     },
     {
@@ -200,6 +202,10 @@ function initSheets() {
         ['U00000000000000000000000000000001', '愛麗絲', '愛麗絲媽咪', '二寶', '附幼企鵝班', '2026-09-07 08:00:00', '2026-09-07 08:00:00'],
         ['U00000000000000000000000000000002', '小鮑伯', '鮑伯爸爸', '小寶', '附小一年一班 (不吃牛)', '2026-09-07 08:00:00', '2026-09-07 08:00:00']
       ]
+    },
+    {
+      name: (CONFIG.SHEET_NAMES && CONFIG.SHEET_NAMES.USER_PREFERENCES) || 'UserPreferences',
+      headers: ['UserId', 'Locale', 'UpdatedAt']
     }
   ];
 
@@ -2275,6 +2281,104 @@ function deleteChild(userId, childName, userName, userNickname) {
   return deleted;
 }
 
+/**
+ * Get user locale preference
+ * @param {string} userId
+ * @param {string} [userName]
+ * @param {string} [userNickname]
+ * @returns {string|null}
+ */
+function getUserLocalePreference(userId, userName, userNickname) {
+  if (!userId) return null;
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.UserPreferences) _mockStore.UserPreferences = [];
+    for (var i = 0; i < _mockStore.UserPreferences.length; i++) {
+      var item = _mockStore.UserPreferences[i];
+      if (item.userId === userId || item.userId === effUserId) {
+        return item.locale || null;
+      }
+    }
+    return null;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return null;
+  var tabName = (CONFIG && CONFIG.SHEET_NAMES && CONFIG.SHEET_NAMES.USER_PREFERENCES) || 'UserPreferences';
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) return null;
+
+  var rows = sheet.getDataRange().getValues();
+  for (var r = 1; r < rows.length; r++) {
+    var rUid = String(rows[r][0] || '').trim();
+    if (rUid === userId || rUid === effUserId) {
+      var loc = String(rows[r][1] || '').trim();
+      return loc || null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Set user locale preference
+ * @param {string} userId
+ * @param {string} locale
+ * @param {string} [userName]
+ * @param {string} [userNickname]
+ * @returns {boolean}
+ */
+function setUserLocalePreference(userId, locale, userName, userNickname) {
+  if (!userId || !locale) return false;
+  var effUserId = getEffectiveUserId(userId, userName, userNickname);
+  var loc = String(locale).trim();
+  var nowStr = new Date().toISOString();
+
+  if (!isGasRuntime()) {
+    if (!_mockStore.UserPreferences) _mockStore.UserPreferences = [];
+    var found = false;
+    for (var i = 0; i < _mockStore.UserPreferences.length; i++) {
+      if (_mockStore.UserPreferences[i].userId === userId || _mockStore.UserPreferences[i].userId === effUserId) {
+        _mockStore.UserPreferences[i].locale = loc;
+        _mockStore.UserPreferences[i].updatedAt = nowStr;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      _mockStore.UserPreferences.push({
+        userId: effUserId,
+        locale: loc,
+        updatedAt: nowStr
+      });
+    }
+    return true;
+  }
+
+  var ss = getSpreadsheet();
+  if (!ss) return false;
+  var tabName = (CONFIG && CONFIG.SHEET_NAMES && CONFIG.SHEET_NAMES.USER_PREFERENCES) || 'UserPreferences';
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    initSheets();
+    sheet = ss.getSheetByName(tabName);
+    if (!sheet) return false;
+  }
+
+  var rows = sheet.getDataRange().getValues();
+  for (var r = 1; r < rows.length; r++) {
+    var rUid = String(rows[r][0] || '').trim();
+    if (rUid === userId || rUid === effUserId) {
+      sheet.getRange(r + 1, 2).setValue(loc);
+      sheet.getRange(r + 1, 3).setValue(nowStr);
+      return true;
+    }
+  }
+
+  sheet.appendRow([effUserId, loc, nowStr]);
+  return true;
+}
+
 // Global export helper
 (function (global) {
   var g = (typeof window   !== 'undefined') ? window
@@ -2323,6 +2427,8 @@ function deleteChild(userId, childName, userName, userNickname) {
   g._sanitizeSheetCell = _sanitizeSheetCell;
   g.hashUserId = hashUserId;
   g.getEffectiveUserId = getEffectiveUserId;
+  g.getUserLocalePreference = getUserLocalePreference;
+  g.setUserLocalePreference = setUserLocalePreference;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -2367,6 +2473,8 @@ function deleteChild(userId, childName, userName, userNickname) {
       _sanitizeSheetCell: _sanitizeSheetCell,
       hashUserId: hashUserId,
       getEffectiveUserId: getEffectiveUserId,
+      getUserLocalePreference: getUserLocalePreference,
+      setUserLocalePreference: setUserLocalePreference,
       _mockStore: _mockStore
     };
   }
