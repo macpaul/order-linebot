@@ -2065,12 +2065,35 @@ var jaHelpButtons = lastReply.flex.body.contents.map(function (row) {
 assert.strictEqual(jaHelpButtons[0], '今週確認');
 assert.strictEqual(jaHelpButtons[9], '言語設定');
 
+// 14.6 Verify all help menu button commands across all 6 supported locales
+// (zh-TW, en, ja, ko, th, id) successfully trigger handlers
+var allLocales = ['zh-TW', 'en', 'ja', 'ko', 'th', 'id'];
+SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'true';
+allLocales.forEach(function (loc) {
+  var helpFlex = FlexModule.createHelpFlex('https://tinyurl.com/4c92wtee', loc);
+  var rows = helpFlex.body.contents;
+  assert.strictEqual(rows.length, 10, 'Each locale must render 10 command buttons in help flex');
+
+  rows.forEach(function (row, btnIdx) {
+    var cmdText = row.contents[1].action.text;
+    assert.ok(cmdText && cmdText.length > 0, 'Button ' + btnIdx + ' must have valid cmd text');
+    lastReply = null;
+    OrderModule.handleTextMessage({
+      replyToken: 'tok_menu_btn_' + loc + '_' + btnIdx,
+      source: { userId: 'usr_btn_test', groupId: groupId },
+      message: { type: 'text', text: cmdText }
+    });
+    assert.ok(lastReply, 'Menu button command "' + cmdText + '" (loc=' + loc + ', idx=' + btnIdx + ') must trigger a response');
+    assert.ok(lastReply.type === 'flex' || lastReply.type === 'text', 'Response must be flex or text');
+  });
+});
+
 // Reset Config & clean up test preference
 SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'false';
 SheetModule._mockStore.Config['DEFAULT_LOCALE'] = 'zh-TW';
 if (SheetModule._mockStore.UserPreferences) {
   SheetModule._mockStore.UserPreferences = SheetModule._mockStore.UserPreferences.filter(function (p) {
-    return p.userId !== 'usr_locale_1';
+    return p.userId !== 'usr_locale_1' && p.userId !== 'usr_btn_test';
   });
 }
 
