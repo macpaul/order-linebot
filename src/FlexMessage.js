@@ -3,6 +3,22 @@
  * Compatible with Google Apps Script (GAS) and Node.js
  */
 
+var I18nModule = null;
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+       : (typeof global   !== 'undefined') ? global
+       : (typeof self     !== 'undefined') ? self
+       : null;
+
+  if (g && g.t) {
+    I18nModule = g;
+  } else {
+    try {
+      I18nModule = require('./I18n.js');
+    } catch (e) {}
+  }
+})();
+
 var FLEX_COLORS = {
   primary: '#1DB446',
   primaryDark: '#158C36',
@@ -1008,24 +1024,41 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
  * @param {string} [sourceCodeUrl] - Open source repo URL (defaults to Config SOURCE_CODE_URL)
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createHelpFlex(sourceCodeUrl) {
+function createHelpFlex(sourceCodeUrl, locale) {
+  var loc = locale;
+  if (!loc) {
+    if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.getDefaultLocale) {
+      loc = I18nModule.getDefaultLocale();
+    } else if (typeof getDefaultLocale === 'function') {
+      loc = getDefaultLocale();
+    } else {
+      loc = 'zh-TW';
+    }
+  }
+
   var srcUrl = sourceCodeUrl;
   if (!srcUrl) {
     if (typeof getConfigValue === 'function') {
       srcUrl = getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
-    } else if (typeof SheetModule !== 'undefined' && typeof SheetModule.getConfigValue === 'function') {
-      srcUrl = SheetModule.getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
-    } else if (typeof getConfigProperty === 'function') {
-      srcUrl = getConfigProperty('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
     } else {
       srcUrl = 'https://tinyurl.com/4c92wtee';
     }
   }
   srcUrl = String(srcUrl || 'https://tinyurl.com/4c92wtee').trim();
 
+  var _translate = function (k, p) {
+    if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.t) {
+      return I18nModule.t(k, p, loc);
+    }
+    if (typeof t === 'function') {
+      return t(k, p, loc);
+    }
+    return k;
+  };
+
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText('📖 便當點餐使用說明', {
+    _flexText(_translate('help.title'), {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -1039,16 +1072,31 @@ function createHelpFlex(sourceCodeUrl) {
 
   /* ---- body: buttonized command list ---- */
   var commands = [
-    { label: '📅 本週菜單', desc: '查看週一至週五排程', cmd: '本週菜單', btnText: '看本週' },
-    { label: '🍱 今日菜單', desc: '查看今日菜單並點餐', cmd: '菜單', btnText: '看菜單' },
-    { label: '👶 設定小孩', desc: '小孩名冊與用餐分配設定', cmd: '設定小孩', btnText: '設定小孩' },
-    { label: '📝 我的訂單', desc: '查詢個人今日點餐紀錄', cmd: '我的訂單', btnText: '查今日' },
-    { label: '📦 我的本週訂單', desc: '查詢本週全梯次預訂', cmd: '我的本週訂單', btnText: '查全週' },
-    { label: '🗑️ 取消餐點', desc: '自選退訂特定餐點', cmd: '取消餐點', btnText: '去取消' },
-    { label: '📊 本週統計', desc: '全週梯次訂購對帳總表', cmd: '本週統計', btnText: '本週統計' },
-    { label: '📈 今日統計', desc: '今日即時訂單統計與名冊', cmd: '今日統計', btnText: '今日統計' },
-    { label: '🔒 結單截止', desc: '截止訂餐並顯示收款資訊', cmd: '結單', btnText: '去結單' }
+    { label: _translate('help.cmd_weekly_schedule.title'), desc: _translate('help.cmd_weekly_schedule.desc'), cmd: _translate('help.cmd_weekly_schedule.cmd'), btnText: _translate('help.cmd_weekly_schedule.btn') },
+    { label: _translate('help.cmd_today_menu.title'), desc: _translate('help.cmd_today_menu.desc'), cmd: _translate('help.cmd_today_menu.cmd'), btnText: _translate('help.cmd_today_menu.btn') },
+    { label: _translate('help.cmd_children.title'), desc: _translate('help.cmd_children.desc'), cmd: _translate('help.cmd_children.cmd'), btnText: _translate('help.cmd_children.btn') },
+    { label: _translate('help.cmd_my_today.title'), desc: _translate('help.cmd_my_today.desc'), cmd: _translate('help.cmd_my_today.cmd'), btnText: _translate('help.cmd_my_today.btn') },
+    { label: _translate('help.cmd_my_weekly.title'), desc: _translate('help.cmd_my_weekly.desc'), cmd: _translate('help.cmd_my_weekly.cmd'), btnText: _translate('help.cmd_my_weekly.btn') },
+    { label: _translate('help.cmd_cancel.title'), desc: _translate('help.cmd_cancel.desc'), cmd: _translate('help.cmd_cancel.cmd'), btnText: _translate('help.cmd_cancel.btn') },
+    { label: _translate('help.cmd_weekly_stats.title'), desc: _translate('help.cmd_weekly_stats.desc'), cmd: _translate('help.cmd_weekly_stats.cmd'), btnText: _translate('help.cmd_weekly_stats.btn') },
+    { label: _translate('help.cmd_today_stats.title'), desc: _translate('help.cmd_today_stats.desc'), cmd: _translate('help.cmd_today_stats.cmd'), btnText: _translate('help.cmd_today_stats.btn') },
+    { label: _translate('help.cmd_close.title'), desc: _translate('help.cmd_close.desc'), cmd: _translate('help.cmd_close.cmd'), btnText: _translate('help.cmd_close.btn') }
   ];
+
+  var userLocaleActive = false;
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.isUserLocaleEnabled) {
+    userLocaleActive = I18nModule.isUserLocaleEnabled();
+  } else if (typeof isUserLocaleEnabled === 'function') {
+    userLocaleActive = isUserLocaleEnabled();
+  }
+  if (userLocaleActive) {
+    commands.push({
+      label: _translate('help.cmd_language.title'),
+      desc: _translate('help.cmd_language.desc'),
+      cmd: _translate('help.cmd_language.cmd'),
+      btnText: _translate('help.cmd_language.btn')
+    });
+  }
 
   var bodyContents = [];
   commands.forEach(function (cmd, i) {
@@ -1100,13 +1148,13 @@ function createHelpFlex(sourceCodeUrl) {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 點擊上方任一按鈕，即可直接發送指令！', {
+    _flexText(_translate('help.tip_click'), {
       size: 'xs',
       weight: 'bold',
       color: FLEX_COLORS.primaryDark,
       align: 'center'
     }),
-    _flexText('服務授權：AGPL-3.0 原始碼 ' + srcUrl, {
+    _flexText(_translate('help.license') + srcUrl, {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -1828,6 +1876,98 @@ function createChildrenHelpFlex() {
   };
 }
 
+/**
+ * Create language selector Flex card
+ * @param {string} currentLocale
+ * @returns {Object}
+ */
+function createLanguageSelectFlex(currentLocale) {
+  var loc = currentLocale || (typeof getDefaultLocale === 'function' ? getDefaultLocale() : 'zh-TW');
+  var _translate = function (k, p) {
+    return (typeof t === 'function') ? t(k, p, loc) : k;
+  };
+
+  var header = _flexBox([
+    _flexText(_translate('lang.title'), {
+      size: 'lg',
+      weight: 'bold',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start'
+    }),
+    _flexText(_translate('lang.subtitle'), {
+      size: 'xs',
+      color: '#E0F2FE',
+      margin: 'xs'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'lg',
+    backgroundColor: FLEX_COLORS.primary
+  });
+
+  var locales = (typeof SUPPORTED_LOCALES !== 'undefined') ? SUPPORTED_LOCALES : {
+    'zh-TW': { code: 'zh-TW', name: '繁體中文', icon: '🇹🇼' },
+    'en':    { code: 'en',    name: 'English',  icon: '🇺🇸' },
+    'ja':    { code: 'ja',    name: '日本語',    icon: '🇯🇵' },
+    'ko':    { code: 'ko',    name: '한국어',    icon: '🇰🇷' },
+    'th':    { code: 'th',    name: 'ภาษาไทย',  icon: '🇹🇭' },
+    'id':    { code: 'id',    name: 'Indonesia',icon: '🇮🇩' }
+  };
+
+  var bodyContents = [];
+  var locKeys = Object.keys(locales);
+  locKeys.forEach(function (code, i) {
+    var info = locales[code];
+    var isCurrent = code === loc;
+    var btnLabel = info.icon + ' ' + info.name + (isCurrent ? ' ✓' : '');
+
+    bodyContents.push(_flexBox([
+      {
+        type: 'button',
+        action: {
+          type: 'postback',
+          label: btnLabel,
+          data: 'action=set_lang&lang=' + code,
+          displayText: '設定語言 ' + code
+        },
+        style: isCurrent ? 'primary' : 'secondary',
+        color: isCurrent ? FLEX_COLORS.primary : undefined,
+        height: 'sm'
+      }
+    ], {
+      layout: 'vertical',
+      margin: i === 0 ? 'none' : 'sm'
+    }));
+  });
+
+  var body = _flexBox(bodyContents, {
+    layout: 'vertical',
+    paddingAll: 'md',
+    backgroundColor: FLEX_COLORS.surface
+  });
+
+  var footer = _flexBox([
+    _flexText(_translate('lang.current_prefix') + (locales[loc] ? locales[loc].icon + ' ' + locales[loc].name : loc), {
+      size: 'xs',
+      weight: 'bold',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center'
+    })
+  ], {
+    layout: 'vertical',
+    paddingAll: 'sm',
+    backgroundColor: FLEX_COLORS.background
+  });
+
+  return {
+    type: 'bubble',
+    size: 'mega',
+    header: header,
+    body: body,
+    footer: footer
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Dual-Environment Export (GAS + Node.js)
  * ------------------------------------------------------------------ */
@@ -1848,6 +1988,7 @@ function createChildrenHelpFlex() {
   g.createWeeklySummaryFlex = createWeeklySummaryFlex;
   g.createChildrenListFlex = createChildrenListFlex;
   g.createChildrenHelpFlex = createChildrenHelpFlex;
+  g.createLanguageSelectFlex = createLanguageSelectFlex;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
