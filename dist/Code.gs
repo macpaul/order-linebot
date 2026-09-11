@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-11T17:18:57.531Z
+ * Automatically generated on: 2026-09-11T17:44:36.153Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -283,7 +283,90 @@ var I18N_MESSAGES = {
     'lang.set_success': '✅ 語言已成功切換為「{lang}」！後續個人訊息將以此語言呈現。',
     'lang.disabled': '⚠️ 目前系統管理員已固定系統語言，尚未開放個人切換語言功能。',
     'lang.invalid': '⚠️ 不支援的語系代碼「{lang}」。支援選項：{options}',
-    'lang.prompt_select': '🌐 請選擇要切換的語言：'
+    'lang.prompt_select': '🌐 請選擇要切換的語言：',
+
+    // Submenu: Children Management
+    'children_menu.title': '👶 小孩與用餐對象管理選單',
+    'children_menu.subtitle': '點擊按鈕直接查詢或帶入指令範例',
+    'children_menu.item_list_title': '👦 我的小孩 / 小孩名單',
+    'children_menu.item_list_desc': '圖文卡片瀏覽名下小孩清單',
+    'children_menu.btn_list': '看名單',
+    'children_menu.cmd_list': '我的小孩',
+    'children_menu.item_batch_title': '👶 設定小孩 大寶, 二寶',
+    'children_menu.item_batch_desc': '批次綁定小孩（覆蓋現有名冊）',
+    'children_menu.btn_batch': '批次登記',
+    'children_menu.cmd_batch': '設定小孩 大寶, 二寶',
+    'children_menu.item_add_title': '➕ 新增小孩 小寶 附小一年一班',
+    'children_menu.item_add_desc': '新增單一小孩姓名與班級備註',
+    'children_menu.btn_add': '新增小孩',
+    'children_menu.cmd_add': '新增小孩 小寶 附小一年一班',
+    'children_menu.item_del_title': '🗑️ 刪除小孩 小寶',
+    'children_menu.item_del_desc': '移除指定小孩名冊紀錄',
+    'children_menu.btn_delete': '刪除小孩',
+    'children_menu.cmd_delete': '刪除小孩 小寶',
+    'children_menu.footer': '💡 點擊「批次登記 / 新增 / 刪除」將送出範例指令，您亦可在對話框自行編輯小孩姓名與班級備註！',
+    'children_menu.alt_text': '👶 小孩與用餐對象管理選單',
+
+    // Submenu: Children List Card
+    'children_list.title': '👶 我的小孩與用餐對象名冊',
+    'children_list.subtitle': '{name} 登記的用餐對象與班級',
+    'children_list.empty': '（尚未登記任何小孩或用餐對象）',
+    'children_list.btn_setup': '設定小孩',
+    'children_list.cmd_setup': '設定小孩',
+    'children_list.alt_text': '👶 我的小孩與用餐對象名冊',
+
+    // Submenu: Weekly Schedule Card
+    'schedule.title': '📅 本週訂餐排程表',
+    'schedule.subtitle': '週一至週五每日店家 · 支援一梯次預訂',
+    'schedule.no_restaurant': '尚未指定店家',
+    'schedule.cutoff_prefix': '⏰ 截止 ',
+    'schedule.btn_menu': '看菜單',
+    'schedule.footer': '💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂',
+    'schedule.alt_text': '📅 本週訂餐排程表 (週一至週五)',
+
+    // Submenu: Today Menu Card
+    'menu.title_suffix': ' 菜單',
+    'menu.cutoff_prefix': '⏰ 今日截止時間: ',
+    'menu.btn_order': '+1 點餐',
+    'menu.alt_text': '【訂餐開始】{restaurant} 菜單',
+
+    // Submenu: Cancel Order Card
+    'cancel.title': '🗑️ 取消訂單選單',
+    'cancel.title_org': '👑 取消訂單選單 (開單人)',
+    'cancel.subtitle': '{name} 的個人進行中訂單',
+    'cancel.no_orders': '（目前沒有任何進行中的訂餐紀錄）',
+    'cancel.day_items': '【{day} 預訂項目】',
+    'cancel.locked': '無法取消',
+    'cancel.reason_expired': '已過期',
+    'cancel.reason_cutoff': '已截止',
+    'cancel.btn_cancel_item': '取消此項',
+    'cancel.btn_cancel_day': '取消我的【{day}】餐點',
+    'cancel.btn_cancel_all': '取消我的全部預訂 (週一至週五)',
+    'cancel.org_section': '👑 開單人管理功能',
+    'cancel.btn_org_day': '⚠️ 取消全體當日餐點 (需確認)',
+    'cancel.btn_org_all': '🚨 取消全體未截止預訂 (需確認)',
+    'cancel.footer_org': '💡 開單人可協助管理訂單；全體取消操作將跳出警告確認卡，需再次確認。',
+    'cancel.footer_member': '💡 您只能退訂自己訂購的餐點；如需退訂他人餐點或取消全體訂單，請洽開單人。',
+    'cancel.confirm_header': '🚨 取消確認警告 (開單人專用)',
+    'cancel.btn_abort': '放棄取消',
+    'cancel.confirm_footer': '⚠️ 點擊確認後將立即執行取消並通知開單人，此操作無法復原。',
+    'cancel.alt_text': '🗑️ 請選擇欲取消的餐點',
+
+    // Submenu: Summaries (Today & Weekly)
+    'stats.today_title': '🍱 今日訂餐即時統計',
+    'stats.today_title_closed': '🔒 今日訂餐已結單',
+    'stats.weekly_title': '📊 本週訂餐統計總表',
+    'stats.weekly_title_closed': '🔒 本週訂餐統計 (已結單)',
+    'stats.weekly_subtitle_open': '即時統計 · 週一至週五各梯次明細',
+    'stats.weekly_subtitle_closed': '全週各梯次統計與收款資訊',
+    'stats.today_subtitle_open': '即時統計 · 名冊明細與總計',
+    'stats.today_subtitle_closed': '已截止訂餐 · 名冊與收款資訊',
+    'stats.no_orders': '無訂單',
+    'stats.total_summary': '共 {qty} 份 · ${amount} 元',
+    'stats.alt_text_today': '【今日訂餐統計】{restaurant} ({qty}份 / ${amount})',
+    'stats.alt_text_weekly': '📊 本週梯次訂餐統計總表',
+    'stats.alt_text_closed_weekly': '【已結單】本週梯次訂餐總表與收費清單',
+    'stats.alt_text_closed_today': '【已結單】{restaurant} 訂購名單總計'
   },
 
   'en': {
@@ -368,7 +451,90 @@ var I18N_MESSAGES = {
     'lang.set_success': '✅ Language successfully set to "{lang}"! Future messages will be in this language.',
     'lang.disabled': '⚠️ Language switching is currently disabled by the administrator.',
     'lang.invalid': '⚠️ Unsupported language code "{lang}". Supported options: {options}',
-    'lang.prompt_select': '🌐 Please select a language to switch to:'
+    'lang.prompt_select': '🌐 Please select a language to switch to:',
+
+    // Submenu: Children Management
+    'children_menu.title': '👶 Manage Kids Menu',
+    'children_menu.subtitle': 'Tap buttons to view profiles or send sample commands',
+    'children_menu.item_list_title': '👦 My Kids / Kids List',
+    'children_menu.item_list_desc': 'View registered children profiles & classes',
+    'children_menu.btn_list': 'View List',
+    'children_menu.cmd_list': 'my kids',
+    'children_menu.item_batch_title': '👶 Set Kids (Batch)',
+    'children_menu.item_batch_desc': 'Batch bind children (replaces current roster)',
+    'children_menu.btn_batch': 'Batch Set',
+    'children_menu.cmd_batch': 'children Tim, Ben',
+    'children_menu.item_add_title': '➕ Add Kid',
+    'children_menu.item_add_desc': 'Add a child profile with optional class note',
+    'children_menu.btn_add': 'Add Kid',
+    'children_menu.cmd_add': 'add kid Tim Class 1A',
+    'children_menu.item_del_title': '🗑️ Delete Kid',
+    'children_menu.item_del_desc': 'Remove a registered child profile',
+    'children_menu.btn_delete': 'Delete Kid',
+    'children_menu.cmd_delete': 'delete kid Tim',
+    'children_menu.footer': '💡 Tap buttons to send sample commands, or edit child name and class note directly in chat!',
+    'children_menu.alt_text': '👶 Children Management Menu',
+
+    // Submenu: Children List Card
+    'children_list.title': '👶 My Kids & Dining Profiles',
+    'children_list.subtitle': 'Registered profiles & classes for {name}',
+    'children_list.empty': '(No children registered yet)',
+    'children_list.btn_setup': 'Manage Kids',
+    'children_list.cmd_setup': 'children',
+    'children_list.alt_text': '👶 Children Roster',
+
+    // Submenu: Weekly Schedule Card
+    'schedule.title': '📅 Weekly Ordering Schedule',
+    'schedule.subtitle': 'Mon-Fri Daily Restaurants · Pre-orders supported',
+    'schedule.no_restaurant': 'Restaurant TBD',
+    'schedule.cutoff_prefix': '⏰ Cutoff ',
+    'schedule.btn_menu': 'Menu',
+    'schedule.footer': '💡 Type "[Day]+1 [item]" or tap "Menu" to pre-order',
+    'schedule.alt_text': '📅 Weekly Schedule (Mon-Fri)',
+
+    // Submenu: Today Menu Card
+    'menu.title_suffix': ' Menu',
+    'menu.cutoff_prefix': "⏰ Today's Cutoff: ",
+    'menu.btn_order': '+1 Order',
+    'menu.alt_text': '[Ordering Open] {restaurant} Menu',
+
+    // Submenu: Cancel Order Card
+    'cancel.title': '🗑️ Cancel Orders',
+    'cancel.title_org': '👑 Cancel Orders (Organizer)',
+    'cancel.subtitle': 'Active orders for {name}',
+    'cancel.no_orders': '(No active orders found)',
+    'cancel.day_items': '【{day} Pre-orders】',
+    'cancel.locked': 'Locked',
+    'cancel.reason_expired': 'Expired',
+    'cancel.reason_cutoff': 'Cutoff Passed',
+    'cancel.btn_cancel_item': 'Cancel Item',
+    'cancel.btn_cancel_day': 'Cancel my {day} orders',
+    'cancel.btn_cancel_all': 'Cancel all my pre-orders (Mon-Fri)',
+    'cancel.org_section': '👑 Organizer Actions',
+    'cancel.btn_org_day': '⚠️ Cancel All Today Orders (Confirm)',
+    'cancel.btn_org_all': '🚨 Cancel All Advance Orders (Confirm)',
+    'cancel.footer_org': '💡 Organizer can manage orders; bulk cancellation requires confirmation.',
+    'cancel.footer_member': '💡 You can only cancel your own orders. Contact organizer for other requests.',
+    'cancel.confirm_header': '🚨 Cancellation Warning (Organizer)',
+    'cancel.btn_abort': 'Keep Orders',
+    'cancel.confirm_footer': '⚠️ Once confirmed, orders will be cancelled immediately. This cannot be undone.',
+    'cancel.alt_text': '🗑️ Select items to cancel',
+
+    // Submenu: Summaries (Today & Weekly)
+    'stats.today_title': "🍱 Today's Orders Summary",
+    'stats.today_title_closed': "🔒 Today's Orders Closed",
+    'stats.weekly_title': '📊 Weekly Orders Summary',
+    'stats.weekly_title_closed': '🔒 Weekly Orders Closed',
+    'stats.weekly_subtitle_open': 'Live stats · Mon-Fri batch breakdown',
+    'stats.weekly_subtitle_closed': 'Full week breakdown & payment info',
+    'stats.today_subtitle_open': 'Live stats · Member breakdown & totals',
+    'stats.today_subtitle_closed': 'Closed · Member list & payment info',
+    'stats.no_orders': 'No orders',
+    'stats.total_summary': 'Total {qty} serving(s) · ${amount}',
+    'stats.alt_text_today': "【Today's Summary】{restaurant} ({qty} servings / ${amount})",
+    'stats.alt_text_weekly': '📊 Weekly Orders Summary Table',
+    'stats.alt_text_closed_weekly': '【Closed】Weekly Summary & Payment Info',
+    'stats.alt_text_closed_today': '【Closed】{restaurant} Final Summary'
   },
 
   'ja': {
@@ -453,7 +619,90 @@ var I18N_MESSAGES = {
     'lang.set_success': '✅ 言語を「{lang}」に設定しました！次回からこの言語で案内します。',
     'lang.disabled': '⚠️ 現在、管理者により言語切替機能が無効になっています。',
     'lang.invalid': '⚠️ 未対応の言語コード「{lang}」です。対応言語：{options}',
-    'lang.prompt_select': '🌐 切り替える言語を選択してください：'
+    'lang.prompt_select': '🌐 切り替える言語を選択してください：',
+
+    // Submenu: Children Management
+    'children_menu.title': '👶 お子様管理メニュー',
+    'children_menu.subtitle': 'ボタンをタップして名簿確認またはコマンド送信',
+    'children_menu.item_list_title': '👦 私の子供 / お子様一覧',
+    'children_menu.item_list_desc': '登録済みお子様一覧とクラス情報を確認',
+    'children_menu.btn_list': '一覧を見る',
+    'children_menu.cmd_list': '子供リスト',
+    'children_menu.item_batch_title': '👶 子供一括設定',
+    'children_menu.item_batch_desc': '複数のお子様を一括登録（既存名簿上書き）',
+    'children_menu.btn_batch': '一括登録',
+    'children_menu.cmd_batch': '子供設定 タロウ, ジロウ',
+    'children_menu.item_add_title': '➕ 子供追加',
+    'children_menu.item_add_desc': 'お子様のお名前とクラス備考を追加',
+    'children_menu.btn_add': '子供追加',
+    'children_menu.cmd_add': '子供追加 タロウ 1年1組',
+    'children_menu.item_del_title': '🗑️ 子供削除',
+    'children_menu.item_del_desc': '指定したお子様の登録を削除',
+    'children_menu.btn_delete': '子供削除',
+    'children_menu.cmd_delete': '子供削除 タロウ',
+    'children_menu.footer': '💡 ボタンをタップするとサンプルコマンドが送信されます。チャット欄で編集も可能です！',
+    'children_menu.alt_text': '👶 お子様管理メニュー',
+
+    // Submenu: Children List Card
+    'children_list.title': '👶 お子様・同伴者名簿',
+    'children_list.subtitle': '{name} 様が登録されたお子様とクラス',
+    'children_list.empty': '（お子様はまだ登録されていません）',
+    'children_list.btn_setup': 'お子様設定',
+    'children_list.cmd_setup': '子供設定',
+    'children_list.alt_text': '👶 お子様名簿',
+
+    // Submenu: Weekly Schedule Card
+    'schedule.title': '📅 今週の注文スケジュール',
+    'schedule.subtitle': '月〜金の日替わり店舗 · 事前予約対応',
+    'schedule.no_restaurant': '店舗未定',
+    'schedule.cutoff_prefix': '⏰ 締切 ',
+    'schedule.btn_menu': 'メニュー',
+    'schedule.footer': '💡「月曜+1 [メニュー]」と入力するか「メニュー」をタップして予約',
+    'schedule.alt_text': '📅 週間スケジュール (月〜金)',
+
+    // Submenu: Today Menu Card
+    'menu.title_suffix': ' メニュー',
+    'menu.cutoff_prefix': '⏰ 本日の締切: ',
+    'menu.btn_order': '+1 注文',
+    'menu.alt_text': '【注文受付中】{restaurant} メニュー',
+
+    // Submenu: Cancel Order Card
+    'cancel.title': '🗑️ 注文取消メニュー',
+    'cancel.title_org': '👑 注文取消メニュー (主催者)',
+    'cancel.subtitle': '{name} 様の進行中注文',
+    'cancel.no_orders': '（現在進行中の注文はありません）',
+    'cancel.day_items': '【{day} 予約項目】',
+    'cancel.locked': '取消不可',
+    'cancel.reason_expired': '期限切れ',
+    'cancel.reason_cutoff': '締切済',
+    'cancel.btn_cancel_item': '取消する',
+    'cancel.btn_cancel_day': '{day}の注文を取消',
+    'cancel.btn_cancel_all': '全ての予約を取消 (月〜金)',
+    'cancel.org_section': '👑 主催者管理機能',
+    'cancel.btn_org_day': '⚠️ 当日全員の注文取消 (要確認)',
+    'cancel.btn_org_all': '🚨 全員の未締切予約取消 (要確認)',
+    'cancel.footer_org': '💡 主催者は注文を管理できます。全員取消は確認カードが表示されます。',
+    'cancel.footer_member': '💡 ご自身の注文のみ取消可能です。その他は主催者へお問い合わせください。',
+    'cancel.confirm_header': '🚨 取消確認の警告 (主催者専用)',
+    'cancel.btn_abort': '取消中止',
+    'cancel.confirm_footer': '⚠️ 確認後すぐに注文が取り消され、元に戻すことはできません。',
+    'cancel.alt_text': '🗑️ 取消する項目を選択',
+
+    // Submenu: Summaries (Today & Weekly)
+    'stats.today_title': '🍱 本日の注文集計',
+    'stats.today_title_closed': '🔒 本日の注文は締切ました',
+    'stats.weekly_title': '📊 今週の注文集計表',
+    'stats.weekly_title_closed': '🔒 今週の注文締切',
+    'stats.weekly_subtitle_open': 'リアルタイム集計 · 月〜金各日の明細',
+    'stats.weekly_subtitle_closed': '全日集計と決済情報',
+    'stats.today_subtitle_open': 'リアルタイム集計 · メンバー別明細と合計',
+    'stats.today_subtitle_closed': '締切済 · 名簿と決済情報',
+    'stats.no_orders': '注文なし',
+    'stats.total_summary': '計 {qty} 点 · {amount} 円',
+    'stats.alt_text_today': '【本日集計】{restaurant} ({qty}点 / {amount}円)',
+    'stats.alt_text_weekly': '📊 週間注文集計総表',
+    'stats.alt_text_closed_weekly': '【締切】週間集計と決済案内',
+    'stats.alt_text_closed_today': '【締切】{restaurant} 最終集計'
   },
 
   'ko': {
@@ -538,7 +787,90 @@ var I18N_MESSAGES = {
     'lang.set_success': '✅ 언어가 "{lang}"(으)로 설정되었습니다! 다음 메시지부터 적용됩니다.',
     'lang.disabled': '⚠️ 현재 관리자에 의해 언어 변경 기능이 비활성화되어 있습니다.',
     'lang.invalid': '⚠️ 지원되지 않는 언어 코드 "{lang}". 지원 목록: {options}',
-    'lang.prompt_select': '🌐 변경할 언어를 선택해주세요:'
+    'lang.prompt_select': '🌐 변경할 언어를 선택해주세요:',
+
+    // Submenu: Children Management
+    'children_menu.title': '👶 자녀 관리 메뉴',
+    'children_menu.subtitle': '버튼을 눌러 명단을 확인하거나 예시 명령어를 전송하세요',
+    'children_menu.item_list_title': '👦 내 아이 / 자녀 목록',
+    'children_menu.item_list_desc': '등록된 자녀 명단 및 학급 확인',
+    'children_menu.btn_list': '목록보기',
+    'children_menu.cmd_list': '자녀목록',
+    'children_menu.item_batch_title': '👶 자녀 일괄설정',
+    'children_menu.item_batch_desc': '여러 자녀를 한 번에 등록 (기존 명단 대체)',
+    'children_menu.btn_batch': '일괄등록',
+    'children_menu.cmd_batch': '자녀설정 민우, 지호',
+    'children_menu.item_add_title': '➕ 자녀 추가',
+    'children_menu.item_add_desc': '자녀 이름 및 학급 메모 추가',
+    'children_menu.btn_add': '자녀추가',
+    'children_menu.cmd_add': '자녀추가 민우 1학년1반',
+    'children_menu.item_del_title': '🗑️ 자녀 삭제',
+    'children_menu.item_del_desc': '지정된 자녀 등록 기록 삭제',
+    'children_menu.btn_delete': '자녀삭제',
+    'children_menu.cmd_delete': '자녀삭제 민우',
+    'children_menu.footer': '💡 버튼을 탭하면 예시 명령어가 전송되며, 채팅창에서 직접 수정할 수도 있습니다!',
+    'children_menu.alt_text': '👶 자녀 관리 메뉴',
+
+    // Submenu: Children List Card
+    'children_list.title': '👶 내 아이 및 식사 명단',
+    'children_list.subtitle': '{name} 님의 등록 자녀 및 학급',
+    'children_list.empty': '(아직 등록된 자녀가 없습니다)',
+    'children_list.btn_setup': '자녀설정',
+    'children_list.cmd_setup': '자녀설정',
+    'children_list.alt_text': '👶 자녀 명단',
+
+    // Submenu: Weekly Schedule Card
+    'schedule.title': '📅 이번주 주문 일정표',
+    'schedule.subtitle': '월~금 일일 식당 · 사전 예약 지원',
+    'schedule.no_restaurant': '식당 미정',
+    'schedule.cutoff_prefix': '⏰ 마감 ',
+    'schedule.btn_menu': '메뉴',
+    'schedule.footer': "💡 '[요일]+1 [메뉴]'를 입력하거나 '메뉴'를 눌러 주문하세요",
+    'schedule.alt_text': '📅 주간 일정표 (월~금)',
+
+    // Submenu: Today Menu Card
+    'menu.title_suffix': ' 메뉴',
+    'menu.cutoff_prefix': '⏰ 오늘 마감: ',
+    'menu.btn_order': '+1 주문',
+    'menu.alt_text': '[주문 시작] {restaurant} 메뉴',
+
+    // Submenu: Cancel Order Card
+    'cancel.title': '🗑️ 주문 취소 메뉴',
+    'cancel.title_org': '👑 주문 취소 메뉴 (주최자)',
+    'cancel.subtitle': '{name} 님의 진행 중인 주문',
+    'cancel.no_orders': '(현재 진행 중인 주문이 없습니다)',
+    'cancel.day_items': '【{day} 예약 항목】',
+    'cancel.locked': '취소 불가',
+    'cancel.reason_expired': '기한 만료',
+    'cancel.reason_cutoff': '마감됨',
+    'cancel.btn_cancel_item': '항목 취소',
+    'cancel.btn_cancel_day': '내 [{day}] 주문 취소',
+    'cancel.btn_cancel_all': '내 모든 예약 취소 (월~금)',
+    'cancel.org_section': '👑 주최자 관리 기능',
+    'cancel.btn_org_day': '⚠️ 당일 전체 주문 취소 (확인 필요)',
+    'cancel.btn_org_all': '🚨 전체 미마감 예약 취소 (확인 필요)',
+    'cancel.footer_org': '💡 주최자는 주문을 관리할 수 있으며, 전체 취소 시 확인 카드가 표시됩니다.',
+    'cancel.footer_member': '💡 본인의 주문만 취소할 수 있습니다. 기타 문의는 주최자에게 연락하세요.',
+    'cancel.confirm_header': '🚨 취소 확인 경고 (주최자 전용)',
+    'cancel.btn_abort': '취소 중단',
+    'cancel.confirm_footer': '⚠️ 확인 시 즉시 취소 처리되며 되돌릴 수 없습니다.',
+    'cancel.alt_text': '🗑️ 취소할 항목 선택',
+
+    // Submenu: Summaries (Today & Weekly)
+    'stats.today_title': '🍱 오늘의 주문 현황',
+    'stats.today_title_closed': '🔒 오늘의 주문 마감',
+    'stats.weekly_title': '📊 이번주 주문 종합 현황',
+    'stats.weekly_title_closed': '🔒 이번주 주문 마감',
+    'stats.weekly_subtitle_open': '실시간 집계 · 월~금 요일별 상세',
+    'stats.weekly_subtitle_closed': '전체 요일 집계 및 결제 안내',
+    'stats.today_subtitle_open': '실시간 집계 · 멤버별 내역 및 합계',
+    'stats.today_subtitle_closed': '마감됨 · 명단 및 결제 안내',
+    'stats.no_orders': '주문 없음',
+    'stats.total_summary': '총 {qty}개 · {amount}원',
+    'stats.alt_text_today': '【오늘 통계】{restaurant} ({qty}개 / {amount}원)',
+    'stats.alt_text_weekly': '📊 주간 주문 통계 총표',
+    'stats.alt_text_closed_weekly': '【마감】주간 통계 및 결제 안내',
+    'stats.alt_text_closed_today': '【마감】{restaurant} 최종 주문 명단'
   },
 
   'th': {
@@ -623,7 +955,90 @@ var I18N_MESSAGES = {
     'lang.set_success': '✅ เปลี่ยนภาษาเป็น "{lang}" เรียบร้อยแล้ว! ข้อความถัดไปจะแสดงเป็นภาษานี้',
     'lang.disabled': '⚠️ ขณะนี้ผู้ดูแลระบบได้ปิดใช้งานการเปลี่ยนภาษาส่วนบุคคล',
     'lang.invalid': '⚠️ รหัสภาษา "{lang}" ไม่ถูกต้อง ภาษาที่รองรับ: {options}',
-    'lang.prompt_select': '🌐 กรุณาเลือกภาษาที่ต้องการเปลี่ยน:'
+    'lang.prompt_select': '🌐 กรุณาเลือกภาษาที่ต้องการเปลี่ยน:',
+
+    // Submenu: Children Management
+    'children_menu.title': '👶 เมนูจัดการเด็ก',
+    'children_menu.subtitle': 'แตะปุ่มเพื่อดูรายชื่อหรือส่งตัวอย่างคำสั่ง',
+    'children_menu.item_list_title': '👦 ลูกของฉัน / รายชื่อเด็ก',
+    'children_menu.item_list_desc': 'ดูรายชื่อเด็กและข้อมูลชั้นเรียนที่ลงทะเบียน',
+    'children_menu.btn_list': 'ดูรายชื่อ',
+    'children_menu.cmd_list': 'รายชื่อเด็ก',
+    'children_menu.item_batch_title': '👶 ตั้งค่าลูกแบบกลุ่ม',
+    'children_menu.item_batch_desc': 'ลงทะเบียนเด็กพร้อมกันหลายคน (แทนที่รายชื่อเดิม)',
+    'children_menu.btn_batch': 'ลงทะเบียนกลุ่ม',
+    'children_menu.cmd_batch': 'ตั้งค่าลูก น้องเอ, น้องบี',
+    'children_menu.item_add_title': '➕ เพิ่มลูก',
+    'children_menu.item_add_desc': 'เพิ่มชื่อเด็กและหมายเหตุชั้นเรียน',
+    'children_menu.btn_add': 'เพิ่มลูก',
+    'children_menu.cmd_add': 'เพิ่มลูก น้องเอ ห้อง1/1',
+    'children_menu.item_del_title': '🗑️ ลบลูก',
+    'children_menu.item_del_desc': 'ลบข้อมูลเด็กที่ระบุออกจากระบบ',
+    'children_menu.btn_delete': 'ลบลูก',
+    'children_menu.cmd_delete': 'ลบลูก น้องเอ',
+    'children_menu.footer': '💡 แตะปุ่มเพื่อส่งตัวอย่างคำสั่ง หรือแก้ไขชื่อเด็กและชั้นเรียนในแชทได้โดยตรง!',
+    'children_menu.alt_text': '👶 เมนูจัดการเด็ก',
+
+    // Submenu: Children List Card
+    'children_list.title': '👶 รายชื่อเด็กและผู้ร่วมรับประทาน',
+    'children_list.subtitle': 'ข้อมูลเด็กและชั้นเรียนของ {name}',
+    'children_list.empty': '(ยังไม่มีข้อมูลเด็กที่ลงทะเบียน)',
+    'children_list.btn_setup': 'ตั้งค่าลูก',
+    'children_list.cmd_setup': 'ตั้งค่าลูก',
+    'children_list.alt_text': '👶 รายชื่อเด็ก',
+
+    // Submenu: Weekly Schedule Card
+    'schedule.title': '📅 ตารางสั่งอาหารสัปดาห์นี้',
+    'schedule.subtitle': 'ร้านอาหารจันทร์-ศุกร์ · รองรับการสั่งล่วงหน้า',
+    'schedule.no_restaurant': 'ยังไม่ได้ระบุร้าน',
+    'schedule.cutoff_prefix': '⏰ ปิดรับ ',
+    'schedule.btn_menu': 'ดูเมนู',
+    'schedule.footer': '💡 พิมพ์ "[วัน]+1 [ชื่ออาหาร]" หรือแตะ "ดูเมนู" เพื่อสั่งล่วงหน้า',
+    'schedule.alt_text': '📅 ตารางสัปดาห์นี้ (จันทร์-ศุกร์)',
+
+    // Submenu: Today Menu Card
+    'menu.title_suffix': ' เมนู',
+    'menu.cutoff_prefix': '⏰ ปิดรับวันนี้: ',
+    'menu.btn_order': '+1 สั่ง',
+    'menu.alt_text': '[เปิดรับออเดอร์] เมนู {restaurant}',
+
+    // Submenu: Cancel Order Card
+    'cancel.title': '🗑️ เมนูยกเลิกออเดอร์',
+    'cancel.title_org': '👑 เมนูยกเลิกออเดอร์ (ผู้จัด)',
+    'cancel.subtitle': 'ออเดอร์ปัจจุบันของ {name}',
+    'cancel.no_orders': '(ไม่มีรายการออเดอร์ที่กำลังดำเนินการ)',
+    'cancel.day_items': '【รายการที่สั่ง {day}】',
+    'cancel.locked': 'ยกเลิกไม่ได้',
+    'cancel.reason_expired': 'หมดเวลา',
+    'cancel.reason_cutoff': 'ปิดรับแล้ว',
+    'cancel.btn_cancel_item': 'ยกเลิกรายการนี้',
+    'cancel.btn_cancel_day': 'ยกเลิกออเดอร์【{day}】ของฉัน',
+    'cancel.btn_cancel_all': 'ยกเลิกออเดอร์ทั้งหมดของฉัน (จันทร์-ศุกร์)',
+    'cancel.org_section': '👑 ฟังก์ชันผู้จัดการ',
+    'cancel.btn_org_day': '⚠️ ยกเลิกออเดอร์วันนี้ทั้งหมด (ต้องยืนยัน)',
+    'cancel.btn_org_all': '🚨 ยกเลิกออเดอร์ล่วงหน้าทั้งหมด (ต้องยืนยัน)',
+    'cancel.footer_org': '💡 ผู้จัดสามารถจัดการออเดอร์ได้ การยกเลิกทั้งหมดจะต้องยืนยันอีกครั้ง',
+    'cancel.footer_member': '💡 คุณสามารถยกเลิกได้เฉพาะออเดอร์ของตนเอง ติดต่อผู้จัดหากต้องการยกเลิกของผู้อื่น',
+    'cancel.confirm_header': '🚨 คำเตือนยืนยันการยกเลิก (สำหรับผู้จัด)',
+    'cancel.btn_abort': 'ไม่ยกเลิก',
+    'cancel.confirm_footer': '⚠️ เมื่อยืนยันแล้วจะยกเลิกทันทีและไม่สามารถย้อนกลับได้',
+    'cancel.alt_text': '🗑️ กรุณาเลือกรายการที่ต้องการยกเลิก',
+
+    // Submenu: Summaries (Today & Weekly)
+    'stats.today_title': '🍱 สรุปยอดสั่งอาหารวันนี้',
+    'stats.today_title_closed': '🔒 ปิดรับออเดอร์วันนี้แล้ว',
+    'stats.weekly_title': '📊 สรุปยอดสั่งอาหารประจำสัปดาห์',
+    'stats.weekly_title_closed': '🔒 ปิดรับออเดอร์ประจำสัปดาห์แล้ว',
+    'stats.weekly_subtitle_open': 'อัปเดตสด · รายละเอียดจันทร์-ศุกร์',
+    'stats.weekly_subtitle_closed': 'สรุปทั้งสัปดาห์และข้อมูลการชำระเงิน',
+    'stats.today_subtitle_open': 'อัปเดตสด · รายชื่อและยอดรวม',
+    'stats.today_subtitle_closed': 'ปิดรับแล้ว · รายชื่อและข้อมูลการชำระเงิน',
+    'stats.no_orders': 'ไม่มีออเดอร์',
+    'stats.total_summary': 'รวม {qty} รายการ · {amount} บาท',
+    'stats.alt_text_today': '【สรุปวันนี้】{restaurant} ({qty} รายการ / {amount} บาท)',
+    'stats.alt_text_weekly': '📊 สรุปยอดสั่งอาหารประจำสัปดาห์',
+    'stats.alt_text_closed_weekly': '【ปิดรับแล้ว】สรุปประจำสัปดาห์และการชำระเงิน',
+    'stats.alt_text_closed_today': '【ปิดรับแล้ว】สรุปรายการ {restaurant}'
   },
 
   'id': {
@@ -708,7 +1123,90 @@ var I18N_MESSAGES = {
     'lang.set_success': '✅ Bahasa berhasil diubah ke "{lang}"! Pesan selanjutnya akan menggunakan bahasa ini.',
     'lang.disabled': '⚠️ Pengaturan bahasa pribadi saat ini dinonaktifkan oleh administrator.',
     'lang.invalid': '⚠️ Kode bahasa "{lang}" tidak didukung. Pilihan: {options}',
-    'lang.prompt_select': '🌐 Silakan pilih bahasa:'
+    'lang.prompt_select': '🌐 Silakan pilih bahasa:',
+
+    // Submenu: Children Management
+    'children_menu.title': '👶 Menu Kelola Anak',
+    'children_menu.subtitle': 'Ketuk tombol untuk melihat daftar atau mengirim contoh perintah',
+    'children_menu.item_list_title': '👦 Anak Saya / Daftar Anak',
+    'children_menu.item_list_desc': 'Lihat profil anak terdaftar & info kelas',
+    'children_menu.btn_list': 'Lihat Daftar',
+    'children_menu.cmd_list': 'daftar anak',
+    'children_menu.item_batch_title': '👶 Atur Anak (Sekaligus)',
+    'children_menu.item_batch_desc': 'Daftarkan anak sekaligus (menimpa data lama)',
+    'children_menu.btn_batch': 'Atur Bersama',
+    'children_menu.cmd_batch': 'atur anak Budi, Siti',
+    'children_menu.item_add_title': '➕ Tambah Anak',
+    'children_menu.item_add_desc': 'Tambah anak dengan catatan kelas',
+    'children_menu.btn_add': 'Tambah Anak',
+    'children_menu.cmd_add': 'tambah anak Budi Kelas 1A',
+    'children_menu.item_del_title': '🗑️ Hapus Anak',
+    'children_menu.item_del_desc': 'Hapus data profil anak terdaftar',
+    'children_menu.btn_delete': 'Hapus Anak',
+    'children_menu.cmd_delete': 'hapus anak Budi',
+    'children_menu.footer': '💡 Ketuk tombol untuk mengirim perintah contoh, atau edit nama anak dan catatan kelas langsung di obrolan!',
+    'children_menu.alt_text': '👶 Menu Kelola Anak',
+
+    // Submenu: Children List Card
+    'children_list.title': '👶 Daftar Anak & Profil Makan',
+    'children_list.subtitle': 'Profil & kelas terdaftar untuk {name}',
+    'children_list.empty': '(Belum ada anak yang terdaftar)',
+    'children_list.btn_setup': 'Atur Anak',
+    'children_list.cmd_setup': 'atur anak',
+    'children_list.alt_text': '👶 Daftar Anak',
+
+    // Submenu: Weekly Schedule Card
+    'schedule.title': '📅 Jadwal Pesanan Mingguan',
+    'schedule.subtitle': 'Restoran Senin-Jumat · Mendukung pesanan lebih awal',
+    'schedule.no_restaurant': 'Restoran Belum Ditentukan',
+    'schedule.cutoff_prefix': '⏰ Batas ',
+    'schedule.btn_menu': 'Menu',
+    'schedule.footer': '💡 Ketik "[Hari]+1 [menu]" atau ketuk "Menu" untuk pesan',
+    'schedule.alt_text': '📅 Jadwal Mingguan (Senin-Jumat)',
+
+    // Submenu: Today Menu Card
+    'menu.title_suffix': ' Menu',
+    'menu.cutoff_prefix': '⏰ Batas Waktu Hari Ini: ',
+    'menu.btn_order': '+1 Pesan',
+    'menu.alt_text': '[Pemesanan Dibuka] Menu {restaurant}',
+
+    // Submenu: Cancel Order Card
+    'cancel.title': '🗑️ Menu Batalkan Pesanan',
+    'cancel.title_org': '👑 Menu Batalkan Pesanan (Penyelenggara)',
+    'cancel.subtitle': 'Pesanan aktif untuk {name}',
+    'cancel.no_orders': '(Tidak ada pesanan aktif saat ini)',
+    'cancel.day_items': '【Item Pesanan {day}】',
+    'cancel.locked': 'Terkunci',
+    'cancel.reason_expired': 'Kedaluwarsa',
+    'cancel.reason_cutoff': 'Sudah Ditutup',
+    'cancel.btn_cancel_item': 'Batalkan Item',
+    'cancel.btn_cancel_day': 'Batalkan pesanan {day} saya',
+    'cancel.btn_cancel_all': 'Batalkan semua pesanan saya (Senin-Jumat)',
+    'cancel.org_section': '👑 Fitur Penyelenggara',
+    'cancel.btn_org_day': '⚠️ Batalkan Semua Pesanan Hari Ini (Konfirmasi)',
+    'cancel.btn_org_all': '🚨 Batalkan Semua Pesanan Belum Ditutup (Konfirmasi)',
+    'cancel.footer_org': '💡 Penyelenggara dapat mengelola pesanan; pembatalan massal memerlukan konfirmasi.',
+    'cancel.footer_member': '💡 Anda hanya dapat membatalkan pesanan sendiri. Hubungi penyelenggara untuk permintaan lain.',
+    'cancel.confirm_header': '🚨 Peringatan Konfirmasi Pembatalan (Penyelenggara)',
+    'cancel.btn_abort': 'Jangan Batalkan',
+    'cancel.confirm_footer': '⚠️ Setelah dikonfirmasi, pesanan akan langsung dibatalkan dan tidak dapat dikembalikan.',
+    'cancel.alt_text': '🗑️ Pilih item yang ingin dibatalkan',
+
+    // Submenu: Summaries (Today & Weekly)
+    'stats.today_title': '🍱 Rekap Pesanan Hari Ini',
+    'stats.today_title_closed': '🔒 Pesanan Hari Ini Ditutup',
+    'stats.weekly_title': '📊 Rekap Pesanan Mingguan',
+    'stats.weekly_title_closed': '🔒 Pesanan Mingguan Ditutup',
+    'stats.weekly_subtitle_open': 'Statistik langsung · Rincian Senin-Jumat',
+    'stats.weekly_subtitle_closed': 'Rekap lengkap & informasi pembayaran',
+    'stats.today_subtitle_open': 'Statistik langsung · Rincian anggota & total',
+    'stats.today_subtitle_closed': 'Ditutup · Daftar anggota & info pembayaran',
+    'stats.no_orders': 'Tidak ada pesanan',
+    'stats.total_summary': 'Total {qty} porsi · Rp {amount}',
+    'stats.alt_text_today': '【Rekap Hari Ini】{restaurant} ({qty} porsi / Rp {amount})',
+    'stats.alt_text_weekly': '📊 Tabel Rekap Pesanan Mingguan',
+    'stats.alt_text_closed_weekly': '【Ditutup】Rekap Mingguan & Info Pembayaran',
+    'stats.alt_text_closed_today': '【Ditutup】Rekap Final {restaurant}'
   }
 };
 
@@ -984,6 +1482,38 @@ function buildCommandRegex(cmdKey, specificLocale) {
 }
 
 /**
+ * Build a regular expression pattern matching command prefix across all supported languages
+ * @param {string} cmdKey
+ * @param {string} [specificLocale]
+ * @returns {string} Escaped regex pattern string (e.g. "(?:\\/)?(?:alias1|alias2)")
+ */
+function buildCommandPrefixPattern(cmdKey, specificLocale) {
+  var aliasSet = {};
+  var localesToScan = specificLocale ? [specificLocale] : Object.keys(I18N_COMMANDS);
+
+  localesToScan.forEach(function (loc) {
+    var locCmds = I18N_COMMANDS[loc];
+    if (locCmds && locCmds[cmdKey]) {
+      locCmds[cmdKey].forEach(function (alias) {
+        aliasSet[alias] = true;
+      });
+    }
+  });
+
+  var list = Object.keys(aliasSet);
+  if (list.length === 0) {
+    return '$^';
+  }
+
+  list.sort(function (a, b) { return b.length - a.length; });
+  var escaped = list.map(function (str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  });
+
+  return '(?:\\/)?(?:' + escaped.join('|') + ')';
+}
+
+/**
  * Get command aliases array for a given command key
  * @param {string} cmdKey
  * @param {string} [locale]
@@ -1017,6 +1547,7 @@ function getCommandAliases(cmdKey, locale) {
   g.t = t;
   g.displayDayOfWeek = displayDayOfWeek;
   g.buildCommandRegex = buildCommandRegex;
+  g.buildCommandPrefixPattern = buildCommandPrefixPattern;
   g.getCommandAliases = getCommandAliases;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -1030,6 +1561,7 @@ function getCommandAliases(cmdKey, locale) {
       t: t,
       displayDayOfWeek: displayDayOfWeek,
       buildCommandRegex: buildCommandRegex,
+      buildCommandPrefixPattern: buildCommandPrefixPattern,
       getCommandAliases: getCommandAliases
     };
   }
@@ -4536,6 +5068,39 @@ var FLEX_COLORS = {
   danger: '#EF4444'
 };
 
+function _resolveLocale(locale) {
+  if (locale) return locale;
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.getDefaultLocale) {
+    return I18nModule.getDefaultLocale();
+  }
+  if (typeof getDefaultLocale === 'function') {
+    return getDefaultLocale();
+  }
+  return 'zh-TW';
+}
+
+function _translateHelper(key, params, locale) {
+  var loc = _resolveLocale(locale);
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.t) {
+    return I18nModule.t(key, params, loc);
+  }
+  if (typeof t === 'function') {
+    return t(key, params, loc);
+  }
+  return key;
+}
+
+function _displayDayHelper(sheetDay, locale) {
+  var loc = _resolveLocale(locale);
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.displayDayOfWeek) {
+    return I18nModule.displayDayOfWeek(sheetDay, loc);
+  }
+  if (typeof displayDayOfWeek === 'function') {
+    return displayDayOfWeek(sheetDay, loc);
+  }
+  return sheetDay;
+}
+
 /* ------------------------------------------------------------------ *
  * Internal helpers — Flex component builders
  * ------------------------------------------------------------------ */
@@ -4747,10 +5312,13 @@ function _calcOrderTotal(orders) {
  * @param {string} [dayOfWeek] - Optional day of week (e.g. "週一", "週二").
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
+function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale) {
+  var loc = _resolveLocale(locale);
   var groups = _groupMenuByCategory(menuItems);
-  var headerTitle = restaurantName || '今日菜單';
-  var dayBadge = dayOfWeek ? '【' + dayOfWeek + '】' : '';
+  var displayDay = dayOfWeek ? _displayDayHelper(dayOfWeek, loc) : '';
+  var dayBadge = displayDay ? '【' + displayDay + '】' : '';
+  var titleSuffix = _translateHelper('menu.title_suffix', {}, loc);
+  var headerTitle = restaurantName ? (restaurantName + titleSuffix) : _translateHelper('stats.today_title', {}, loc);
 
   /* ---- header ---- */
   var header = _flexBox([
@@ -4760,7 +5328,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText('⏰ 點餐截止：' + (cutoffTime || '--'), {
+    _flexText(_translateHelper('menu.cutoff_prefix', {}, loc) + (cutoffTime || '--'), {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -4780,7 +5348,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
   var MAX_ITEMS_PER_MENU = 35;
 
   if (groups.length === 0) {
-    bodyContents.push(_flexText('（目前此店家尚無菜單項目）', {
+    bodyContents.push(_flexText('（' + _translateHelper('stats.no_orders', {}, loc) + '）', {
       size: 'sm',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -4839,7 +5407,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
             type: 'button',
             action: {
               type: 'message',
-              label: '+1 點餐',
+              label: _translateHelper('menu.btn_order', {}, loc),
               text: orderText
             },
             style: 'primary',
@@ -4852,8 +5420,8 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
             type: 'button',
             action: {
               type: 'message',
-              label: '已售完',
-              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + ' 已售完'
+              label: (loc === 'zh-TW' ? '已售完' : 'Sold Out'),
+              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + (loc === 'zh-TW' ? ' 已售完' : ' Sold Out')
             },
             style: 'secondary',
             height: 'sm',
@@ -4889,14 +5457,21 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek) {
   });
 
   /* ---- footer ---- */
+  var footerText1 = (loc === 'zh-TW')
+    ? '💡 點擊「+1 點餐」按鈕即可直接加訂！'
+    : ('💡 ' + _translateHelper('menu.btn_order', {}, loc));
+  var footerText2 = (loc === 'zh-TW')
+    ? ('亦可輸入「' + (dayOfWeek ? dayOfWeek + ' ' : '') + '菜名+數量」或「取消 菜名」')
+    : ('e.g. ' + (displayDay ? displayDay + ' ' : '') + '+1 [item]');
+
   var footer = _flexBox([
-    _flexText('💡 點擊「+1 點餐」按鈕即可直接加訂！', {
+    _flexText(footerText1, {
       size: 'xs',
       weight: 'bold',
       color: FLEX_COLORS.primaryDark,
       align: 'center'
     }),
-    _flexText('亦可輸入「' + (dayOfWeek ? dayOfWeek + ' ' : '') + '菜名+數量」或「取消 菜名」', {
+    _flexText(footerText2, {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -5273,20 +5848,23 @@ function _buildPaymentContents(paymentInfo) {
  * @param {Object} [paymentInfo] - Optional payment configuration (LINE Pay & Bank Transfer).
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
+function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, locale) {
+  var loc = _resolveLocale(locale);
   var data = summaryData || {};
   var items = data.items || [];
   var totalQty = data.totalQuantity || 0;
   var totalAmt = data.totalAmount || 0;
   var dateStr = data.date || '';
 
-  var statusLabel = isClosed ? '已截止' : '開放中';
+  var statusLabel = isClosed ? (loc === 'zh-TW' ? '已截止' : 'Closed') : (loc === 'zh-TW' ? '開放中' : 'Open');
   var statusColor = isClosed ? FLEX_COLORS.danger : FLEX_COLORS.success;
 
   /* ---- header ---- */
-  var headerDateText = (dateStr ? dateStr : '今日') + (data.dayOfWeek ? ' (' + data.dayOfWeek + ')' : '');
+  var dayName = data.dayOfWeek ? _displayDayHelper(data.dayOfWeek, loc) : '';
+  var headerDateText = (dateStr ? dateStr : (loc === 'zh-TW' ? '今日' : 'Today')) + (dayName ? ' (' + dayName + ')' : '');
+  var defaultTitle = isClosed ? _translateHelper('stats.today_title_closed', {}, loc) : _translateHelper('stats.today_title', {}, loc);
   var header = _flexBox([
-    _flexText(restaurantName || '訂單統計', {
+    _flexText(restaurantName || defaultTitle, {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -5328,7 +5906,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   var bodyContents = [];
 
   if (items.length === 0) {
-    bodyContents.push(_flexText('（今日尚無訂單）', {
+    bodyContents.push(_flexText('（' + _translateHelper('stats.no_orders', {}, loc) + '）', {
       size: 'md',
       color: FLEX_COLORS.textSecondary,
       align: 'center'
@@ -5388,14 +5966,14 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   // Grand total
   bodyContents.push(_flexSeparator({ margin: 'md' }));
   bodyContents.push(_flexBox([
-    _flexText('總計', {
+    _flexText((loc === 'zh-TW' ? '總計' : 'Total'), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textPrimary,
       align: 'start',
       flex: 1
     }),
-    _flexText(totalQty + ' 份 / ' + _formatPrice(totalAmt), {
+    _flexText(_translateHelper('stats.total_summary', { qty: totalQty, amount: totalAmt }, loc), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.primary,
@@ -5412,7 +5990,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   // Member billing & order roster (今日成員應付明細與點餐名冊)
   if (data.users && data.users.length > 0) {
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    bodyContents.push(_flexText('👤 今日成員應付名冊', {
+    bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 今日成員應付名冊' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), {
       weight: 'bold',
       size: 'sm',
       color: FLEX_COLORS.textPrimary,
@@ -5422,7 +6000,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
     data.users.forEach(function (u) {
       var userItemsStr = (u.items && u.items.length > 0) ? u.items.join('、') : '';
       var userColChildren = [
-        _flexText(u.userName || '成員', {
+        _flexText(u.userName || (loc === 'zh-TW' ? '成員' : 'Member'), {
           size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.textPrimary
@@ -5442,7 +6020,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
           layout: 'vertical',
           flex: 3
         }),
-        _flexText('$' + u.total + ' 元', {
+        _flexText('$' + u.total + (loc === 'zh-TW' ? ' 元' : ''), {
           size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.danger,
@@ -5475,7 +6053,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
       type: 'button',
       action: {
         type: 'message',
-        label: '🔒 截止今日訂餐（結單）',
+        label: (loc === 'zh-TW' ? '🔒 截止今日訂餐（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
         text: '今日結單'
       },
       style: 'secondary',
@@ -5492,9 +6070,9 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo) {
   });
 
   /* ---- footer ---- */
-  var footerMsg = isClosed
-    ? '⏰ 已截止，請各成員儘速完成付款'
-    : '🟢 目前開放點餐中';
+  var footerMsg = (loc === 'zh-TW')
+    ? (isClosed ? '⏰ 已截止，請各成員儘速完成付款' : '🟢 目前開放點餐中')
+    : (isClosed ? _translateHelper('stats.today_subtitle_closed', {}, loc) : _translateHelper('stats.today_subtitle_open', {}, loc));
 
   var footer = _flexBox([
     _flexText(footerMsg, {
@@ -5693,7 +6271,8 @@ function createHelpFlex(sourceCodeUrl, locale) {
  * @param {boolean} [isOrganizer] - Whether the requester is the organizer
  * @returns {Object} LINE Flex bubble
  */
-function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
+function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, locale) {
+  var loc = _resolveLocale(locale);
   var orders = activeOrders || [];
   var locks = lockMap || {};
 
@@ -5718,14 +6297,20 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
     dayMap[d].push(o);
   });
 
+  var headerTitle = isOrganizer
+    ? _translateHelper('cancel.title_org', {}, loc)
+    : _translateHelper('cancel.title', {}, loc);
+  var memberDisplayName = userName || (loc === 'zh-TW' ? '成員' : 'Member');
+  var headerSub = _translateHelper('cancel.subtitle', { name: memberDisplayName }, loc);
+
   var header = _flexBox([
-    _flexText(isOrganizer ? '👑 取消訂單選單 (開單人)' : '🗑️ 取消訂單選單', {
+    _flexText(headerTitle, {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText((userName || '成員') + ' 的個人進行中訂單', {
+    _flexText(headerSub, {
       size: 'sm',
       color: FLEX_COLORS.textOnColor,
       align: 'start',
@@ -5739,7 +6324,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
 
   var bodyContents = [];
   if (dayOrder.length === 0) {
-    bodyContents.push(_flexText('（目前沒有任何進行中的訂餐紀錄）', {
+    bodyContents.push(_flexText(_translateHelper('cancel.no_orders', {}, loc), {
       size: 'sm',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
@@ -5749,15 +6334,26 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
     var anyDayUnlocked = false;
 
     dayOrder.forEach(function (day, di) {
+      var displayDay = _displayDayHelper(day, loc);
       var dayItems = dayMap[day];
       var dayLock = locks[day];
       var isDayLocked = dayLock && dayLock.locked;
-      var lockReason = isDayLocked ? (dayLock.reason || '已截止') : '';
+      var rawReason = dayLock ? dayLock.reason : '';
+      var lockReason = '';
+      if (isDayLocked) {
+        if (rawReason === '已過期') {
+          lockReason = _translateHelper('cancel.reason_expired', {}, loc);
+        } else if (rawReason === '已截止') {
+          lockReason = _translateHelper('cancel.reason_cutoff', {}, loc);
+        } else {
+          lockReason = rawReason || _translateHelper('cancel.locked', {}, loc);
+        }
+      }
       if (!isDayLocked) {
         anyDayUnlocked = true;
       }
 
-      var dayHeaderTitle = '【' + day + ' 預訂項目】' + (isDayLocked ? ' 🔒[' + lockReason + '無法取消]' : '');
+      var dayHeaderTitle = _translateHelper('cancel.day_items', { day: displayDay }, loc) + (isDayLocked ? ' 🔒[' + lockReason + ' ' + _translateHelper('cancel.locked', {}, loc) + ']' : '');
 
       bodyContents.push(_flexText(dayHeaderTitle, {
         size: 'md',
@@ -5789,7 +6385,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
               type: 'button',
               action: {
                 type: 'message',
-                label: '取消此項',
+                label: _translateHelper('cancel.btn_cancel_item', {}, loc),
                 text: cancelCmd
               },
               style: 'primary',
@@ -5829,7 +6425,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
           type: 'button',
           action: {
             type: 'message',
-            label: '取消我的【' + day + '】餐點',
+            label: _translateHelper('cancel.btn_cancel_day', { day: displayDay }, loc),
             text: '取消我的 ' + day + ' 全部'
           },
           style: 'secondary',
@@ -5846,7 +6442,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
         type: 'button',
         action: {
           type: 'message',
-          label: '❌ 取消我的所有未截止預訂',
+          label: '❌ ' + _translateHelper('cancel.btn_cancel_all', {}, loc),
           text: '取消我的 全部'
         },
         style: 'secondary',
@@ -5855,7 +6451,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       });
     } else if (!anyDayUnlocked && dayOrder.length > 0) {
       bodyContents.push(_flexSeparator({ margin: 'md' }));
-      bodyContents.push(_flexText('⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。', {
+      bodyContents.push(_flexText(loc === 'zh-TW' ? '⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。' : '⚠️ ' + _translateHelper('cancel.footer_member', {}, loc), {
         size: 'xs',
         color: FLEX_COLORS.warning,
         align: 'center',
@@ -5868,7 +6464,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   // If user is organizer, provide full group management buttons with warning prompt
   if (isOrganizer) {
     bodyContents.push(_flexSeparator({ margin: 'lg' }));
-    bodyContents.push(_flexText('👑 開單人管理專區', {
+    bodyContents.push(_flexText((loc === 'zh-TW') ? '👑 開單人管理專區' : _translateHelper('cancel.org_section', {}, loc), {
       size: 'sm',
       weight: 'bold',
       color: FLEX_COLORS.danger,
@@ -5878,7 +6474,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       type: 'button',
       action: {
         type: 'message',
-        label: '⚠️ 取消全體當日餐點 (需確認)',
+        label: _translateHelper('cancel.btn_org_day', {}, loc),
         text: '取消當日所有餐點'
       },
       style: 'secondary',
@@ -5889,7 +6485,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
       type: 'button',
       action: {
         type: 'message',
-        label: '🚨 取消全體未截止預訂 (需確認)',
+        label: _translateHelper('cancel.btn_org_all', {}, loc),
         text: '取消所有未截止預約訂單'
       },
       style: 'secondary',
@@ -5905,8 +6501,8 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
   });
 
   var footerText = isOrganizer
-    ? '💡 開單人可協助管理訂單；全體取消操作將跳出警告確認卡，需再次確認。'
-    : '💡 您只能退訂自己訂購的餐點；如需退訂他人餐點或取消全體訂單，請洽開單人。';
+    ? _translateHelper('cancel.footer_org', {}, loc)
+    : _translateHelper('cancel.footer_member', {}, loc);
 
   var footer = _flexBox([
     _flexText(footerText, {
@@ -5935,11 +6531,13 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer) {
  * @param {string} warningDesc
  * @param {string} targetActionText
  * @param {string} targetButtonLabel
+ * @param {string} [locale]
  * @returns {Object} LINE Flex bubble
  */
-function createConfirmCancelFlex(title, warningDesc, targetActionText, targetButtonLabel) {
+function createConfirmCancelFlex(title, warningDesc, targetActionText, targetButtonLabel, locale) {
+  var loc = _resolveLocale(locale);
   var header = _flexBox([
-    _flexText('🚨 取消確認警告 (開單人專用)', {
+    _flexText(_translateHelper('cancel.confirm_header', {}, loc), {
       size: 'md',
       weight: 'bold',
       color: '#FFFFFF'
@@ -5949,6 +6547,8 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
     backgroundColor: FLEX_COLORS.danger,
     paddingAll: 'md'
   });
+
+  var abortCmd = (loc === 'zh-TW') ? '放棄取消' : ((typeof I18nModule !== 'undefined' && I18nModule.I18N_COMMANDS && I18nModule.I18N_COMMANDS[loc] && I18nModule.I18N_COMMANDS[loc]['cmd.abort_cancel']) ? I18nModule.I18N_COMMANDS[loc]['cmd.abort_cancel'][0] : '放棄取消');
 
   var body = _flexBox([
     _flexText(title, {
@@ -5965,7 +6565,7 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
       wrap: true
     }),
     _flexBox([
-      _flexText('⚠️ 警告：此操作將影響全體成員且無法復原！', {
+      _flexText((loc === 'zh-TW') ? '⚠️ 警告：此操作將影響全體成員且無法復原！' : _translateHelper('cancel.confirm_footer', {}, loc), {
         size: 'xs',
         color: FLEX_COLORS.danger,
         weight: 'bold',
@@ -5994,8 +6594,8 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
         type: 'button',
         action: {
           type: 'message',
-          label: '放棄取消 (保留所有訂單)',
-          text: '放棄取消'
+          label: _translateHelper('cancel.btn_abort', {}, loc),
+          text: abortCmd
         },
         style: 'secondary',
         height: 'sm',
@@ -6022,15 +6622,17 @@ function createConfirmCancelFlex(title, warningDesc, targetActionText, targetBut
  * @param {Array<Object>} schedule - List of { dayOfWeek, restaurantName, cutoffTime, notes, isActive }
  * @returns {Object} LINE Flex bubble
  */
-function createWeeklyScheduleFlex(schedule) {
+function createWeeklyScheduleFlex(schedule, locale) {
+  var loc = _resolveLocale(locale);
   var rows = [];
   var days = schedule || [];
 
   for (var i = 0; i < days.length; i++) {
     var s = days[i];
+    var displayDay = _displayDayHelper(s.dayOfWeek, loc);
     rows.push(_flexBox([
       _flexBox([
-        _flexText(s.dayOfWeek, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
+        _flexText(displayDay, { weight: 'bold', size: 'sm', color: FLEX_COLORS.textOnColor, align: 'center' })
       ], {
         backgroundColor: FLEX_COLORS.primary,
         cornerRadius: 'sm',
@@ -6038,14 +6640,14 @@ function createWeeklyScheduleFlex(schedule) {
         width: '45px'
       }),
       _flexBox([
-        _flexText(s.restaurantName || '尚未指定店家', { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText('⏰ 截止 ' + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
+        _flexText(s.restaurantName || _translateHelper('schedule.no_restaurant', {}, loc), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText(_translateHelper('schedule.cutoff_prefix', {}, loc) + (s.cutoffTime || '10:30') + (s.notes ? ' · ' + s.notes : ''), { size: 'xs', color: FLEX_COLORS.textSecondary })
       ], { layout: 'vertical', margin: 'md', flex: 1 }),
       {
         type: 'button',
         action: {
           type: 'message',
-          label: '看菜單',
+          label: _translateHelper('schedule.btn_menu', {}, loc),
           text: s.dayOfWeek + '菜單'
         },
         style: 'secondary',
@@ -6066,12 +6668,12 @@ function createWeeklyScheduleFlex(schedule) {
     type: 'bubble',
     size: 'mega',
     header: _flexBox([
-      _flexText('📅 本週訂餐排程表', { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
-      _flexText('週一至週五每日店家 · 支援一梯次預訂', { size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs' })
+      _flexText(_translateHelper('schedule.title', {}, loc), { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
+      _flexText(_translateHelper('schedule.subtitle', {}, loc), { size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs' })
     ], { backgroundColor: FLEX_COLORS.primaryDark, paddingAll: 'lg' }),
     body: _flexBox(rows, { layout: 'vertical', paddingAll: 'md' }),
     footer: _flexBox([
-      _flexText('💡 輸入「週一+1 [餐點]」或點選「看菜單」進行預訂', { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
+      _flexText(_translateHelper('schedule.footer', {}, loc), { size: 'xs', color: FLEX_COLORS.textSecondary, align: 'center' })
     ], { backgroundColor: FLEX_COLORS.background, paddingAll: 'sm' })
   };
 }
@@ -6081,22 +6683,25 @@ function createWeeklyScheduleFlex(schedule) {
  * @param {Object} weeklySummary - { daySummaries, grandTotalQuantity, grandTotalAmount, users }
  * @param {boolean} [isClosed] - Whether weekly ordering has ended.
  * @param {Object} [paymentInfo] - Optional payment configuration (LINE Pay & Bank Transfer).
+ * @param {string} [locale]
  * @returns {Object} LINE Flex bubble
  */
-function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
+function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
+  var loc = _resolveLocale(locale);
   var summary = weeklySummary || { daySummaries: [], users: [] };
   var bodyContents = [];
 
   for (var i = 0; i < summary.daySummaries.length; i++) {
     var ds = summary.daySummaries[i];
+    var displayDay = _displayDayHelper(ds.dayOfWeek, loc);
     var dayItemsText = ds.items && ds.items.length > 0
       ? ds.items.map(function (it) { return it.itemName + 'x' + it.quantity; }).join('、')
-      : '無訂單';
+      : _translateHelper('stats.no_orders', {}, loc);
 
     bodyContents.push(_flexBox([
       _flexBox([
-        _flexText(ds.dayOfWeek + ' ' + (ds.restaurantName || ''), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText('共 ' + ds.totalQuantity + ' 份 · $' + ds.totalAmount + ' 元', { size: 'xs', color: FLEX_COLORS.primary, weight: 'bold' })
+        _flexText(displayDay + ' ' + (ds.restaurantName || ''), { weight: 'bold', size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText(_translateHelper('stats.total_summary', { qty: ds.totalQuantity, amount: ds.totalAmount }, loc), { size: 'xs', color: FLEX_COLORS.primary, weight: 'bold' })
       ], { layout: 'horizontal', justifyContent: 'space-between' }),
       _flexText(dayItemsText, { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' })
     ], {
@@ -6109,18 +6714,18 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
   }
 
   bodyContents.push(_flexSeparator({ margin: 'md' }));
-  bodyContents.push(_flexText('👤 成員本週梯次應付明細', { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
+  bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 成員本週梯次應付明細' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
 
   if (summary.users && summary.users.length > 0) {
     for (var u = 0; u < summary.users.length; u++) {
       var user = summary.users[u];
       bodyContents.push(_flexBox([
         _flexText(user.userName, { size: 'sm', color: FLEX_COLORS.textPrimary }),
-        _flexText('$' + user.total + ' 元', { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
+        _flexText('$' + user.total + (loc === 'zh-TW' ? ' 元' : ''), { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
       ], { layout: 'horizontal', justifyContent: 'space-between', margin: 'xs' }));
     }
   } else {
-    bodyContents.push(_flexText('尚無成員訂購紀錄', { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
+    bodyContents.push(_flexText((loc === 'zh-TW' ? '尚無成員訂購紀錄' : _translateHelper('stats.no_orders', {}, loc)), { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
   }
 
   // Append payment contents if provided
@@ -6137,7 +6742,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
       type: 'button',
       action: {
         type: 'message',
-        label: '🔒 截止本週預訂（結單）',
+        label: (loc === 'zh-TW' ? '🔒 截止本週預訂（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
         text: '本週結單'
       },
       style: 'secondary',
@@ -6146,16 +6751,23 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
     });
   }
 
-  var titleText = isClosed ? '📊 本週梯次結單總表' : '📊 本週梯次訂餐統計總表';
+  var titleText = (loc === 'zh-TW')
+    ? (isClosed ? '📊 本週梯次結單總表' : '📊 本週梯次訂餐統計總表')
+    : (isClosed ? _translateHelper('stats.weekly_title_closed', {}, loc) : _translateHelper('stats.weekly_title', {}, loc));
+  var headerSub = (loc === 'zh-TW')
+    ? ('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元')
+    : _translateHelper('stats.total_summary', { qty: summary.grandTotalQuantity || 0, amount: summary.grandTotalAmount || 0 }, loc);
   var headerBg = isClosed ? FLEX_COLORS.primaryDark : FLEX_COLORS.primary;
-  var footerMsg = isClosed ? '⏰ 本週預訂已截止，請各成員依此表金額完成付款' : '📋 請各成員依此表金額完成對帳與付款';
+  var footerMsg = (loc === 'zh-TW')
+    ? (isClosed ? '⏰ 本週預訂已截止，請各成員依此表金額完成付款' : '📋 請各成員依此表金額完成對帳與付款')
+    : (isClosed ? _translateHelper('stats.weekly_subtitle_closed', {}, loc) : _translateHelper('stats.weekly_subtitle_open', {}, loc));
 
   return {
     type: 'bubble',
     size: 'mega',
     header: _flexBox([
       _flexText(titleText, { weight: 'bold', size: 'lg', color: FLEX_COLORS.textOnColor }),
-      _flexText('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元', {
+      _flexText(headerSub, {
         size: 'xs', color: FLEX_COLORS.textOnColor, margin: 'xs'
       })
     ], { backgroundColor: headerBg, paddingAll: 'lg' }),
@@ -6172,15 +6784,17 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo) {
  * @param {Array<string|Object>} children
  * @returns {Object} LINE Flex bubble
  */
-function createChildrenListFlex(userName, children) {
+function createChildrenListFlex(userName, children, locale) {
+  var loc = _resolveLocale(locale);
   var kids = children || [];
+  var memberName = userName || (loc === 'zh-TW' ? '成員' : 'Member');
   var header = _flexBox([
-    _flexText('👶 我的小孩與用餐對象名冊', {
+    _flexText(_translateHelper('children_list.title', {}, loc), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor
     }),
-    _flexText('同仁：' + (userName || '成員'), {
+    _flexText(_translateHelper('children_list.subtitle', { name: memberName }, loc), {
       size: 'xs',
       color: FLEX_COLORS.textOnColor,
       margin: 'xs'
@@ -6193,20 +6807,26 @@ function createChildrenListFlex(userName, children) {
 
   var bodyContents = [];
   if (kids.length === 0) {
-    bodyContents.push(_flexText('您目前尚未登記任何小孩或用餐對象。', {
+    bodyContents.push(_flexText(_translateHelper('children_list.empty', {}, loc), {
       size: 'sm',
       color: FLEX_COLORS.textSecondary,
       align: 'center',
       margin: 'md'
     }));
-    bodyContents.push(_flexText('💡 您可以在點餐時直接加註，如「+1 招牌便當 (大寶)」，系統會自動為您建檔！\n或輸入「設定小孩 大寶, 二寶」完成登記。', {
-      size: 'xs',
-      color: FLEX_COLORS.textSecondary,
-      margin: 'md',
-      wrap: true
-    }));
+    bodyContents.push({
+      type: 'button',
+      action: {
+        type: 'message',
+        label: _translateHelper('children_list.btn_setup', {}, loc),
+        text: _translateHelper('children_list.cmd_setup', {}, loc)
+      },
+      style: 'primary',
+      color: FLEX_COLORS.primary,
+      height: 'sm',
+      margin: 'md'
+    });
   } else {
-    bodyContents.push(_flexText('已登記的對象名冊（點餐時可一鍵指定）：', {
+    bodyContents.push(_flexText(loc === 'zh-TW' ? '已登記的對象名冊（點餐時可一鍵指定）：' : _translateHelper('children_list.title', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textSecondary,
       margin: 'xs'
@@ -6233,7 +6853,7 @@ function createChildrenListFlex(userName, children) {
     });
 
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    bodyContents.push(_flexText('💡 點餐方式：\n1. 點擊菜單上的「+1 點餐」按鈕，系統會自動彈出小孩捷徑按鈕供您挑選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！', {
+    bodyContents.push(_flexText(loc === 'zh-TW' ? '💡 點餐方式：\n1. 點擊菜單上的「+1 點餐」按鈕，系統會自動彈出小孩捷徑按鈕供您挑選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！' : '💡 ' + _translateHelper('children_menu.footer', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.primaryDark,
       wrap: true,
@@ -6257,19 +6877,20 @@ function createChildrenListFlex(userName, children) {
 
 /**
  * createChildrenHelpFlex — Interactive submenu for children & dining profile management
- *
+ * @param {string} [locale]
  * @returns {Object} LINE Flex bubble
  */
-function createChildrenHelpFlex() {
+function createChildrenHelpFlex(locale) {
+  var loc = _resolveLocale(locale);
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText('👶 小孩與用餐對象管理選單', {
+    _flexText(_translateHelper('children_menu.title', {}, loc), {
       size: 'lg',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
       align: 'start'
     }),
-    _flexText('點擊按鈕直接查詢或帶入指令範例', {
+    _flexText(_translateHelper('children_menu.subtitle', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textOnColor,
       margin: 'xs'
@@ -6283,28 +6904,28 @@ function createChildrenHelpFlex() {
   /* ---- body: buttonized command list ---- */
   var commands = [
     {
-      label: '👦 我的小孩 / 小孩名單',
-      desc: '圖文卡片瀏覽名下小孩清單',
-      cmd: '我的小孩',
-      btnText: '看名單'
+      label: _translateHelper('children_menu.item_list_title', {}, loc),
+      desc: _translateHelper('children_menu.item_list_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_list', {}, loc),
+      btnText: _translateHelper('children_menu.btn_list', {}, loc)
     },
     {
-      label: '👶 設定小孩 大寶, 二寶',
-      desc: '批次綁定小孩（覆蓋現有名冊）',
-      cmd: '設定小孩 大寶, 二寶',
-      btnText: '批次登記'
+      label: _translateHelper('children_menu.item_batch_title', {}, loc),
+      desc: _translateHelper('children_menu.item_batch_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_batch', {}, loc),
+      btnText: _translateHelper('children_menu.btn_batch', {}, loc)
     },
     {
-      label: '➕ 新增小孩 小寶 附小一年一班',
-      desc: '新增單一小孩姓名與班級備註',
-      cmd: '新增小孩 小寶 附小一年一班',
-      btnText: '新增小孩'
+      label: _translateHelper('children_menu.item_add_title', {}, loc),
+      desc: _translateHelper('children_menu.item_add_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_add', {}, loc),
+      btnText: _translateHelper('children_menu.btn_add', {}, loc)
     },
     {
-      label: '🗑️ 刪除小孩 小寶',
-      desc: '移除指定小孩名冊紀錄',
-      cmd: '刪除小孩 小寶',
-      btnText: '刪除小孩'
+      label: _translateHelper('children_menu.item_del_title', {}, loc),
+      desc: _translateHelper('children_menu.item_del_desc', {}, loc),
+      cmd: _translateHelper('children_menu.cmd_delete', {}, loc),
+      btnText: _translateHelper('children_menu.btn_delete', {}, loc)
     }
   ];
 
@@ -6358,7 +6979,7 @@ function createChildrenHelpFlex() {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 點擊「批次登記 / 新增 / 刪除」將送出範例指令，您亦可在對話框自行編輯小孩姓名與班級備註！', {
+    _flexText(_translateHelper('children_menu.footer', {}, loc), {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       wrap: true,
@@ -7348,20 +7969,29 @@ function handleTextMessage(event) {
   var weeklyRegex = _getCmdRegex('cmd.weekly', /^(?:\/)?(?:本週菜單|每週菜單|本週排程|排程|週排程)$/i);
   if (weeklyRegex.test(text)) {
     var schedule = SheetModule.getWeeklySchedule();
-    var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule);
-    return LineModule.replyFlex(replyToken, '📅 本週訂餐排程表 (週一至週五)', scheduleFlex);
+    var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule, userLocale);
+    var altSchedule = (userLocale === 'zh-TW') ? '📅 本週訂餐排程表 (週一至週五)' : (_translateMsg('schedule.alt_text') || '📅 本週訂餐排程表 (週一至週五)');
+    return LineModule.replyFlex(replyToken, altSchedule, scheduleFlex);
   }
 
   // 3. DAY SPECIFIC MENU: 週一菜單 / 週二菜單 / 週三菜單 ...
-  var dayMenuMatch = text.match(/^(?:本週)?(週[一二三四五]|禮拜[一二三四五]|星期[一二三四五])菜單$/);
-  if (dayMenuMatch) {
-    var targetDay = '週' + dayMenuMatch[1].slice(-1);
+  var DAY_MENU_ALIAS_MAP = {
+    '週一': '週一', '禮拜一': '週一', '星期一': '週一', 'monday': '週一', 'mon': '週一', '月曜': '週一', '月曜日': '週一', '월요일': '週一', '월': '週一', 'จันทร์': '週一', 'senin': '週一',
+    '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二',
+    '週三': '週三', '禮拜三': '週三', '星期三': '週三', 'wednesday': '週三', 'wed': '週三', '水曜': '週三', '水曜日': '週三', '수요일': '週三', '수': '週三', 'พุธ': '週三', 'rabu': '週三',
+    '週四': '週四', '禮拜四': '週四', '星期四': '週四', 'thursday': '週四', 'thu': '週四', '木曜': '週四', '木曜日': '週四', '목요일': '週四', '목': '週四', 'พฤหัส': '週四', 'kamis': '週四',
+    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五'
+  };
+  var dayMenuMatch = text.match(/^(?:本週)?([^\s]+)\s*(?:菜單|menu|メニュー|메뉴|เมนู)$/i);
+  if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
+    var targetDay = DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()];
     var daySchedule = SheetModule.getScheduleByDay(targetDay);
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
     var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
-    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay);
-    return LineModule.replyFlex(replyToken, targetDay + ' ' + restName + ' 菜單', dayMenuFlex);
+    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale);
+    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 菜單') : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單'));
+    return LineModule.replyFlex(replyToken, dayAltText, dayMenuFlex);
   }
 
   // 4. UBER EATS IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址]
@@ -7445,8 +8075,9 @@ function handleTextMessage(event) {
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
-    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay);
-    return LineModule.replyFlex(replyToken, curRestaurant + ' 菜單', curMenuFlex);
+    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale);
+    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 菜單') : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單'));
+    return LineModule.replyFlex(replyToken, curAltText, curMenuFlex);
   }
 
   // Helper to format payment text for personal order queries
@@ -7544,18 +8175,21 @@ function handleTextMessage(event) {
       var kidNames = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
       kidsProfiles = kidNames.map(function (k) { return { childName: k, note: '' }; });
     }
-    var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles);
-    return LineModule.replyFlex(replyToken, '👶 我的小孩與用餐對象名冊', kidsFlex);
+    var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles, userLocale);
+    var kidsAltText = (userLocale === 'zh-TW') ? '👶 我的小孩與用餐對象名冊' : (_translateMsg('children_list.alt_text') || '👶 我的小孩與用餐對象名冊');
+    return LineModule.replyFlex(replyToken, kidsAltText, kidsFlex);
   }
 
   // 8.5.1 CHILDREN SUBMENU: 設定小孩 / 小孩設定 / 登記小孩 / 小孩選單 / 小孩管理 (無帶參數時回覆按鈕子選單)
   var childrenSubmenuRegex = _getCmdRegex('cmd.children', /^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i);
   if (childrenSubmenuRegex.test(text.trim())) {
-    var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex();
-    return LineModule.replyFlex(replyToken, '👶 小孩與用餐對象管理選單', childrenSubmenuFlex);
+    var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex(userLocale);
+    var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 小孩與用餐對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 小孩與用餐對象管理選單');
+    return LineModule.replyFlex(replyToken, childrenSubmenuAlt, childrenSubmenuFlex);
   }
 
-  var setKidsMatch = text.match(/^(?:\/)?(?:設定小孩|小孩設定|登記小孩)\s+(.+)$/i);
+  var setKidsPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.children') : '(?:\\/)?(?:設定小孩|小孩設定|登記小孩)';
+  var setKidsMatch = text.match(new RegExp('^' + setKidsPrefix + '\\s+(.+)$', 'i'));
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
     var kidList = rawList.split(/[,、\s]+/).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
@@ -7568,11 +8202,12 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
   }
 
-  if (/^(?:\/)?(?:新增小孩|加小孩)$/i.test(text.trim())) {
+  var addKidPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.add_kid') : '(?:\\/)?(?:新增小孩|加小孩)';
+  if (new RegExp('^' + addKidPrefix + '$', 'i').test(text.trim())) {
     return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名與班級備註，例如：「新增小孩 小寶 附小一年一班」');
   }
 
-  var addKidMatch = text.match(/^(?:\/)?(?:新增小孩|加小孩)\s+([^\s]+)(?:\s+(.+))?$/i);
+  var addKidMatch = text.match(new RegExp('^' + addKidPrefix + '\\s+([^\\s]+)(?:\\s+(.+))?$', 'i'));
   if (addKidMatch) {
     var newKidName = addKidMatch[1].trim();
     var kidNote = (addKidMatch[2] || '').trim();
@@ -7585,11 +8220,12 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
   }
 
-  if (/^(?:\/)?(?:刪除小孩|移除小孩)$/i.test(text.trim())) {
+  var delKidPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.del_kid') : '(?:\\/)?(?:刪除小孩|移除小孩)';
+  if (new RegExp('^' + delKidPrefix + '$', 'i').test(text.trim())) {
     return LineModule.replyText(replyToken, '⚠️ 請輸入欲刪除的小孩姓名，例如：「刪除小孩 小寶」');
   }
 
-  var delKidMatch = text.match(/^(?:\/)?(?:刪除小孩|移除小孩)\s+([^\s]+)$/i);
+  var delKidMatch = text.match(new RegExp('^' + delKidPrefix + '\\s+([^\\s]+)$', 'i'));
   if (delKidMatch) {
     var delKidName = delKidMatch[1].trim();
     var deleted = SheetModule.deleteChild ? SheetModule.deleteChild(userId, delKidName, userDisplayName, userDisplayName) : false;
@@ -7679,7 +8315,8 @@ function handleTextMessage(event) {
       '⚠️ 確認取消【' + targetDayReq + '】當日全體餐點？',
       '此操作將會取消【' + targetDayReq + '】所有成員已訂購的餐點紀錄，並清空該梯次訂單。',
       '確認取消全體 ' + targetDayReq,
-      '⚠️ 確認取消【' + targetDayReq + '】全體餐點'
+      '⚠️ 確認取消【' + targetDayReq + '】全體餐點',
+      userLocale
     );
     return LineModule.replyFlex(replyToken, '⚠️ 開單人取消當日全體餐點確認', warnFlex);
   }
@@ -7695,7 +8332,8 @@ function handleTextMessage(event) {
       '🚨 確認取消全體所有未截止預約訂單？',
       '此操作將會取消本週所有未截止梯次中【全體成員】的所有預約訂單紀錄。',
       '確認取消所有未截止預約訂單',
-      '🚨 確認取消全體未截止預約'
+      '🚨 確認取消全體未截止預約',
+      userLocale
     );
     return LineModule.replyFlex(replyToken, '🚨 開單人取消全體預約訂單確認', warnFlexAll);
   }
@@ -7735,8 +8373,9 @@ function handleTextMessage(event) {
         lockMap[d] = { locked: true, reason: '已截止' };
       }
     });
-    var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap, isOrgMenu);
-    return LineModule.replyFlex(replyToken, '🗑️ 請選擇欲取消的餐點', cancelFlex);
+    var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap, isOrgMenu, userLocale);
+    var cancelAltText = (userLocale === 'zh-TW') ? '🗑️ 請選擇欲取消的餐點' : (_translateMsg('cancel.alt_text') || '🗑️ 請選擇欲取消的餐點');
+    return LineModule.replyFlex(replyToken, cancelAltText, cancelFlex);
   }
 
   // 9-7. 取消 全部 (未加 "我的" 關鍵字)
@@ -7749,7 +8388,8 @@ function handleTextMessage(event) {
       '🚨 確認取消全體所有未截止預約訂單？',
       '此操作將會取消本週所有未截止梯次中【全體成員】的所有預約訂單紀錄。',
       '確認取消所有未截止預約訂單',
-      '🚨 確認取消全體未截止預約'
+      '🚨 確認取消全體未截止預約',
+      userLocale
     );
     return LineModule.replyFlex(replyToken, '🚨 開單人取消全體預約訂單確認', warnFlexPlain);
   }
@@ -7994,8 +8634,9 @@ function handleTextMessage(event) {
   if (statsWeeklyRegex.test(text)) {
     var weeklySummary = SheetModule.getWeeklyOrderSummary(groupId);
     var payInfo = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary, false, payInfo);
-    return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
+    var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary, false, payInfo, userLocale);
+    var weeklyAlt = (userLocale === 'zh-TW') ? '📊 本週梯次訂餐統計總表' : (_translateMsg('stats.alt_text_weekly') || '📊 本週梯次訂餐統計總表');
+    return LineModule.replyFlex(replyToken, weeklyAlt, weeklySumFlex);
   }
 
   // 10.5 TODAY SUMMARY (TEXT): 今日文字統計 / 今日統計文字 / 文字統計 / 統計文字 / 今日文字
@@ -8017,8 +8658,8 @@ function handleTextMessage(event) {
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
     var summary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
     var payInfoTodaySum = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum);
-    var altText = '【今日訂餐統計】' + restName + ' (' + (summary.totalQuantity || 0) + '份 / $' + (summary.totalAmount || 0) + ')';
+    var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum, userLocale);
+    var altText = (userLocale === 'zh-TW') ? ('【今日訂餐統計】' + restName + ' (' + (summary.totalQuantity || 0) + '份 / $' + (summary.totalAmount || 0) + ')') : (_translateMsg('stats.alt_text_today', { restaurant: restName, qty: summary.totalQuantity || 0, amount: summary.totalAmount || 0 }) || ('【今日訂餐統計】' + restName));
     var replyRes = LineModule.replyFlex(replyToken, altText, sumFlex);
     if (replyRes && replyRes.statusCode && replyRes.statusCode >= 400) {
       // Fallback via push if Flex reply was rejected
@@ -8042,14 +8683,16 @@ function handleTextMessage(event) {
 
     if (isWeeklyClose) {
       var weeklySummaryClose = SheetModule.getWeeklyOrderSummary(groupId);
-      var weeklyCloseFlex = FlexModule.createWeeklySummaryFlex(weeklySummaryClose, true, payInfoClose);
-      return LineModule.replyFlex(replyToken, '【已結單】本週梯次訂餐總表與收費清單', weeklyCloseFlex);
+      var weeklyCloseFlex = FlexModule.createWeeklySummaryFlex(weeklySummaryClose, true, payInfoClose, userLocale);
+      var weeklyCloseAlt = (userLocale === 'zh-TW') ? '【已結單】本週梯次訂餐總表與收費清單' : (_translateMsg('stats.alt_text_closed_weekly') || '【已結單】本週梯次訂餐總表與收費清單');
+      return LineModule.replyFlex(replyToken, weeklyCloseAlt, weeklyCloseFlex);
     } else {
       var daySchedFinal = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
       var finalRest = (daySchedFinal && daySchedFinal.restaurantName) ? daySchedFinal.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
       var finalSummary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
-      var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true, payInfoClose);
-      return LineModule.replyFlex(replyToken, '【已結單】' + finalRest + ' 訂購名單總計', finalFlex);
+      var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true, payInfoClose, userLocale);
+      var finalAlt = (userLocale === 'zh-TW') ? ('【已結單】' + finalRest + ' 訂購名單總計') : (_translateMsg('stats.alt_text_closed_today', { restaurant: finalRest }) || ('【已結單】' + finalRest + ' 訂購名單總計'));
+      return LineModule.replyFlex(replyToken, finalAlt, finalFlex);
     }
   }
 
