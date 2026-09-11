@@ -580,11 +580,11 @@ function parseOrderText(text) {
     }
 
     var childPrefix = null;
-    var prefixMatch = raw.match(/^([^\s:+*xX0-9]{1,10})\s*[:：]\s*(.+)$/);
+    var prefixMatch = raw.match(/^([^\s:+*xX0-9@]{1,10})\s*[:：]\s*(.+)$/);
     if (prefixMatch) {
       var pKid = prefixMatch[1].trim();
       var nonKidKeywords = ['點餐', '取消', '訂單', '開單', '說明', '菜單', '注意', '備註', '時間', '預訂', '金額', '費用', '總計', '統計', '記錄', '紀錄', '公告', '地點', '取餐', '店家'];
-      if (nonKidKeywords.indexOf(pKid) === -1) {
+      if (pKid.indexOf('@') !== 0 && nonKidKeywords.indexOf(pKid) === -1) {
         childPrefix = pKid;
         raw = prefixMatch[2].trim();
       }
