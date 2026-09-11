@@ -818,20 +818,29 @@ function handleTextMessage(event) {
   var weeklyRegex = _getCmdRegex('cmd.weekly', /^(?:\/)?(?:本週菜單|每週菜單|本週排程|排程|週排程)$/i);
   if (weeklyRegex.test(text)) {
     var schedule = SheetModule.getWeeklySchedule();
-    var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule);
-    return LineModule.replyFlex(replyToken, '📅 本週訂餐排程表 (週一至週五)', scheduleFlex);
+    var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule, userLocale);
+    var altSchedule = (userLocale === 'zh-TW') ? '📅 本週訂餐排程表 (週一至週五)' : (_translateMsg('schedule.alt_text') || '📅 本週訂餐排程表 (週一至週五)');
+    return LineModule.replyFlex(replyToken, altSchedule, scheduleFlex);
   }
 
   // 3. DAY SPECIFIC MENU: 週一菜單 / 週二菜單 / 週三菜單 ...
-  var dayMenuMatch = text.match(/^(?:本週)?(週[一二三四五]|禮拜[一二三四五]|星期[一二三四五])菜單$/);
-  if (dayMenuMatch) {
-    var targetDay = '週' + dayMenuMatch[1].slice(-1);
+  var DAY_MENU_ALIAS_MAP = {
+    '週一': '週一', '禮拜一': '週一', '星期一': '週一', 'monday': '週一', 'mon': '週一', '月曜': '週一', '月曜日': '週一', '월요일': '週一', '월': '週一', 'จันทร์': '週一', 'senin': '週一',
+    '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二',
+    '週三': '週三', '禮拜三': '週三', '星期三': '週三', 'wednesday': '週三', 'wed': '週三', '水曜': '週三', '水曜日': '週三', '수요일': '週三', '수': '週三', 'พุธ': '週三', 'rabu': '週三',
+    '週四': '週四', '禮拜四': '週四', '星期四': '週四', 'thursday': '週四', 'thu': '週四', '木曜': '週四', '木曜日': '週四', '목요일': '週四', '목': '週四', 'พฤหัส': '週四', 'kamis': '週四',
+    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五'
+  };
+  var dayMenuMatch = text.match(/^(?:本週)?([^\s]+)\s*(?:菜單|menu|メニュー|메뉴|เมนู)$/i);
+  if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
+    var targetDay = DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()];
     var daySchedule = SheetModule.getScheduleByDay(targetDay);
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
     var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
-    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay);
-    return LineModule.replyFlex(replyToken, targetDay + ' ' + restName + ' 菜單', dayMenuFlex);
+    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale);
+    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 菜單') : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單'));
+    return LineModule.replyFlex(replyToken, dayAltText, dayMenuFlex);
   }
 
   // 4. UBER EATS IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址]
@@ -915,8 +924,9 @@ function handleTextMessage(event) {
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
-    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay);
-    return LineModule.replyFlex(replyToken, curRestaurant + ' 菜單', curMenuFlex);
+    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale);
+    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 菜單') : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單'));
+    return LineModule.replyFlex(replyToken, curAltText, curMenuFlex);
   }
 
   // Helper to format payment text for personal order queries
@@ -1014,18 +1024,21 @@ function handleTextMessage(event) {
       var kidNames = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
       kidsProfiles = kidNames.map(function (k) { return { childName: k, note: '' }; });
     }
-    var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles);
-    return LineModule.replyFlex(replyToken, '👶 我的小孩與用餐對象名冊', kidsFlex);
+    var kidsFlex = FlexModule.createChildrenListFlex(userDisplayName, kidsProfiles, userLocale);
+    var kidsAltText = (userLocale === 'zh-TW') ? '👶 我的小孩與用餐對象名冊' : (_translateMsg('children_list.alt_text') || '👶 我的小孩與用餐對象名冊');
+    return LineModule.replyFlex(replyToken, kidsAltText, kidsFlex);
   }
 
   // 8.5.1 CHILDREN SUBMENU: 設定小孩 / 小孩設定 / 登記小孩 / 小孩選單 / 小孩管理 (無帶參數時回覆按鈕子選單)
   var childrenSubmenuRegex = _getCmdRegex('cmd.children', /^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i);
   if (childrenSubmenuRegex.test(text.trim())) {
-    var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex();
-    return LineModule.replyFlex(replyToken, '👶 小孩與用餐對象管理選單', childrenSubmenuFlex);
+    var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex(userLocale);
+    var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 小孩與用餐對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 小孩與用餐對象管理選單');
+    return LineModule.replyFlex(replyToken, childrenSubmenuAlt, childrenSubmenuFlex);
   }
 
-  var setKidsMatch = text.match(/^(?:\/)?(?:設定小孩|小孩設定|登記小孩)\s+(.+)$/i);
+  var setKidsPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.children') : '(?:\\/)?(?:設定小孩|小孩設定|登記小孩)';
+  var setKidsMatch = text.match(new RegExp('^' + setKidsPrefix + '\\s+(.+)$', 'i'));
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
     var kidList = rawList.split(/[,、\s]+/).map(function (n) { return n.trim(); }).filter(function (n) { return n && n !== '本人' && n !== '自己'; });
@@ -1038,11 +1051,12 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
   }
 
-  if (/^(?:\/)?(?:新增小孩|加小孩)$/i.test(text.trim())) {
+  var addKidPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.add_kid') : '(?:\\/)?(?:新增小孩|加小孩)';
+  if (new RegExp('^' + addKidPrefix + '$', 'i').test(text.trim())) {
     return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名與班級備註，例如：「新增小孩 小寶 附小一年一班」');
   }
 
-  var addKidMatch = text.match(/^(?:\/)?(?:新增小孩|加小孩)\s+([^\s]+)(?:\s+(.+))?$/i);
+  var addKidMatch = text.match(new RegExp('^' + addKidPrefix + '\\s+([^\\s]+)(?:\\s+(.+))?$', 'i'));
   if (addKidMatch) {
     var newKidName = addKidMatch[1].trim();
     var kidNote = (addKidMatch[2] || '').trim();
@@ -1055,11 +1069,12 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
   }
 
-  if (/^(?:\/)?(?:刪除小孩|移除小孩)$/i.test(text.trim())) {
+  var delKidPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.del_kid') : '(?:\\/)?(?:刪除小孩|移除小孩)';
+  if (new RegExp('^' + delKidPrefix + '$', 'i').test(text.trim())) {
     return LineModule.replyText(replyToken, '⚠️ 請輸入欲刪除的小孩姓名，例如：「刪除小孩 小寶」');
   }
 
-  var delKidMatch = text.match(/^(?:\/)?(?:刪除小孩|移除小孩)\s+([^\s]+)$/i);
+  var delKidMatch = text.match(new RegExp('^' + delKidPrefix + '\\s+([^\\s]+)$', 'i'));
   if (delKidMatch) {
     var delKidName = delKidMatch[1].trim();
     var deleted = SheetModule.deleteChild ? SheetModule.deleteChild(userId, delKidName, userDisplayName, userDisplayName) : false;
@@ -1149,7 +1164,8 @@ function handleTextMessage(event) {
       '⚠️ 確認取消【' + targetDayReq + '】當日全體餐點？',
       '此操作將會取消【' + targetDayReq + '】所有成員已訂購的餐點紀錄，並清空該梯次訂單。',
       '確認取消全體 ' + targetDayReq,
-      '⚠️ 確認取消【' + targetDayReq + '】全體餐點'
+      '⚠️ 確認取消【' + targetDayReq + '】全體餐點',
+      userLocale
     );
     return LineModule.replyFlex(replyToken, '⚠️ 開單人取消當日全體餐點確認', warnFlex);
   }
@@ -1165,7 +1181,8 @@ function handleTextMessage(event) {
       '🚨 確認取消全體所有未截止預約訂單？',
       '此操作將會取消本週所有未截止梯次中【全體成員】的所有預約訂單紀錄。',
       '確認取消所有未截止預約訂單',
-      '🚨 確認取消全體未截止預約'
+      '🚨 確認取消全體未截止預約',
+      userLocale
     );
     return LineModule.replyFlex(replyToken, '🚨 開單人取消全體預約訂單確認', warnFlexAll);
   }
@@ -1205,8 +1222,9 @@ function handleTextMessage(event) {
         lockMap[d] = { locked: true, reason: '已截止' };
       }
     });
-    var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap, isOrgMenu);
-    return LineModule.replyFlex(replyToken, '🗑️ 請選擇欲取消的餐點', cancelFlex);
+    var cancelFlex = FlexModule.createCancelOrderFlex(userDisplayName, activeOrders, lockMap, isOrgMenu, userLocale);
+    var cancelAltText = (userLocale === 'zh-TW') ? '🗑️ 請選擇欲取消的餐點' : (_translateMsg('cancel.alt_text') || '🗑️ 請選擇欲取消的餐點');
+    return LineModule.replyFlex(replyToken, cancelAltText, cancelFlex);
   }
 
   // 9-7. 取消 全部 (未加 "我的" 關鍵字)
@@ -1219,7 +1237,8 @@ function handleTextMessage(event) {
       '🚨 確認取消全體所有未截止預約訂單？',
       '此操作將會取消本週所有未截止梯次中【全體成員】的所有預約訂單紀錄。',
       '確認取消所有未截止預約訂單',
-      '🚨 確認取消全體未截止預約'
+      '🚨 確認取消全體未截止預約',
+      userLocale
     );
     return LineModule.replyFlex(replyToken, '🚨 開單人取消全體預約訂單確認', warnFlexPlain);
   }
@@ -1464,8 +1483,9 @@ function handleTextMessage(event) {
   if (statsWeeklyRegex.test(text)) {
     var weeklySummary = SheetModule.getWeeklyOrderSummary(groupId);
     var payInfo = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary, false, payInfo);
-    return LineModule.replyFlex(replyToken, '📊 本週梯次訂餐統計總表', weeklySumFlex);
+    var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary, false, payInfo, userLocale);
+    var weeklyAlt = (userLocale === 'zh-TW') ? '📊 本週梯次訂餐統計總表' : (_translateMsg('stats.alt_text_weekly') || '📊 本週梯次訂餐統計總表');
+    return LineModule.replyFlex(replyToken, weeklyAlt, weeklySumFlex);
   }
 
   // 10.5 TODAY SUMMARY (TEXT): 今日文字統計 / 今日統計文字 / 文字統計 / 統計文字 / 今日文字
@@ -1487,8 +1507,8 @@ function handleTextMessage(event) {
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
     var summary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
     var payInfoTodaySum = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum);
-    var altText = '【今日訂餐統計】' + restName + ' (' + (summary.totalQuantity || 0) + '份 / $' + (summary.totalAmount || 0) + ')';
+    var sumFlex = FlexModule.createSummaryFlex(restName, summary, !isOrderOpen, payInfoTodaySum, userLocale);
+    var altText = (userLocale === 'zh-TW') ? ('【今日訂餐統計】' + restName + ' (' + (summary.totalQuantity || 0) + '份 / $' + (summary.totalAmount || 0) + ')') : (_translateMsg('stats.alt_text_today', { restaurant: restName, qty: summary.totalQuantity || 0, amount: summary.totalAmount || 0 }) || ('【今日訂餐統計】' + restName));
     var replyRes = LineModule.replyFlex(replyToken, altText, sumFlex);
     if (replyRes && replyRes.statusCode && replyRes.statusCode >= 400) {
       // Fallback via push if Flex reply was rejected
@@ -1512,14 +1532,16 @@ function handleTextMessage(event) {
 
     if (isWeeklyClose) {
       var weeklySummaryClose = SheetModule.getWeeklyOrderSummary(groupId);
-      var weeklyCloseFlex = FlexModule.createWeeklySummaryFlex(weeklySummaryClose, true, payInfoClose);
-      return LineModule.replyFlex(replyToken, '【已結單】本週梯次訂餐總表與收費清單', weeklyCloseFlex);
+      var weeklyCloseFlex = FlexModule.createWeeklySummaryFlex(weeklySummaryClose, true, payInfoClose, userLocale);
+      var weeklyCloseAlt = (userLocale === 'zh-TW') ? '【已結單】本週梯次訂餐總表與收費清單' : (_translateMsg('stats.alt_text_closed_weekly') || '【已結單】本週梯次訂餐總表與收費清單');
+      return LineModule.replyFlex(replyToken, weeklyCloseAlt, weeklyCloseFlex);
     } else {
       var daySchedFinal = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
       var finalRest = (daySchedFinal && daySchedFinal.restaurantName) ? daySchedFinal.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
       var finalSummary = SheetModule.getOrderSummary(groupId, todayDate, todayDay);
-      var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true, payInfoClose);
-      return LineModule.replyFlex(replyToken, '【已結單】' + finalRest + ' 訂購名單總計', finalFlex);
+      var finalFlex = FlexModule.createSummaryFlex(finalRest, finalSummary, true, payInfoClose, userLocale);
+      var finalAlt = (userLocale === 'zh-TW') ? ('【已結單】' + finalRest + ' 訂購名單總計') : (_translateMsg('stats.alt_text_closed_today', { restaurant: finalRest }) || ('【已結單】' + finalRest + ' 訂購名單總計'));
+      return LineModule.replyFlex(replyToken, finalAlt, finalFlex);
     }
   }
 
