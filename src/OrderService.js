@@ -11,6 +11,7 @@ var SheetModule = null;
 var FlexModule = null;
 var LineModule = null;
 var UberEatsModule = null;
+var I18nModule = null;
 
 (function () {
   var g = (typeof globalThis !== 'undefined') ? globalThis
@@ -24,6 +25,7 @@ var UberEatsModule = null;
     FlexModule = g;
     LineModule = g;
     UberEatsModule = g;
+    I18nModule = g;
   } else {
     try {
       ConfigModule = require('./Config.js');
@@ -31,6 +33,7 @@ var UberEatsModule = null;
       FlexModule = require('./FlexMessage.js');
       LineModule = require('./LineService.js');
       UberEatsModule = require('./UberEatsService.js');
+      I18nModule = require('./I18n.js');
     } catch (e) {
       // Fallback
     }
@@ -725,11 +728,84 @@ function handleTextMessage(event) {
     return null;
   }
 
+  // Resolve user effective locale
+  var userLocale = 'zh-TW';
+  if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.getEffectiveLocale) {
+    userLocale = I18nModule.getEffectiveLocale(userId, userDisplayName);
+  } else if (typeof getEffectiveLocale === 'function') {
+    userLocale = getEffectiveLocale(userId, userDisplayName);
+  }
+
+  var _translateMsg = function (k, p) {
+    if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.t) {
+      return I18nModule.t(k, p, userLocale);
+    }
+    if (typeof t === 'function') {
+      return t(k, p, userLocale);
+    }
+    return k;
+  };
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
-  if (/^(幫助|說明|指令|help|\/help)$/i.test(text)) {
+  var helpRegex = (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.buildCommandRegex)
+    ? I18nModule.buildCommandRegex('cmd.help')
+    : /^(幫助|說明|指令|help|\/help)$/i;
+
+  if (helpRegex.test(text)) {
     var sourceCodeUrl = SheetModule.getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
-    var helpFlex = FlexModule.createHelpFlex(sourceCodeUrl);
-    return LineModule.replyFlex(replyToken, '便當點餐指令說明', helpFlex);
+    var helpFlex = FlexModule.createHelpFlex(sourceCodeUrl, userLocale);
+    var helpAlt = _translateMsg('help.alt_text');
+    return LineModule.replyFlex(replyToken, helpAlt || '便當點餐指令說明', helpFlex);
+  }
+
+  // 1-1. LANGUAGE SETTINGS: 設定語言 / 切換語言 / lang / language
+  var langCmdRegex = (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.buildCommandRegex)
+    ? I18nModule.buildCommandRegex('cmd.lang')
+    : /^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language)$/i;
+
+  var langParamMatch = text.match(/^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language)\s+([a-zA-Z\-_]+)$/i);
+  if (langCmdRegex.test(text) || langParamMatch) {
+    var userLocaleEnabled = false;
+    if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.isUserLocaleEnabled) {
+      userLocaleEnabled = I18nModule.isUserLocaleEnabled();
+    } else if (typeof isUserLocaleEnabled === 'function') {
+      userLocaleEnabled = isUserLocaleEnabled();
+    }
+
+    if (!userLocaleEnabled) {
+      return LineModule.replyText(replyToken, _translateMsg('lang.disabled'));
+    }
+
+    if (langParamMatch) {
+      var targetLang = langParamMatch[1].trim();
+      var supported = (typeof SUPPORTED_LOCALES !== 'undefined') ? SUPPORTED_LOCALES : (I18nModule && I18nModule.SUPPORTED_LOCALES) || {};
+      // Normalize match (case-insensitive find)
+      var matchedCode = null;
+      for (var sc in supported) {
+        if (sc.toLowerCase() === targetLang.toLowerCase()) {
+          matchedCode = sc;
+          break;
+        }
+      }
+      if (!matchedCode) {
+        return LineModule.replyText(replyToken, _translateMsg('lang.invalid', {
+          lang: targetLang,
+          options: Object.keys(supported).join(', ')
+        }));
+      }
+
+      if (typeof SheetModule !== 'undefined' && SheetModule.setUserLocalePreference) {
+        SheetModule.setUserLocalePreference(userId, matchedCode, userDisplayName);
+      }
+      var langName = supported[matchedCode] ? supported[matchedCode].name : matchedCode;
+      var successMsg = (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.t)
+        ? I18nModule.t('lang.set_success', { lang: langName }, matchedCode)
+        : '✅ 語言已成功切換為「' + langName + '」！後續個人訊息將以此語言呈現。';
+      return LineModule.replyText(replyToken, successMsg);
+    }
+
+    var langFlex = FlexModule.createLanguageSelectFlex(userLocale);
+    return LineModule.replyFlex(replyToken, _translateMsg('lang.title') || '語言設定', langFlex);
   }
 
   // 2. WEEKLY SCHEDULE: 本週菜單 / 每週菜單 / 排程 / 本週排程
@@ -1598,6 +1674,18 @@ function handlePostbackEvent(event) {
       }
     };
     return handleTextMessage(pseudoCancelEvent);
+  }
+
+  if (action === 'set_lang') {
+    var langCode = params.lang;
+    var pseudoLangEvent = {
+      replyToken: replyToken,
+      source: event.source,
+      message: {
+        text: '設定語言 ' + langCode
+      }
+    };
+    return handleTextMessage(pseudoLangEvent);
   }
 
   if (action === 'prompt_note') {
