@@ -2088,12 +2088,103 @@ allLocales.forEach(function (loc) {
   });
 });
 
+// 14.7 Submenus i18n & Parameterized Buttons Verification across 6 locales
+allLocales.forEach(function (loc) {
+  // A. Children Submenu Flex & Commands
+  var kidsHelpFlex = FlexModule.createChildrenHelpFlex(loc);
+  assert.ok(kidsHelpFlex && kidsHelpFlex.header && kidsHelpFlex.body, 'Children help flex must have header & body for ' + loc);
+  var kidsCmdRows = kidsHelpFlex.body.contents;
+  assert.strictEqual(kidsCmdRows.length, 4, 'Children submenu must have 4 command cards for ' + loc);
+
+  // Set user preference to loc for user_kid_tester
+  SheetModule.setUserLocalePreference('usr_kid_test', loc);
+
+  // Test Card 0: List kids command
+  var listCmd = kidsCmdRows[0].contents[1].action.text;
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_kid_list_' + loc,
+    source: { userId: 'usr_kid_test', displayName: 'KidTester' },
+    message: { type: 'text', text: listCmd }
+  });
+  assert.ok(lastReply && lastReply.type === 'flex', 'List kids command (' + listCmd + ') must return flex for ' + loc);
+
+  // Test Card 1: Batch set kids command
+  var batchCmd = kidsCmdRows[1].contents[1].action.text;
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_kid_batch_' + loc,
+    source: { userId: 'usr_kid_test', displayName: 'KidTester' },
+    message: { type: 'text', text: batchCmd }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'Batch set kids command (' + batchCmd + ') must return text response for ' + loc);
+  var storedKids = SheetModule.getChildren('usr_kid_test', 'KidTester');
+  assert.ok(storedKids && storedKids.length >= 2, 'Batch command must successfully register kids for ' + loc);
+
+  // Test Card 2: Add single kid command
+  var addCmd = kidsCmdRows[2].contents[1].action.text;
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_kid_add_' + loc,
+    source: { userId: 'usr_kid_test', displayName: 'KidTester' },
+    message: { type: 'text', text: addCmd }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'Add single kid command (' + addCmd + ') must return text response for ' + loc);
+
+  // Test Card 3: Delete kid command
+  var delCmd = kidsCmdRows[3].contents[1].action.text;
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_kid_del_' + loc,
+    source: { userId: 'usr_kid_test', displayName: 'KidTester' },
+    message: { type: 'text', text: delCmd }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'Delete kid command (' + delCmd + ') must return text response for ' + loc);
+
+  // B. Weekly Schedule Flex
+  var dummySched = [
+    { dayOfWeek: '週一', restaurantName: 'Rest 1', cutoffTime: '10:30' },
+    { dayOfWeek: '週二', restaurantName: 'Rest 2', cutoffTime: '11:00' }
+  ];
+  var schedFlex = FlexModule.createWeeklyScheduleFlex(dummySched, loc);
+  assert.ok(schedFlex && schedFlex.header && schedFlex.body, 'Schedule flex must be valid for ' + loc);
+  var dayBadgeText = schedFlex.body.contents[0].contents[0].contents[0].text;
+  assert.strictEqual(dayBadgeText, I18nModule.displayDayOfWeek('週一', loc));
+
+  // C. Cancel Order Flex
+  var mockActiveOrders = [
+    { dayOfWeek: '週一', itemName: 'Bento', quantity: 1, price: 100, userName: 'KidTester' }
+  ];
+  var cancelOrderFlex = FlexModule.createCancelOrderFlex('KidTester', mockActiveOrders, {}, true, loc);
+  assert.ok(cancelOrderFlex && cancelOrderFlex.header && cancelOrderFlex.body, 'Cancel order flex must be valid for ' + loc);
+  var cancelFlexJson = JSON.stringify(cancelOrderFlex);
+  assert.ok(cancelFlexJson.includes(I18nModule.t('cancel.btn_cancel_item', null, loc)), 'Cancel flex must contain localized item cancel button for ' + loc);
+
+  // D. Confirm Cancel Flex
+  var confirmCancelFlex = FlexModule.createConfirmCancelFlex('Title', 'Desc', 'ActionText', 'BtnLabel', loc);
+  assert.ok(confirmCancelFlex && confirmCancelFlex.header && confirmCancelFlex.body, 'Confirm cancel flex must be valid for ' + loc);
+  var confirmFlexJson = JSON.stringify(confirmCancelFlex);
+  assert.ok(confirmFlexJson.includes(I18nModule.t('cancel.btn_abort', null, loc)), 'Confirm cancel flex must contain localized abort button for ' + loc);
+
+  // E. Summary Flex
+  var mockSummaryData = {
+    items: [{ itemName: 'Item A', quantity: 2, subtotal: 200, buyers: ['KidTester'] }],
+    totalQuantity: 2,
+    totalAmount: 200,
+    dayOfWeek: '週一'
+  };
+  var sumCardFlex = FlexModule.createSummaryFlex('Rest A', mockSummaryData, false, null, loc);
+  assert.ok(sumCardFlex && sumCardFlex.header && sumCardFlex.body, 'Summary flex must be valid for ' + loc);
+  var sumCardJson = JSON.stringify(sumCardFlex);
+  assert.ok(sumCardJson.includes(I18nModule.t('stats.total_summary', { qty: 2, amount: 200 }, loc)), 'Summary flex must contain localized total for ' + loc);
+});
+
 // Reset Config & clean up test preference
 SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'false';
 SheetModule._mockStore.Config['DEFAULT_LOCALE'] = 'zh-TW';
 if (SheetModule._mockStore.UserPreferences) {
   SheetModule._mockStore.UserPreferences = SheetModule._mockStore.UserPreferences.filter(function (p) {
-    return p.userId !== 'usr_locale_1' && p.userId !== 'usr_btn_test';
+    return p.userId !== 'usr_locale_1' && p.userId !== 'usr_btn_test' && p.userId !== 'usr_kid_test';
   });
 }
 
