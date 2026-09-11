@@ -4,6 +4,26 @@
  * Dual runtime: Google Apps Script (GAS) & Node.js.
  */
 
+var ConfigModule = null;
+var SheetModule = null;
+
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+       : (typeof global   !== 'undefined') ? global
+       : (typeof self     !== 'undefined') ? self
+       : null;
+
+  if (g && g.CONFIG && g.getConfigValue) {
+    ConfigModule = g;
+    SheetModule = g;
+  } else {
+    try {
+      ConfigModule = require('./Config.js');
+      SheetModule = require('./SheetService.js');
+    } catch (e) {}
+  }
+})();
+
 var SUPPORTED_LOCALES = {
   'zh-TW': { code: 'zh-TW', name: '繁體中文', icon: '🇹🇼' },
   'en':    { code: 'en',    name: 'English',  icon: '🇺🇸' },
