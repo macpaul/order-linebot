@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-11T14:24:24.322Z
+ * Automatically generated on: 2026-09-11T17:18:57.531Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -7276,10 +7276,18 @@ function handleTextMessage(event) {
     return k;
   };
 
+  var _getCmdRegex = function (cmdKey, fallbackRegex) {
+    if (typeof I18nModule !== 'undefined' && I18nModule && typeof I18nModule.buildCommandRegex === 'function') {
+      return I18nModule.buildCommandRegex(cmdKey);
+    }
+    if (typeof buildCommandRegex === 'function') {
+      return buildCommandRegex(cmdKey);
+    }
+    return fallbackRegex;
+  };
+
   // 1. HELP: 幫助 / 說明 / 指令 / help
-  var helpRegex = (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.buildCommandRegex)
-    ? I18nModule.buildCommandRegex('cmd.help')
-    : /^(幫助|說明|指令|help|\/help)$/i;
+  var helpRegex = _getCmdRegex('cmd.help', /^(幫助|說明|指令|help|\/help)$/i);
 
   if (helpRegex.test(text)) {
     var sourceCodeUrl = SheetModule.getConfigValue('SOURCE_CODE_URL', 'https://tinyurl.com/4c92wtee');
@@ -7289,11 +7297,9 @@ function handleTextMessage(event) {
   }
 
   // 1-1. LANGUAGE SETTINGS: 設定語言 / 切換語言 / lang / language
-  var langCmdRegex = (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.buildCommandRegex)
-    ? I18nModule.buildCommandRegex('cmd.lang')
-    : /^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language)$/i;
+  var langCmdRegex = _getCmdRegex('cmd.lang', /^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language)$/i);
 
-  var langParamMatch = text.match(/^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language)\s+([a-zA-Z\-_]+)$/i);
+  var langParamMatch = text.match(/^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language|set language|switch language)\s+([a-zA-Z\-_]+)$/i);
   if (langCmdRegex.test(text) || langParamMatch) {
     var userLocaleEnabled = false;
     if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.isUserLocaleEnabled) {
@@ -7339,7 +7345,8 @@ function handleTextMessage(event) {
   }
 
   // 2. WEEKLY SCHEDULE: 本週菜單 / 每週菜單 / 排程 / 本週排程
-  if (/^(?:\/)?(?:本週菜單|每週菜單|本週排程|排程|週排程)$/.test(text)) {
+  var weeklyRegex = _getCmdRegex('cmd.weekly', /^(?:\/)?(?:本週菜單|每週菜單|本週排程|排程|週排程)$/i);
+  if (weeklyRegex.test(text)) {
     var schedule = SheetModule.getWeeklySchedule();
     var scheduleFlex = FlexModule.createWeeklyScheduleFlex(schedule);
     return LineModule.replyFlex(replyToken, '📅 本週訂餐排程表 (週一至週五)', scheduleFlex);
@@ -7433,7 +7440,8 @@ function handleTextMessage(event) {
   }
 
   // 6. TODAY MENU: 菜單 / menu
-  if (/^(?:\/)?(?:菜單|menu)$/i.test(text)) {
+  var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|menu)$/i);
+  if (todayMenuRegex.test(text)) {
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
@@ -7470,7 +7478,8 @@ function handleTextMessage(event) {
   }
 
   // 7. MY WEEKLY ORDERS: 我的本週訂單 / 本週訂單
-  if (/^(?:\/)?(?:我的本週訂單|本週訂單)$/.test(text)) {
+  var myWeeklyRegex = _getCmdRegex('cmd.my_weekly', /^(?:\/)?(?:我的本週訂單|本週訂單)$/i);
+  if (myWeeklyRegex.test(text)) {
     var allDays = ['週一', '週二', '週三', '週四', '週五'];
     var lines = [];
     var grandTotal = 0;
@@ -7503,7 +7512,8 @@ function handleTextMessage(event) {
   }
 
   // 8. MY TODAY ORDERS: 我的訂單 / 查詢訂單 / 查單
-  if (/^(?:\/)?(?:我的訂單|查詢訂單|查單)$/.test(text)) {
+  var myOrderRegex = _getCmdRegex('cmd.my_order', /^(?:\/)?(?:我的訂單|查詢訂單|查單)$/i);
+  if (myOrderRegex.test(text)) {
     var myOrders = SheetModule.getUserOrders(userId, groupId, null, todayDay, userDisplayName);
     if (!myOrders || myOrders.length === 0) {
       myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null, userDisplayName);
@@ -7527,7 +7537,8 @@ function handleTextMessage(event) {
   }
 
   // 8.5 CHILDREN MANAGEMENT: 我的小孩 / 小孩名冊 / 小孩名單 / 設定小孩 / 新增小孩 / 刪除小孩
-  if (/^(?:\/)?(?:我的小孩|小孩名單|小孩名冊|我的孩子)$/i.test(text.trim())) {
+  var myKidsRegex = _getCmdRegex('cmd.my_kids', /^(?:\/)?(?:我的小孩|小孩名單|小孩名冊|我的孩子)$/i);
+  if (myKidsRegex.test(text.trim())) {
     var kidsProfiles = SheetModule.getChildrenProfiles ? SheetModule.getChildrenProfiles(userId, userDisplayName, userDisplayName) : [];
     if (kidsProfiles.length === 0) {
       var kidNames = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
@@ -7538,7 +7549,8 @@ function handleTextMessage(event) {
   }
 
   // 8.5.1 CHILDREN SUBMENU: 設定小孩 / 小孩設定 / 登記小孩 / 小孩選單 / 小孩管理 (無帶參數時回覆按鈕子選單)
-  if (/^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i.test(text.trim())) {
+  var childrenSubmenuRegex = _getCmdRegex('cmd.children', /^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i);
+  if (childrenSubmenuRegex.test(text.trim())) {
     var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex();
     return LineModule.replyFlex(replyToken, '👶 小孩與用餐對象管理選單', childrenSubmenuFlex);
   }
@@ -7590,7 +7602,8 @@ function handleTextMessage(event) {
 
   // 9. CANCEL ORDER: 取消 [週幾] [品項] / 取消餐點 / 開單人全體取消與二次確認
   // 9-1. 放棄取消
-  if (/^(?:\/)?(?:放棄取消|取消操作)$/.test(text.trim())) {
+  var abortCancelRegex = _getCmdRegex('cmd.abort_cancel', /^(?:\/)?(?:放棄取消|取消操作)$/i);
+  if (abortCancelRegex.test(text.trim())) {
     return LineModule.replyText(replyToken, '👌 已放棄取消操作，現有訂單均完整保留。');
   }
 
@@ -7688,7 +7701,8 @@ function handleTextMessage(event) {
   }
 
   // 9-6. 顯示取消訂單互動選單 (取消 / 取消餐點)
-  if (text.trim().match(/^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/)) {
+  var cancelMenuRegex = _getCmdRegex('cmd.cancel', /^(?:\/)?(?:取消餐點|取消)(?:\s+餐點)?$/i);
+  if (cancelMenuRegex.test(text.trim())) {
     var isOrgMenu = isUserOrganizer(userId, userDisplayName);
     // CRITICAL: The cancellation interactive menu is STRICTLY a personal cancellation menu!
     // It must NEVER show other members' orders, whether called by a regular member or the organizer.
@@ -7976,7 +7990,8 @@ function handleTextMessage(event) {
   }
 
   // 10. WEEKLY SUMMARY: 本週統計 / 梯次統計
-  if (/^(?:\/)?(?:本週統計|梯次統計)$/.test(text)) {
+  var statsWeeklyRegex = _getCmdRegex('cmd.stats_weekly', /^(?:\/)?(?:本週統計|梯次統計)$/i);
+  if (statsWeeklyRegex.test(text)) {
     var weeklySummary = SheetModule.getWeeklyOrderSummary(groupId);
     var payInfo = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
     var weeklySumFlex = FlexModule.createWeeklySummaryFlex(weeklySummary, false, payInfo);
@@ -7984,7 +7999,8 @@ function handleTextMessage(event) {
   }
 
   // 10.5 TODAY SUMMARY (TEXT): 今日文字統計 / 今日統計文字 / 文字統計 / 統計文字 / 今日文字
-  if (/^(?:\/)?(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i.test(text)) {
+  var statsTextRegex = _getCmdRegex('cmd.stats_text', /^(?:\/)?(?:今日文字統計|今日統計文字|文字統計|統計文字|今日文字)$/i);
+  if (statsTextRegex.test(text)) {
     var daySchedText = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
     var restNameText = (daySchedText && daySchedText.restaurantName) ? daySchedText.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var isOrderOpenText = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
@@ -7994,7 +8010,8 @@ function handleTextMessage(event) {
   }
 
   // 11. TODAY SUMMARY: 今日統計 / 本日統計 / 統計 / 即時統計 / 今日訂單 / 今日訂餐
-  if (/^(?:\/)?(?:今日統計|本日統計|統計|即時統計|今日訂單|今日訂餐|今日訂餐統計|今日訂單統計|本日訂單|本日訂餐|本日訂單統計)$/i.test(text)) {
+  var statsTodayRegex = _getCmdRegex('cmd.stats_today', /^(?:\/)?(?:今日統計|本日統計|統計|即時統計|今日訂單|今日訂餐|今日訂餐統計|今日訂單統計|本日訂單|本日訂餐|本日訂單統計)$/i);
+  if (statsTodayRegex.test(text)) {
     var daySched = SheetModule.getScheduleByDay ? SheetModule.getScheduleByDay(todayDay) : null;
     var restName = (daySched && daySched.restaurantName) ? daySched.restaurantName : SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var isOrderOpen = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
@@ -8016,7 +8033,8 @@ function handleTextMessage(event) {
   }
 
   // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐 / 本週結單 / 今日結單
-  if (/^(?:\/)?(?:結單|截止|截止訂餐|本週結單|今日結單)$/.test(text)) {
+  var closeRegex = _getCmdRegex('cmd.close', /^(?:\/)?(?:結單|截止|截止訂餐|本週結單|今日結單)$/i);
+  if (closeRegex.test(text)) {
     SheetModule.setConfigValue('IS_ORDERING_OPEN', 'false');
     var closeScope = (SheetModule.getConfigValue('CLOSE_ORDER_SCOPE', 'WEEKLY') || 'WEEKLY').trim().toUpperCase();
     var isWeeklyClose = text.indexOf('本週') !== -1 || (text.indexOf('今日') === -1 && (closeScope !== 'DAILY' && closeScope !== 'TODAY' && closeScope !== '今日'));
