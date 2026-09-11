@@ -15,6 +15,7 @@ if (!fs.existsSync(distDir)) {
 
 const fileOrder = [
   'Config.js',
+  'I18n.js',
   'LineService.js',
   'SheetService.js',
   'UberEatsService.js',
