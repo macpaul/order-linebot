@@ -87,6 +87,7 @@
 | `結單` / `本週結單` / `今日結單` | 截止訂餐，產出叫餐總表與付款資訊（LINE Pay / 銀行匯款） | `結單`、`本週結單` |
 | `開單 [店家名] [時間]` | 發起今日單日自選開單 | `開單 老王便當 11:30` |
 | `匯入菜單 [週X] [網址]` | 透過 Uber Eats 店家網址自動匯入菜單 | `匯入菜單 週一 https://www.ubereats.com/...` |
+| `設定語言` / `lang` | 切換個人操作與顯示語言（需開啟 `ENABLE_USER_LOCALE`） | `設定語言`、`設定語言 en`、`lang ja` |
 | `幫助` | 顯示所有指令與使用教學卡片 | `幫助` |
 
 ### 📖 幫助選單展示
@@ -97,6 +98,27 @@
   <img src="docs/images/help_menu.jpg" alt="幫助選單" width="380" /><br>
   <b>幫助選單</b>
 </p>
+
+---
+
+## 🌐 多語系 (i18n) 與多國籍使用者自訂支援
+
+本專案支援完整的國際化架構，初版即支援 **6 大語系**：
+- 🇹🇼 **繁體中文 (`zh-TW`)**（系統預設基準）
+- 🇺🇸 **English (`en`)**
+- 🇯🇵 **日本語 (`ja`)**
+- 🇰🇷 **한국어 (`ko`)**
+- 🇹🇭 **ภาษาไทย (`th`)**
+- 🇮🇩 **Bahasa Indonesia (`id`)**
+
+### 兩大多語系運作模式：
+1. **全域單一語系模式 (預設)**：
+   - 在試算表 `Config` 工作表中設定 `DEFAULT_LOCALE`（預設為 `zh-TW`），全系統（所有成員與群組）統一採用該語言。
+2. **多語系使用者自訂模式 (開關式)**：
+   - 於 `Config` 工作表將 `ENABLE_USER_LOCALE` 設定為 `true`。
+   - 幫助卡片將自動浮現「`🌐 設定語言 / Language`」按鈕，成員亦可隨時發送「`設定語言`」或「`lang`」呼叫 6 國語言切換卡片。
+   - 系統將每個人的語言偏好存入試算表 `UserPreferences` 頁籤，往後的個人收據、訂單查詢與幫助選單即以該成員的母語呈現！
+   - 所有指令支援母語別名（如英文發送 `help`、日文 `ヘルプ`、韓文 `도움말`、泰文 `ช่วยเหลือ`、印尼文 `bantuan` 均可正常回應）。
 
 ---
 
@@ -114,6 +136,7 @@ order-linebot/
 │       └── help_menu.jpg          # 幫助選單互動卡片範例圖
 ├── src/
 │   ├── Config.js                  # 系統環境變數、常數與週排程定義
+│   ├── I18n.js                    # 多國語言 (i18n) 引擎、6 國語系辭典與指令別名解析
 │   ├── LineService.js             # LINE Messaging API 通訊封裝與簽名驗證
 │   ├── SheetService.js            # Google Sheets 讀寫、週排程、公式注入防護與統計匯總
 │   ├── UberEatsService.js         # Uber Eats 店家菜單抓取、價格轉換與正規化模組
@@ -123,9 +146,9 @@ order-linebot/
 ├── dist/
 │   └── Code.gs                    # 自動打包的單檔發行版，可直接貼入 GAS 編輯器
 ├── scripts/
-│   └── bundle.js                  # 自動將 7 個 src/ 模組打包至 dist/Code.gs 的腳本
+│   └── bundle.js                  # 自動將 8 個 src/ 模組打包至 dist/Code.gs 的腳本
 └── tests/
-    └── test_order_flow.js         # 包含週梯次點餐與 Uber Eats 匯入的端到端完整測試套件
+    └── test_order_flow.js         # 包含多語系、週梯次點餐與 Uber Eats 匯入的端到端完整測試套件
 ```
 
 ---
