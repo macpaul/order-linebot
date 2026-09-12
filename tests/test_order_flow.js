@@ -2179,12 +2179,101 @@ allLocales.forEach(function (loc) {
   assert.ok(sumCardJson.includes(I18nModule.t('stats.total_summary', { qty: 2, amount: 200 }, loc)), 'Summary flex must contain localized total for ' + loc);
 });
 
+// 14.8 Payment Information, Order Receipt Flex & Query Responses across all 6 locales
+allLocales.forEach(function (loc) {
+  // A. Payment Information block in Summary Card
+  var dummyPaymentInfo = {
+    hasPaymentInfo: true,
+    bankCode: '013',
+    bankName: 'Cathay',
+    bankAccount: '1234567890',
+    bankAccountName: 'Organizer',
+    bankQrUrl: 'https://example.com/bank_qr.png',
+    linePayUrl: 'https://line.me/R/pay/transfer',
+    isPersonalLinePay: true,
+    linePayRecipientName: 'Organizer LINE',
+    linePayUserId: 'org_line_id',
+    linePayQrUrl: 'https://example.com/linepay_qr.png'
+  };
+
+  var summaryWithPay = FlexModule.createSummaryFlex('Rest Pay', {
+    items: [{ itemName: 'Item A', quantity: 1, subtotal: 100 }],
+    users: [{ userName: 'Member A', items: ['Item A'], total: 100 }],
+    totalQuantity: 1,
+    totalAmount: 100
+  }, false, dummyPaymentInfo, loc);
+
+  var sumPayJson = JSON.stringify(summaryWithPay);
+  assert.ok(sumPayJson.includes(I18nModule.t('payment.title', null, loc)), 'Summary card must include localized payment title for ' + loc);
+  assert.ok(sumPayJson.includes(I18nModule.t('payment.qr_hint', null, loc)), 'Summary card must include localized payment QR hint for ' + loc);
+  assert.ok(sumPayJson.includes(I18nModule.t('payment.btn_wallet', null, loc)), 'Summary card must include localized wallet transfer button for ' + loc);
+  assert.ok(sumPayJson.includes(I18nModule.t('stats.member_roster_today', null, loc)), 'Summary card must include localized member roster title for ' + loc);
+  assert.ok(sumPayJson.includes(I18nModule.t('stats.close_btn_today', null, loc)), 'Summary card must include localized close button for ' + loc);
+  assert.ok(sumPayJson.includes(I18nModule.t('stats.footer_open', null, loc)), 'Summary card must include localized footer open hint for ' + loc);
+
+  // B. Weekly Summary Card with payment info
+  var weeklySummaryWithPay = FlexModule.createWeeklySummaryFlex({
+    daySummaries: [{ dayOfWeek: '週一', totalQuantity: 1, totalAmount: 100 }],
+    users: [{ userName: 'Member A', total: 100 }],
+    grandTotalQuantity: 1,
+    grandTotalAmount: 100
+  }, false, dummyPaymentInfo, loc);
+
+  var weeklyPayJson = JSON.stringify(weeklySummaryWithPay);
+  assert.ok(weeklyPayJson.includes(I18nModule.t('payment.title', null, loc)), 'Weekly summary must include localized payment title for ' + loc);
+  assert.ok(weeklyPayJson.includes(I18nModule.t('stats.member_roster_weekly', null, loc)), 'Weekly summary must include localized weekly member roster title for ' + loc);
+  assert.ok(weeklyPayJson.includes(I18nModule.t('stats.close_btn_weekly', null, loc)), 'Weekly summary must include localized close button for ' + loc);
+  assert.ok(weeklyPayJson.includes(I18nModule.t('stats.footer_weekly_open', null, loc)), 'Weekly summary must include localized footer open hint for ' + loc);
+
+  // C. Menu Flex with sold out & footer hint
+  var menuFlex = FlexModule.createMenuFlex('Rest M', '10:30', [
+    { itemName: 'Available Item', price: 100, isAvailable: true },
+    { itemName: 'Sold Out Item', price: 120, isAvailable: false }
+  ], '週一', loc);
+  var menuFlexJson = JSON.stringify(menuFlex);
+  assert.ok(menuFlexJson.includes(I18nModule.t('menu.sold_out', null, loc)), 'Menu flex must include localized sold out label for ' + loc);
+  assert.strictEqual(menuFlex.footer.contents[0].text, I18nModule.t('menu.footer_hint1', null, loc), 'Menu flex must include localized footer hint for ' + loc);
+
+  // D. Order Receipt Flex
+  var receiptFlex = FlexModule.createOrderReceiptFlex('Member A', { itemName: 'Item A', dayOfWeek: '週一' }, [
+    { itemName: 'Item A', dayOfWeek: '週一', quantity: 1, price: 100, subtotal: 100 }
+  ], { isWeekly: true, locale: loc });
+  var receiptJson = JSON.stringify(receiptFlex);
+  assert.ok(receiptJson.includes(I18nModule.t('receipt.title', null, loc)), 'Receipt flex must include localized title for ' + loc);
+  assert.ok(receiptJson.includes(I18nModule.t('receipt.total_weekly', null, loc)), 'Receipt flex must include localized weekly total for ' + loc);
+  assert.strictEqual(receiptFlex.footer.contents[0].text, I18nModule.t('receipt.cancel_hint', null, loc), 'Receipt flex must include localized cancel hint for ' + loc);
+
+  // E. Personal Order Query Text Responses
+  SheetModule.setUserLocalePreference('usr_pay_tester', loc);
+  SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'true';
+
+  // Empty today orders query
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_query_today_' + loc,
+    source: { userId: 'usr_pay_tester', displayName: 'Tester' },
+    message: { type: 'text', text: (I18N_COMMANDS[loc]['cmd.my_order'] || ['我的訂單'])[0] }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'My order command must reply text for ' + loc);
+  assert.ok(lastReply.text.includes(I18nModule.t('my_orders.no_today_orders', null, loc)), 'Empty today orders must match localized text for ' + loc);
+
+  // Empty weekly orders query
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_query_weekly_' + loc,
+    source: { userId: 'usr_pay_tester', displayName: 'Tester' },
+    message: { type: 'text', text: (I18N_COMMANDS[loc]['cmd.my_weekly'] || ['本週訂單'])[0] }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'My weekly order command must reply text for ' + loc);
+  assert.ok(lastReply.text.includes(I18nModule.t('my_orders.no_weekly_orders', null, loc)), 'Empty weekly orders must match localized text for ' + loc);
+});
+
 // Reset Config & clean up test preference
 SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'false';
 SheetModule._mockStore.Config['DEFAULT_LOCALE'] = 'zh-TW';
 if (SheetModule._mockStore.UserPreferences) {
   SheetModule._mockStore.UserPreferences = SheetModule._mockStore.UserPreferences.filter(function (p) {
-    return p.userId !== 'usr_locale_1' && p.userId !== 'usr_btn_test' && p.userId !== 'usr_kid_test';
+    return p.userId !== 'usr_locale_1' && p.userId !== 'usr_btn_test' && p.userId !== 'usr_kid_test' && p.userId !== 'usr_pay_tester';
   });
 }
 
