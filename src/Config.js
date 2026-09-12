@@ -31,7 +31,7 @@ var CONFIG = {
   },
 
   /**
-   * Default system locale ('zh-TW', 'en', 'ja', 'ko', 'th', 'id')
+   * Default system locale ('zh-TW', 'en', 'ja', 'ko', 'th', 'id', 'vi')
    */
   DEFAULT_LOCALE: 'zh-TW',
 
