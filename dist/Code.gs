@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-11T17:44:36.153Z
+ * Automatically generated on: 2026-09-12T03:41:55.981Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -328,6 +328,9 @@ var I18N_MESSAGES = {
     'menu.title_suffix': ' 菜單',
     'menu.cutoff_prefix': '⏰ 今日截止時間: ',
     'menu.btn_order': '+1 點餐',
+    'menu.sold_out': '已售完',
+    'menu.footer_hint1': '💡 點擊「+1 點餐」按鈕即可直接加訂！',
+    'menu.footer_hint2': '亦可輸入「{day}菜名+數量」或「取消 菜名」',
     'menu.alt_text': '【訂餐開始】{restaurant} 菜單',
 
     // Submenu: Cancel Order Card
@@ -342,31 +345,82 @@ var I18N_MESSAGES = {
     'cancel.btn_cancel_item': '取消此項',
     'cancel.btn_cancel_day': '取消我的【{day}】餐點',
     'cancel.btn_cancel_all': '取消我的全部預訂 (週一至週五)',
-    'cancel.org_section': '👑 開單人管理功能',
+    'cancel.org_section': '👑 開單人管理專區',
     'cancel.btn_org_day': '⚠️ 取消全體當日餐點 (需確認)',
     'cancel.btn_org_all': '🚨 取消全體未截止預訂 (需確認)',
+    'cancel.all_locked_warning': '⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。',
     'cancel.footer_org': '💡 開單人可協助管理訂單；全體取消操作將跳出警告確認卡，需再次確認。',
     'cancel.footer_member': '💡 您只能退訂自己訂購的餐點；如需退訂他人餐點或取消全體訂單，請洽開單人。',
     'cancel.confirm_header': '🚨 取消確認警告 (開單人專用)',
     'cancel.btn_abort': '放棄取消',
-    'cancel.confirm_footer': '⚠️ 點擊確認後將立即執行取消並通知開單人，此操作無法復原。',
+    'cancel.confirm_footer': '⚠️ 警告：此操作將影響全體成員且無法復原！',
     'cancel.alt_text': '🗑️ 請選擇欲取消的餐點',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': '🍱 今日訂餐即時統計',
     'stats.today_title_closed': '🔒 今日訂餐已結單',
-    'stats.weekly_title': '📊 本週訂餐統計總表',
-    'stats.weekly_title_closed': '🔒 本週訂餐統計 (已結單)',
+    'stats.weekly_title': '📊 本週梯次訂餐統計總表',
+    'stats.weekly_title_closed': '📊 本週梯次結單總表',
     'stats.weekly_subtitle_open': '即時統計 · 週一至週五各梯次明細',
     'stats.weekly_subtitle_closed': '全週各梯次統計與收款資訊',
     'stats.today_subtitle_open': '即時統計 · 名冊明細與總計',
     'stats.today_subtitle_closed': '已截止訂餐 · 名冊與收款資訊',
+    'stats.member_roster_today': '👤 今日成員應付名冊',
+    'stats.member_roster_weekly': '👤 成員本週梯次應付明細',
+    'stats.no_member_records': '尚無成員訂購紀錄',
+    'stats.status_open': '開放中',
+    'stats.status_closed': '已截止',
+    'stats.footer_closed': '⏰ 已截止，請各成員儘速完成付款',
+    'stats.footer_open': '🟢 目前開放點餐中',
+    'stats.footer_weekly_closed': '⏰ 本週預訂已截止，請各成員依此表金額完成付款',
+    'stats.footer_weekly_open': '📋 請各成員依此表金額完成對帳與付款',
+    'stats.close_btn_today': '🔒 截止今日訂餐（結單）',
+    'stats.close_btn_weekly': '🔒 截止本週預訂（結單）',
     'stats.no_orders': '無訂單',
     'stats.total_summary': '共 {qty} 份 · ${amount} 元',
     'stats.alt_text_today': '【今日訂餐統計】{restaurant} ({qty}份 / ${amount})',
     'stats.alt_text_weekly': '📊 本週梯次訂餐統計總表',
     'stats.alt_text_closed_weekly': '【已結單】本週梯次訂餐總表與收費清單',
-    'stats.alt_text_closed_today': '【已結單】{restaurant} 訂購名單總計'
+    'stats.alt_text_closed_today': '【已結單】{restaurant} 訂購名單總計',
+
+    // Payment Information Card & Bullet Points
+    'payment.title': '💳 付款方式與匯款資訊',
+    'payment.bank_transfer': '銀行跨行匯款',
+    'payment.account_number': '帳號：{account}',
+    'payment.account_name': '戶名：{name}',
+    'payment.zoom_qr': '放大檢視',
+    'payment.qr_hint': '🔍 點擊 QR Code 可放大檢視或截圖掃碼轉帳',
+    'payment.notify_hint': '💡 轉帳完成後請私訊或於群組告知主揪以利對帳',
+    'payment.btn_wallet': '🟢 開啟 LINE 錢包轉帳',
+    'payment.btn_linepay': '🟢 前往 LINE Pay 轉帳',
+    'payment.linepay_hint': '📱 請於錢包點選「轉帳」並搜尋好友：「{recipient}」{idHint}',
+    'payment.linepay_qr': 'LINE Pay 收款碼',
+    'payment.info_title': '💳【付款資訊】',
+    'payment.bank_transfer_bullet': '• 銀行轉帳：',
+    'payment.bank_qr_bullet': '• 銀行轉帳 QR Code：',
+    'payment.linepay_bullet': '• LINE Pay 轉帳：',
+    'payment.linepay_friend_bullet': '• LINE Pay 好友轉帳：',
+    'payment.linepay_qr_bullet': '• LINE Pay 收款碼：',
+
+    // Order Receipt Card
+    'receipt.title': '✅ 加購成功',
+    'receipt.weekly_user_orders': '{name} 的本週訂單',
+    'receipt.daily_user_orders': '{name} 的今日訂單',
+    'receipt.no_items': '（尚無項目）',
+    'receipt.total_weekly': '本週合計',
+    'receipt.total_daily': '合計',
+    'receipt.cancel_hint': '💡 回覆「取消」可開啟選單自選退訂特定餐點',
+    'receipt.alt_text': '訂單已記錄{suffix}：{day} {item}',
+
+    // My Orders Query Responses
+    'my_orders.no_weekly_orders': '您本週（週一至週五）尚未有任何預訂紀錄喔！',
+    'my_orders.no_today_orders': '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。',
+    'my_orders.weekly_title': '🍱【您的本週梯次訂單】',
+    'my_orders.today_title': '【您的今日訂單】',
+    'my_orders.weekly_total': '本週總計：${amount} 元',
+    'my_orders.today_total': '總計：${amount} 元',
+    'my_orders.subtotal': ' (小計 ${subtotal})',
+    'my_orders.cutoff_notice': '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。'
   },
 
   'en': {
@@ -496,6 +550,9 @@ var I18N_MESSAGES = {
     'menu.title_suffix': ' Menu',
     'menu.cutoff_prefix': "⏰ Today's Cutoff: ",
     'menu.btn_order': '+1 Order',
+    'menu.sold_out': 'Sold Out',
+    'menu.footer_hint1': '💡 Tap "+1 Order" button to place your order!',
+    'menu.footer_hint2': 'Or type "{day} [item] + [qty]" or "cancel [item]"',
     'menu.alt_text': '[Ordering Open] {restaurant} Menu',
 
     // Submenu: Cancel Order Card
@@ -513,6 +570,7 @@ var I18N_MESSAGES = {
     'cancel.org_section': '👑 Organizer Actions',
     'cancel.btn_org_day': '⚠️ Cancel All Today Orders (Confirm)',
     'cancel.btn_org_all': '🚨 Cancel All Advance Orders (Confirm)',
+    'cancel.all_locked_warning': '⚠️ All orders have passed the cutoff time or date and cannot be modified. Contact organizer for special needs.',
     'cancel.footer_org': '💡 Organizer can manage orders; bulk cancellation requires confirmation.',
     'cancel.footer_member': '💡 You can only cancel your own orders. Contact organizer for other requests.',
     'cancel.confirm_header': '🚨 Cancellation Warning (Organizer)',
@@ -529,12 +587,62 @@ var I18N_MESSAGES = {
     'stats.weekly_subtitle_closed': 'Full week breakdown & payment info',
     'stats.today_subtitle_open': 'Live stats · Member breakdown & totals',
     'stats.today_subtitle_closed': 'Closed · Member list & payment info',
+    'stats.member_roster_today': "👤 Today's Member Payable Roster",
+    'stats.member_roster_weekly': '👤 Weekly Member Payable Breakdown',
+    'stats.no_member_records': 'No member order records yet',
+    'stats.status_open': 'Open',
+    'stats.status_closed': 'Closed',
+    'stats.footer_closed': '⏰ Ordering closed. Please complete payment promptly',
+    'stats.footer_open': '🟢 Ordering is currently open',
+    'stats.footer_weekly_closed': '⏰ Weekly orders closed. Please pay according to this table',
+    'stats.footer_weekly_open': '📋 Please verify your amount and complete payment',
+    'stats.close_btn_today': "🔒 Close Today's Orders",
+    'stats.close_btn_weekly': '🔒 Close Weekly Orders',
     'stats.no_orders': 'No orders',
     'stats.total_summary': 'Total {qty} serving(s) · ${amount}',
     'stats.alt_text_today': "【Today's Summary】{restaurant} ({qty} servings / ${amount})",
     'stats.alt_text_weekly': '📊 Weekly Orders Summary Table',
     'stats.alt_text_closed_weekly': '【Closed】Weekly Summary & Payment Info',
-    'stats.alt_text_closed_today': '【Closed】{restaurant} Final Summary'
+    'stats.alt_text_closed_today': '【Closed】{restaurant} Final Summary',
+
+    // Payment Information Card & Bullet Points
+    'payment.title': '💳 Payment Methods & Transfer Info',
+    'payment.bank_transfer': 'Bank Wire Transfer',
+    'payment.account_number': 'Account: {account}',
+    'payment.account_name': 'Account Name: {name}',
+    'payment.zoom_qr': 'Zoom QR',
+    'payment.qr_hint': '🔍 Tap QR Code to zoom or screenshot to scan',
+    'payment.notify_hint': '💡 After transfer, please notify the organizer in PM or group',
+    'payment.btn_wallet': '🟢 Open LINE Wallet Transfer',
+    'payment.btn_linepay': '🟢 Pay via LINE Pay',
+    'payment.linepay_hint': '📱 In Wallet, tap "Transfer" and search friend: "{recipient}"{idHint}',
+    'payment.linepay_qr': 'LINE Pay QR Code',
+    'payment.info_title': '💳 [Payment Info]',
+    'payment.bank_transfer_bullet': '• Bank Transfer: ',
+    'payment.bank_qr_bullet': '• Bank Transfer QR Code: ',
+    'payment.linepay_bullet': '• LINE Pay Transfer: ',
+    'payment.linepay_friend_bullet': '• LINE Pay Friend Transfer: ',
+    'payment.linepay_qr_bullet': '• LINE Pay QR Code: ',
+
+    // Order Receipt Card
+    'receipt.title': '✅ Added Successfully',
+    'receipt.weekly_user_orders': 'Weekly Orders for {name}',
+    'receipt.daily_user_orders': "Today's Orders for {name}",
+    'receipt.no_items': '(No items)',
+    'receipt.total_weekly': 'Weekly Total',
+    'receipt.total_daily': 'Total',
+    'receipt.cancel_hint': '💡 Reply "cancel" to open menu and cancel specific items',
+    'receipt.alt_text': 'Order recorded{suffix}: {day} {item}',
+
+    // My Orders Query Responses
+    'my_orders.no_weekly_orders': 'You have no pre-order records for this week (Mon-Fri) yet!',
+    'my_orders.no_today_orders': 'You have no order records today! Type "+1 [item name]" to order.',
+    'my_orders.weekly_title': '🍱 [Your Weekly Orders]',
+    'my_orders.today_title': "[Your Today's Orders]",
+    'my_orders.weekly_total': 'Weekly Total: ${amount}',
+    'my_orders.today_total': 'Total: ${amount}',
+    'my_orders.subtotal': ' (Subtotal ${subtotal})',
+    'my_orders.cutoff_notice': "\n⚠️ Today's ordering cutoff has passed. Items cannot be changed or cancelled."
   },
 
   'ja': {
@@ -664,6 +772,9 @@ var I18N_MESSAGES = {
     'menu.title_suffix': ' メニュー',
     'menu.cutoff_prefix': '⏰ 本日の締切: ',
     'menu.btn_order': '+1 注文',
+    'menu.sold_out': '売り切れ',
+    'menu.footer_hint1': '💡「+1 注文」ボタンをタップして直接追加注文できます！',
+    'menu.footer_hint2': 'または「{day} [メニュー]+[数量]」や「取消 [メニュー]」と入力',
     'menu.alt_text': '【注文受付中】{restaurant} メニュー',
 
     // Submenu: Cancel Order Card
@@ -681,6 +792,7 @@ var I18N_MESSAGES = {
     'cancel.org_section': '👑 主催者管理機能',
     'cancel.btn_org_day': '⚠️ 当日全員の注文取消 (要確認)',
     'cancel.btn_org_all': '🚨 全員の未締切予約取消 (要確認)',
+    'cancel.all_locked_warning': '⚠️ すべての注文が締切時刻または日付を過ぎているため取消できません。必要な場合は主催者へご連絡ください。',
     'cancel.footer_org': '💡 主催者は注文を管理できます。全員取消は確認カードが表示されます。',
     'cancel.footer_member': '💡 ご自身の注文のみ取消可能です。その他は主催者へお問い合わせください。',
     'cancel.confirm_header': '🚨 取消確認の警告 (主催者専用)',
@@ -697,12 +809,62 @@ var I18N_MESSAGES = {
     'stats.weekly_subtitle_closed': '全日集計と決済情報',
     'stats.today_subtitle_open': 'リアルタイム集計 · メンバー別明細と合計',
     'stats.today_subtitle_closed': '締切済 · 名簿と決済情報',
+    'stats.member_roster_today': '👤 本日のメンバー別支払明細',
+    'stats.member_roster_weekly': '👤 今週のメンバー別支払明細',
+    'stats.no_member_records': 'メンバーの注文履歴はありません',
+    'stats.status_open': '受付中',
+    'stats.status_closed': '締切済',
+    'stats.footer_closed': '⏰ 受付終了。各自速やかにお支払いをお願いします',
+    'stats.footer_open': '🟢 現在注文受付中',
+    'stats.footer_weekly_closed': '⏰ 今週の注文締切。表の金額をご確認の上お支払いください',
+    'stats.footer_weekly_open': '📋 各自金額をご確認の上、お支払いをお願いします',
+    'stats.close_btn_today': '🔒 本日の注文を締め切る',
+    'stats.close_btn_weekly': '🔒 今週の注文を締め切る',
     'stats.no_orders': '注文なし',
     'stats.total_summary': '計 {qty} 点 · {amount} 円',
     'stats.alt_text_today': '【本日集計】{restaurant} ({qty}点 / {amount}円)',
     'stats.alt_text_weekly': '📊 週間注文集計総表',
     'stats.alt_text_closed_weekly': '【締切】週間集計と決済案内',
-    'stats.alt_text_closed_today': '【締切】{restaurant} 最終集計'
+    'stats.alt_text_closed_today': '【締切】{restaurant} 最終集計',
+
+    // Payment Information Card & Bullet Points
+    'payment.title': '💳 お支払い・振込案内',
+    'payment.bank_transfer': '銀行振込',
+    'payment.account_number': '口座番号：{account}',
+    'payment.account_name': '名義：{name}',
+    'payment.zoom_qr': '拡大表示',
+    'payment.qr_hint': '🔍 QRコードをタップして拡大またはスクショで送金',
+    'payment.notify_hint': '💡 振込完了後は確認のため主催者へ個別またはグループで連絡してください',
+    'payment.btn_wallet': '🟢 LINEウォレットで送金',
+    'payment.btn_linepay': '🟢 LINE Payで送金',
+    'payment.linepay_hint': '📱 ウォレットで「送金」を選び友だち検索：「{recipient}」{idHint}',
+    'payment.linepay_qr': 'LINE Pay 受取コード',
+    'payment.info_title': '💳【お支払い情報】',
+    'payment.bank_transfer_bullet': '• 銀行振込：',
+    'payment.bank_qr_bullet': '• 銀行振込QRコード：',
+    'payment.linepay_bullet': '• LINE Pay 送金：',
+    'payment.linepay_friend_bullet': '• LINE Pay 友だち送金：',
+    'payment.linepay_qr_bullet': '• LINE Pay 受取コード：',
+
+    // Order Receipt Card
+    'receipt.title': '✅ 追加注文完了',
+    'receipt.weekly_user_orders': '{name} 様の今週の注文',
+    'receipt.daily_user_orders': '{name} 様の本日の注文',
+    'receipt.no_items': '（項目なし）',
+    'receipt.total_weekly': '今週合計',
+    'receipt.total_daily': '合計',
+    'receipt.cancel_hint': '💡「キャンセル」と返信するとメニューが開き特定項目的取消が可能です',
+    'receipt.alt_text': '注文を記録しました{suffix}：{day} {item}',
+
+    // My Orders Query Responses
+    'my_orders.no_weekly_orders': '今週（月〜金）の事前注文記録はまだありません！',
+    'my_orders.no_today_orders': '本日の注文履歴はありません！「+1 [メニュー名]」と入力して注文できます。',
+    'my_orders.weekly_title': '🍱【今週のご注文内容】',
+    'my_orders.today_title': '【本日のご注文内容】',
+    'my_orders.weekly_total': '今週合計：{amount} 円',
+    'my_orders.today_total': '合計：{amount} 円',
+    'my_orders.subtotal': ' (小計 {subtotal}円)',
+    'my_orders.cutoff_notice': '\n⚠️ 本日の注文締切時刻を過ぎているため、変更や取消はできません。'
   },
 
   'ko': {
@@ -832,6 +994,9 @@ var I18N_MESSAGES = {
     'menu.title_suffix': ' 메뉴',
     'menu.cutoff_prefix': '⏰ 오늘 마감: ',
     'menu.btn_order': '+1 주문',
+    'menu.sold_out': '품절',
+    'menu.footer_hint1': "💡 '+1 주문' 버튼을 눌러 바로 추가 주문하세요!",
+    'menu.footer_hint2': "또는 '{day} [메뉴]+[수량]' 이나 '취소 [메뉴]' 를 입력하세요",
     'menu.alt_text': '[주문 시작] {restaurant} 메뉴',
 
     // Submenu: Cancel Order Card
@@ -849,6 +1014,7 @@ var I18N_MESSAGES = {
     'cancel.org_section': '👑 주최자 관리 기능',
     'cancel.btn_org_day': '⚠️ 당일 전체 주문 취소 (확인 필요)',
     'cancel.btn_org_all': '🚨 전체 미마감 예약 취소 (확인 필요)',
+    'cancel.all_locked_warning': '⚠️ 모든 주문이 마감 시간 또는 날짜를 초과하여 취소할 수 없습니다. 문의사항은 주최자에게 연락하세요.',
     'cancel.footer_org': '💡 주최자는 주문을 관리할 수 있으며, 전체 취소 시 확인 카드가 표시됩니다.',
     'cancel.footer_member': '💡 본인의 주문만 취소할 수 있습니다. 기타 문의는 주최자에게 연락하세요.',
     'cancel.confirm_header': '🚨 취소 확인 경고 (주최자 전용)',
@@ -865,12 +1031,62 @@ var I18N_MESSAGES = {
     'stats.weekly_subtitle_closed': '전체 요일 집계 및 결제 안내',
     'stats.today_subtitle_open': '실시간 집계 · 멤버별 내역 및 합계',
     'stats.today_subtitle_closed': '마감됨 · 명단 및 결제 안내',
+    'stats.member_roster_today': '👤 오늘 멤버별 결제 명단',
+    'stats.member_roster_weekly': '👤 이번주 멤버별 결제 내역',
+    'stats.no_member_records': '멤버 주문 내역이 없습니다',
+    'stats.status_open': '접수중',
+    'stats.status_closed': '마감됨',
+    'stats.footer_closed': '⏰ 주문이 마감되었습니다. 신속히 결제를 완료해 주세요',
+    'stats.footer_open': '🟢 현재 주문 접수 중',
+    'stats.footer_weekly_closed': '⏰ 이번주 주문이 마감되었습니다. 금액 확인 후 결제해 주세요',
+    'stats.footer_weekly_open': '📋 각 멤버는 내역과 금액을 확인 후 결제해 주세요',
+    'stats.close_btn_today': '🔒 오늘 주문 마감',
+    'stats.close_btn_weekly': '🔒 이번주 주문 마감',
     'stats.no_orders': '주문 없음',
     'stats.total_summary': '총 {qty}개 · {amount}원',
     'stats.alt_text_today': '【오늘 통계】{restaurant} ({qty}개 / {amount}원)',
     'stats.alt_text_weekly': '📊 주간 주문 통계 총표',
     'stats.alt_text_closed_weekly': '【마감】주간 통계 및 결제 안내',
-    'stats.alt_text_closed_today': '【마감】{restaurant} 최종 주문 명단'
+    'stats.alt_text_closed_today': '【마감】{restaurant} 최종 주문 명단',
+
+    // Payment Information Card & Bullet Points
+    'payment.title': '💳 결제 방법 및 입금 안내',
+    'payment.bank_transfer': '계좌 이체',
+    'payment.account_number': '계좌번호: {account}',
+    'payment.account_name': '예금주: {name}',
+    'payment.zoom_qr': 'QR 확대',
+    'payment.qr_hint': '🔍 QR 코드를 눌러 확대하거나 캡처하여 송금하세요',
+    'payment.notify_hint': '💡 입금 완료 후 정산을 위해 주최자에게 개인톡이나 그룹에 알려주세요',
+    'payment.btn_wallet': '🟢 LINE 지갑으로 송금',
+    'payment.btn_linepay': '🟢 LINE Pay로 송금',
+    'payment.linepay_hint': '📱 지갑에서 [송금]을 누르고 친구를 검색하세요: "{recipient}"{idHint}',
+    'payment.linepay_qr': 'LINE Pay 결제 QR',
+    'payment.info_title': '💳【결제 안내】',
+    'payment.bank_transfer_bullet': '• 은행 계좌 이체: ',
+    'payment.bank_qr_bullet': '• 계좌 이체 QR 코드: ',
+    'payment.linepay_bullet': '• LINE Pay 송금: ',
+    'payment.linepay_friend_bullet': '• LINE Pay 친구 송금: ',
+    'payment.linepay_qr_bullet': '• LINE Pay 결제 QR: ',
+
+    // Order Receipt Card
+    'receipt.title': '✅ 주문 추가 성공',
+    'receipt.weekly_user_orders': '{name} 님의 이번주 주문',
+    'receipt.daily_user_orders': '{name} 님의 오늘의 주문',
+    'receipt.no_items': '(내역 없음)',
+    'receipt.total_weekly': '이번주 합계',
+    'receipt.total_daily': '합계',
+    'receipt.cancel_hint': "💡 '취소'를 입력하면 메뉴가 열려 특정 항목을 취소할 수 있습니다",
+    'receipt.alt_text': '주문이 기록되었습니다{suffix}: {day} {item}',
+
+    // My Orders Query Responses
+    'my_orders.no_weekly_orders': '이번주(월~금) 예약 주문 내역이 아직 없습니다!',
+    'my_orders.no_today_orders': "오늘 주문 내역이 없습니다! '+1 [메뉴명]'을 입력하여 주문하세요.",
+    'my_orders.weekly_title': '🍱【이번주 주문 내역】',
+    'my_orders.today_title': '【오늘의 주문 내역】',
+    'my_orders.weekly_total': '이번주 총액: {amount} 원',
+    'my_orders.today_total': '총액: {amount} 원',
+    'my_orders.subtotal': ' (소계 {subtotal}원)',
+    'my_orders.cutoff_notice': '\n⚠️ 오늘 주문 마감 시간이 지나 변경 또는 취소가 불가합니다.'
   },
 
   'th': {
@@ -1000,6 +1216,9 @@ var I18N_MESSAGES = {
     'menu.title_suffix': ' เมนู',
     'menu.cutoff_prefix': '⏰ ปิดรับวันนี้: ',
     'menu.btn_order': '+1 สั่ง',
+    'menu.sold_out': 'หมดแล้ว',
+    'menu.footer_hint1': '💡 แตะปุ่ม "+1 สั่ง" เพื่อสั่งอาหารเพิ่มได้ทันที!',
+    'menu.footer_hint2': 'หรือพิมพ์ "{day} [ชื่ออาหาร] + [จำนวน]" หรือ "ยกเลิก [ชื่ออาหาร]"',
     'menu.alt_text': '[เปิดรับออเดอร์] เมนู {restaurant}',
 
     // Submenu: Cancel Order Card
@@ -1017,6 +1236,7 @@ var I18N_MESSAGES = {
     'cancel.org_section': '👑 ฟังก์ชันผู้จัดการ',
     'cancel.btn_org_day': '⚠️ ยกเลิกออเดอร์วันนี้ทั้งหมด (ต้องยืนยัน)',
     'cancel.btn_org_all': '🚨 ยกเลิกออเดอร์ล่วงหน้าทั้งหมด (ต้องยืนยัน)',
+    'cancel.all_locked_warning': '⚠️ รายการสั่งทั้งหมดเลยเวลากำหนดหรือเลยวันแล้ว ไม่สามารถแก้ไขได้ โปรดติดต่อผู้จัดหากมีกรณีจำเป็น',
     'cancel.footer_org': '💡 ผู้จัดสามารถจัดการออเดอร์ได้ การยกเลิกทั้งหมดจะต้องยืนยันอีกครั้ง',
     'cancel.footer_member': '💡 คุณสามารถยกเลิกได้เฉพาะออเดอร์ของตนเอง ติดต่อผู้จัดหากต้องการยกเลิกของผู้อื่น',
     'cancel.confirm_header': '🚨 คำเตือนยืนยันการยกเลิก (สำหรับผู้จัด)',
@@ -1033,12 +1253,62 @@ var I18N_MESSAGES = {
     'stats.weekly_subtitle_closed': 'สรุปทั้งสัปดาห์และข้อมูลการชำระเงิน',
     'stats.today_subtitle_open': 'อัปเดตสด · รายชื่อและยอดรวม',
     'stats.today_subtitle_closed': 'ปิดรับแล้ว · รายชื่อและข้อมูลการชำระเงิน',
+    'stats.member_roster_today': '👤 รายชื่อและยอดชำระเงินวันนี้',
+    'stats.member_roster_weekly': '👤 รายชื่อและยอดชำระเงินประจำสัปดาห์',
+    'stats.no_member_records': 'ยังไม่มีประวัติการสั่งของสมาชิก',
+    'stats.status_open': 'เปิดรับ',
+    'stats.status_closed': 'ปิดรับแล้ว',
+    'stats.footer_closed': '⏰ ปิดรับออเดอร์แล้ว กรุณาดำเนินการชำระเงินโดยเร็ว',
+    'stats.footer_open': '🟢 กำลังเปิดรับออเดอร์',
+    'stats.footer_weekly_closed': '⏰ ปิดรับออเดอร์ประจำสัปดาห์แล้ว กรุณาชำระเงินตามยอดในตาราง',
+    'stats.footer_weekly_open': '📋 กรุณาตรวจสอบยอดและดำเนินการชำระเงิน',
+    'stats.close_btn_today': '🔒 ปิดรับออเดอร์วันนี้',
+    'stats.close_btn_weekly': '🔒 ปิดรับออเดอร์ประจำสัปดาห์',
     'stats.no_orders': 'ไม่มีออเดอร์',
     'stats.total_summary': 'รวม {qty} รายการ · {amount} บาท',
     'stats.alt_text_today': '【สรุปวันนี้】{restaurant} ({qty} รายการ / {amount} บาท)',
     'stats.alt_text_weekly': '📊 สรุปยอดสั่งอาหารประจำสัปดาห์',
     'stats.alt_text_closed_weekly': '【ปิดรับแล้ว】สรุปประจำสัปดาห์และการชำระเงิน',
-    'stats.alt_text_closed_today': '【ปิดรับแล้ว】สรุปรายการ {restaurant}'
+    'stats.alt_text_closed_today': '【ปิดรับแล้ว】สรุปรายการ {restaurant}',
+
+    // Payment Information Card & Bullet Points
+    'payment.title': '💳 วิธีการชำระเงินและข้อมูลโอนเงิน',
+    'payment.bank_transfer': 'โอนผ่านบัญชีธนาคาร',
+    'payment.account_number': 'เลขบัญชี: {account}',
+    'payment.account_name': 'ชื่อบัญชี: {name}',
+    'payment.zoom_qr': 'ขยาย QR',
+    'payment.qr_hint': '🔍 แตะ QR Code เพื่อขยายหรือแคปหน้าจอเพื่อสแกนโอนเงิน',
+    'payment.notify_hint': '💡 เมื่อโอนเงินแล้วกรุณาแจ้งผู้จัดทางแชทส่วนตัวหรือในกลุ่มเพื่อตรวจสอบ',
+    'payment.btn_wallet': '🟢 เปิด LINE Wallet เพื่อโอนเงิน',
+    'payment.btn_linepay': '🟢 ชำระผ่าน LINE Pay',
+    'payment.linepay_hint': '📱 ใน Wallet แตะ "โอนเงิน" แล้วค้นหาเพื่อน: "{recipient}"{idHint}',
+    'payment.linepay_qr': 'QR รับเงิน LINE Pay',
+    'payment.info_title': '💳【ข้อมูลการชำระเงิน】',
+    'payment.bank_transfer_bullet': '• โอนผ่านธนาคาร: ',
+    'payment.bank_qr_bullet': '• QR Code ธนาคาร: ',
+    'payment.linepay_bullet': '• โอน LINE Pay: ',
+    'payment.linepay_friend_bullet': '• โอนเพื่อน LINE Pay: ',
+    'payment.linepay_qr_bullet': '• QR รับเงิน LINE Pay: ',
+
+    // Order Receipt Card
+    'receipt.title': '✅ สั่งซื้อสำเร็จ',
+    'receipt.weekly_user_orders': 'รายการสัปดาห์นี้ของ {name}',
+    'receipt.daily_user_orders': 'รายการวันนี้ของ {name}',
+    'receipt.no_items': '(ไม่มีรายการ)',
+    'receipt.total_weekly': 'รวมทั้งสัปดาห์',
+    'receipt.total_daily': 'รวมทั้งหมด',
+    'receipt.cancel_hint': '💡 พิมพ์ "ยกเลิก" เพื่อเปิดเมนูและเลือกยกเลิกรายการอาหารเฉพาะได้',
+    'receipt.alt_text': 'บันทึกคำสั่งซื้อแล้ว{suffix}: {day} {item}',
+
+    // My Orders Query Responses
+    'my_orders.no_weekly_orders': 'คุณยังไม่มีรายการสั่งล่วงหน้าในสัปดาห์นี้ (จันทร์-ศุกร์)!',
+    'my_orders.no_today_orders': 'คุณยังไม่มีรายการสั่งวันนี้! พิมพ์ "+1 [ชื่ออาหาร]" เพื่อสั่งได้เลย',
+    'my_orders.weekly_title': '🍱【รายการสั่งประจำสัปดาห์ของคุณ】',
+    'my_orders.today_title': '【รายการสั่งวันนี้ของคุณ】',
+    'my_orders.weekly_total': 'รวมทั้งสัปดาห์: {amount} บาท',
+    'my_orders.today_total': 'รวมทั้งหมด: {amount} บาท',
+    'my_orders.subtotal': ' (รวม {subtotal} บาท)',
+    'my_orders.cutoff_notice': '\n⚠️ เลยเวลาปิดรับออเดอร์วันนี้แล้ว ไม่สามารถแก้ไขหรือยกเลิกรายการได้'
   },
 
   'id': {
@@ -1168,6 +1438,9 @@ var I18N_MESSAGES = {
     'menu.title_suffix': ' Menu',
     'menu.cutoff_prefix': '⏰ Batas Waktu Hari Ini: ',
     'menu.btn_order': '+1 Pesan',
+    'menu.sold_out': 'Habis',
+    'menu.footer_hint1': '💡 Ketuk tombol "+1 Pesan" untuk langsung memesan tambahan!',
+    'menu.footer_hint2': 'Atau ketik "{day} [menu] + [jumlah]" atau "batal [menu]"',
     'menu.alt_text': '[Pemesanan Dibuka] Menu {restaurant}',
 
     // Submenu: Cancel Order Card
@@ -1185,6 +1458,7 @@ var I18N_MESSAGES = {
     'cancel.org_section': '👑 Fitur Penyelenggara',
     'cancel.btn_org_day': '⚠️ Batalkan Semua Pesanan Hari Ini (Konfirmasi)',
     'cancel.btn_org_all': '🚨 Batalkan Semua Pesanan Belum Ditutup (Konfirmasi)',
+    'cancel.all_locked_warning': '⚠️ Semua pesanan telah melewati batas waktu atau tanggal dan tidak dapat dibatalkan. Hubungi penyelenggara untuk bantuan.',
     'cancel.footer_org': '💡 Penyelenggara dapat mengelola pesanan; pembatalan massal memerlukan konfirmasi.',
     'cancel.footer_member': '💡 Anda hanya dapat membatalkan pesanan sendiri. Hubungi penyelenggara untuk permintaan lain.',
     'cancel.confirm_header': '🚨 Peringatan Konfirmasi Pembatalan (Penyelenggara)',
@@ -1201,12 +1475,62 @@ var I18N_MESSAGES = {
     'stats.weekly_subtitle_closed': 'Rekap lengkap & informasi pembayaran',
     'stats.today_subtitle_open': 'Statistik langsung · Rincian anggota & total',
     'stats.today_subtitle_closed': 'Ditutup · Daftar anggota & info pembayaran',
+    'stats.member_roster_today': '👤 Daftar Tagihan Anggota Hari Ini',
+    'stats.member_roster_weekly': '👤 Rincian Tagihan Anggota Mingguan',
+    'stats.no_member_records': 'Belum ada riwayat pesanan anggota',
+    'stats.status_open': 'Dibuka',
+    'stats.status_closed': 'Ditutup',
+    'stats.footer_closed': '⏰ Pemesanan telah ditutup. Harap segera selesaikan pembayaran',
+    'stats.footer_open': '🟢 Pemesanan saat ini sedang dibuka',
+    'stats.footer_weekly_closed': '⏰ Pesanan mingguan telah ditutup. Harap bayar sesuai tabel ini',
+    'stats.footer_weekly_open': '📋 Harap periksa jumlah dan selesaikan pembayaran',
+    'stats.close_btn_today': '🔒 Tutup Pesanan Hari Ini',
+    'stats.close_btn_weekly': '🔒 Tutup Pesanan Mingguan',
     'stats.no_orders': 'Tidak ada pesanan',
     'stats.total_summary': 'Total {qty} porsi · Rp {amount}',
     'stats.alt_text_today': '【Rekap Hari Ini】{restaurant} ({qty} porsi / Rp {amount})',
     'stats.alt_text_weekly': '📊 Tabel Rekap Pesanan Mingguan',
     'stats.alt_text_closed_weekly': '【Ditutup】Rekap Mingguan & Info Pembayaran',
-    'stats.alt_text_closed_today': '【Ditutup】Rekap Final {restaurant}'
+    'stats.alt_text_closed_today': '【Ditutup】Rekap Final {restaurant}',
+
+    // Payment Information Card & Bullet Points
+    'payment.title': '💳 Metode Pembayaran & Info Transfer',
+    'payment.bank_transfer': 'Transfer Bank',
+    'payment.account_number': 'No. Rekening: {account}',
+    'payment.account_name': 'Nama Pemilik: {name}',
+    'payment.zoom_qr': 'Perbesar QR',
+    'payment.qr_hint': '🔍 Ketuk QR Code untuk memperbesar atau screenshot untuk transfer',
+    'payment.notify_hint': '💡 Setelah transfer, beri tahu penyelenggara via chat pribadi atau grup',
+    'payment.btn_wallet': '🟢 Buka LINE Wallet untuk Transfer',
+    'payment.btn_linepay': '🟢 Bayar via LINE Pay',
+    'payment.linepay_hint': '📱 Di Wallet, ketuk "Transfer" dan cari teman: "{recipient}"{idHint}',
+    'payment.linepay_qr': 'QR Terima Uang LINE Pay',
+    'payment.info_title': '💳 [Info Pembayaran]',
+    'payment.bank_transfer_bullet': '• Transfer Bank: ',
+    'payment.bank_qr_bullet': '• QR Code Bank: ',
+    'payment.linepay_bullet': '• Transfer LINE Pay: ',
+    'payment.linepay_friend_bullet': '• Transfer Teman LINE Pay: ',
+    'payment.linepay_qr_bullet': '• QR Terima Uang LINE Pay: ',
+
+    // Order Receipt Card
+    'receipt.title': '✅ Berhasil Ditambahkan',
+    'receipt.weekly_user_orders': 'Pesanan Mingguan {name}',
+    'receipt.daily_user_orders': 'Pesanan Hari Ini {name}',
+    'receipt.no_items': '(Belum ada item)',
+    'receipt.total_weekly': 'Total Mingguan',
+    'receipt.total_daily': 'Total',
+    'receipt.cancel_hint': '💡 Balas "batal" untuk membuka menu dan membatalkan pesanan tertentu',
+    'receipt.alt_text': 'Pesanan dicatat{suffix}: {day} {item}',
+
+    // My Orders Query Responses
+    'my_orders.no_weekly_orders': 'Anda belum memiliki riwayat pra-pesan minggu ini (Senin-Jumat)!',
+    'my_orders.no_today_orders': 'Anda belum memiliki pesanan hari ini! Ketik "+1 [nama menu]" untuk memesan.',
+    'my_orders.weekly_title': '🍱 [Pesanan Mingguan Anda]',
+    'my_orders.today_title': '[Pesanan Hari Ini Anda]',
+    'my_orders.weekly_total': 'Total Mingguan: Rp {amount}',
+    'my_orders.today_total': 'Total: Rp {amount}',
+    'my_orders.subtotal': ' (Subtotal Rp {subtotal})',
+    'my_orders.cutoff_notice': '\n⚠️ Batas waktu pemesanan hari ini telah lewat. Pesanan tidak dapat diubah atau dibatalkan.'
   }
 };
 
@@ -5416,12 +5740,13 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
             flex: 2
           };
         } else {
+          var soldOutLabel = _translateHelper('menu.sold_out', {}, loc);
           actionButton = {
             type: 'button',
             action: {
               type: 'message',
-              label: (loc === 'zh-TW' ? '已售完' : 'Sold Out'),
-              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + (loc === 'zh-TW' ? ' 已售完' : ' Sold Out')
+              label: soldOutLabel,
+              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + ' ' + soldOutLabel
             },
             style: 'secondary',
             height: 'sm',
@@ -5457,12 +5782,8 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   });
 
   /* ---- footer ---- */
-  var footerText1 = (loc === 'zh-TW')
-    ? '💡 點擊「+1 點餐」按鈕即可直接加訂！'
-    : ('💡 ' + _translateHelper('menu.btn_order', {}, loc));
-  var footerText2 = (loc === 'zh-TW')
-    ? ('亦可輸入「' + (dayOfWeek ? dayOfWeek + ' ' : '') + '菜名+數量」或「取消 菜名」')
-    : ('e.g. ' + (displayDay ? displayDay + ' ' : '') + '+1 [item]');
+  var footerText1 = _translateHelper('menu.footer_hint1', {}, loc);
+  var footerText2 = _translateHelper('menu.footer_hint2', { day: displayDay ? displayDay + ' ' : '' }, loc);
 
   var footer = _flexBox([
     _flexText(footerText1, {
@@ -5511,10 +5832,11 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
   var orders = userOrders || [];
   var total = _calcOrderTotal(orders);
   var isWeekly = options && options.isWeekly !== undefined ? !!options.isWeekly : true;
+  var loc = _resolveLocale(options && options.locale ? options.locale : null);
 
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText('✅ 加購成功', {
+    _flexText(_translateHelper('receipt.title', {}, loc), {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -5531,8 +5853,11 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
   var bodyContents = [];
 
   // User label
-  var titleSuffix = isWeekly ? ' 的本週訂單' : ' 的今日訂單';
-  bodyContents.push(_flexText((userName || '成員') + titleSuffix, {
+  var memberName = userName || _translateHelper('common.member', {}, loc);
+  var userTitle = isWeekly
+    ? _translateHelper('receipt.weekly_user_orders', { name: memberName }, loc)
+    : _translateHelper('receipt.daily_user_orders', { name: memberName }, loc);
+  bodyContents.push(_flexText(userTitle, {
     size: 'lg',
     weight: 'bold',
     color: FLEX_COLORS.textPrimary,
@@ -5544,7 +5869,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
 
   // Order lines
   if (orders.length === 0) {
-    bodyContents.push(_flexText('（尚無項目）', {
+    bodyContents.push(_flexText(_translateHelper('receipt.no_items', {}, loc), {
       size: 'md',
       color: FLEX_COLORS.textSecondary,
       align: 'start'
@@ -5554,7 +5879,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
     var dayMap = {};
     var dayKeys = [];
     orders.forEach(function (o) {
-      var d = o.dayOfWeek || '今日';
+      var d = o.dayOfWeek || _translateHelper('common.today', {}, loc);
       if (!dayMap[d]) {
         dayMap[d] = [];
         dayKeys.push(d);
@@ -5563,7 +5888,8 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
     });
 
     dayKeys.forEach(function (day, di) {
-      bodyContents.push(_flexText('【' + day + '】', {
+      var displayDay = _displayDayHelper(day, loc);
+      bodyContents.push(_flexText(_translateHelper('common.bracket_open', {}, loc) + displayDay + _translateHelper('common.bracket_close', {}, loc), {
         size: 'sm',
         weight: 'bold',
         color: FLEX_COLORS.primaryDark,
@@ -5642,7 +5968,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
   bodyContents.push(_flexSeparator({ margin: 'md' }));
 
   // Grand total
-  var totalLabel = isWeekly ? '本週合計' : '合計';
+  var totalLabel = isWeekly ? _translateHelper('receipt.total_weekly', {}, loc) : _translateHelper('receipt.total_daily', {}, loc);
   bodyContents.push(_flexBox([
     _flexText(totalLabel, {
       size: 'lg',
@@ -5672,7 +5998,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 回覆「取消」可開啟選單自選退訂特定餐點', {
+    _flexText(_translateHelper('receipt.cancel_hint', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textSecondary,
       align: 'center'
@@ -5697,14 +6023,15 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
  * @param {Object} paymentInfo
  * @returns {Array<Object>} Flex component array
  */
-function _buildPaymentContents(paymentInfo) {
+function _buildPaymentContents(paymentInfo, locale) {
   if (!paymentInfo || !paymentInfo.hasPaymentInfo) {
     return [];
   }
 
+  var loc = _resolveLocale(locale);
   var contents = [];
   contents.push(_flexSeparator({ margin: 'md' }));
-  contents.push(_flexText('💳 付款方式與匯款資訊', {
+  contents.push(_flexText(_translateHelper('payment.title', {}, loc), {
     weight: 'bold',
     size: 'sm',
     color: FLEX_COLORS.primaryDark,
@@ -5713,7 +6040,8 @@ function _buildPaymentContents(paymentInfo) {
 
   // Bank transfer block
   if (paymentInfo.bankAccount || paymentInfo.bankCode || paymentInfo.bankQrUrl) {
-    var bankTitle = (paymentInfo.bankCode ? paymentInfo.bankCode + ' ' : '') + (paymentInfo.bankName || '銀行跨行匯款');
+    var defaultBankName = _translateHelper('payment.bank_transfer', {}, loc);
+    var bankTitle = (paymentInfo.bankCode ? paymentInfo.bankCode + ' ' : '') + (paymentInfo.bankName || defaultBankName);
     var bankRows = [
       _flexText('🏦 ' + bankTitle, {
         size: 'sm',
@@ -5723,7 +6051,7 @@ function _buildPaymentContents(paymentInfo) {
     ];
 
     if (paymentInfo.bankAccount) {
-      bankRows.push(_flexText('帳號：' + paymentInfo.bankAccount, {
+      bankRows.push(_flexText(_translateHelper('payment.account_number', { account: paymentInfo.bankAccount }, loc), {
         size: 'sm',
         weight: 'bold',
         color: FLEX_COLORS.textPrimary,
@@ -5732,7 +6060,7 @@ function _buildPaymentContents(paymentInfo) {
     }
 
     if (paymentInfo.bankAccountName) {
-      bankRows.push(_flexText('戶名：' + paymentInfo.bankAccountName, {
+      bankRows.push(_flexText(_translateHelper('payment.account_name', { name: paymentInfo.bankAccountName }, loc), {
         size: 'xs',
         color: FLEX_COLORS.textSecondary,
         margin: 'xs'
@@ -5751,11 +6079,11 @@ function _buildPaymentContents(paymentInfo) {
         align: 'center',
         action: {
           type: 'uri',
-          label: '放大檢視',
+          label: _translateHelper('payment.zoom_qr', {}, loc),
           uri: paymentInfo.bankQrUrl
         }
       });
-      bankRows.push(_flexText('🔍 點擊 QR Code 可放大檢視或截圖掃碼轉帳', {
+      bankRows.push(_flexText(_translateHelper('payment.qr_hint', {}, loc), {
         size: 'xxs',
         color: FLEX_COLORS.textSecondary,
         align: 'center',
@@ -5763,7 +6091,7 @@ function _buildPaymentContents(paymentInfo) {
       }));
     }
 
-    bankRows.push(_flexText('💡 轉帳完成後請私訊或於群組告知主揪以利對帳', {
+    bankRows.push(_flexText(_translateHelper('payment.notify_hint', {}, loc), {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       margin: 'xs'
@@ -5781,7 +6109,7 @@ function _buildPaymentContents(paymentInfo) {
   // LINE Pay button & QR
   if (paymentInfo.linePayUrl || paymentInfo.linePayQrUrl || paymentInfo.isPersonalLinePay) {
     if (paymentInfo.linePayUrl && /^(?:https|line):\/\//i.test(paymentInfo.linePayUrl)) {
-      var buttonLabel = paymentInfo.isPersonalLinePay ? '🟢 開啟 LINE 錢包轉帳' : '🟢 前往 LINE Pay 轉帳';
+      var buttonLabel = paymentInfo.isPersonalLinePay ? _translateHelper('payment.btn_wallet', {}, loc) : _translateHelper('payment.btn_linepay', {}, loc);
       contents.push({
         type: 'button',
         action: {
@@ -5797,7 +6125,7 @@ function _buildPaymentContents(paymentInfo) {
 
       if (paymentInfo.isPersonalLinePay) {
         var idHint = paymentInfo.linePayUserId ? ' (LINE ID: ' + paymentInfo.linePayUserId + ')' : '';
-        contents.push(_flexText('📱 請於錢包點選「轉帳」並搜尋好友：「' + paymentInfo.linePayRecipientName + '」' + idHint, {
+        contents.push(_flexText(_translateHelper('payment.linepay_hint', { recipient: paymentInfo.linePayRecipientName, idHint: idHint }, loc), {
           size: 'xxs',
           color: FLEX_COLORS.textSecondary,
           align: 'center',
@@ -5818,7 +6146,7 @@ function _buildPaymentContents(paymentInfo) {
         align: 'center',
         action: {
           type: 'uri',
-          label: 'LINE Pay 收款碼',
+          label: _translateHelper('payment.linepay_qr', {}, loc),
           uri: paymentInfo.linePayQrUrl
         }
       });
@@ -5990,7 +6318,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
   // Member billing & order roster (今日成員應付明細與點餐名冊)
   if (data.users && data.users.length > 0) {
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 今日成員應付名冊' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), {
+    bodyContents.push(_flexText(_translateHelper('stats.member_roster_today', {}, loc), {
       weight: 'bold',
       size: 'sm',
       color: FLEX_COLORS.textPrimary,
@@ -6000,7 +6328,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
     data.users.forEach(function (u) {
       var userItemsStr = (u.items && u.items.length > 0) ? u.items.join('、') : '';
       var userColChildren = [
-        _flexText(u.userName || (loc === 'zh-TW' ? '成員' : 'Member'), {
+        _flexText(u.userName || _translateHelper('common.member', {}, loc), {
           size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.textPrimary
@@ -6041,7 +6369,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
 
   // Append payment contents if available
   if (paymentInfo && paymentInfo.hasPaymentInfo) {
-    var payBoxes = _buildPaymentContents(paymentInfo);
+    var payBoxes = _buildPaymentContents(paymentInfo, loc);
     for (var p = 0; p < payBoxes.length; p++) {
       bodyContents.push(payBoxes[p]);
     }
@@ -6053,7 +6381,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
       type: 'button',
       action: {
         type: 'message',
-        label: (loc === 'zh-TW' ? '🔒 截止今日訂餐（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
+        label: _translateHelper('stats.close_btn_today', {}, loc),
         text: '今日結單'
       },
       style: 'secondary',
@@ -6070,9 +6398,9 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
   });
 
   /* ---- footer ---- */
-  var footerMsg = (loc === 'zh-TW')
-    ? (isClosed ? '⏰ 已截止，請各成員儘速完成付款' : '🟢 目前開放點餐中')
-    : (isClosed ? _translateHelper('stats.today_subtitle_closed', {}, loc) : _translateHelper('stats.today_subtitle_open', {}, loc));
+  var footerMsg = isClosed
+    ? _translateHelper('stats.footer_closed', {}, loc)
+    : _translateHelper('stats.footer_open', {}, loc);
 
   var footer = _flexBox([
     _flexText(footerMsg, {
@@ -6451,7 +6779,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
       });
     } else if (!anyDayUnlocked && dayOrder.length > 0) {
       bodyContents.push(_flexSeparator({ margin: 'md' }));
-      bodyContents.push(_flexText(loc === 'zh-TW' ? '⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。' : '⚠️ ' + _translateHelper('cancel.footer_member', {}, loc), {
+      bodyContents.push(_flexText(_translateHelper('cancel.all_locked_warning', {}, loc), {
         size: 'xs',
         color: FLEX_COLORS.warning,
         align: 'center',
@@ -6714,23 +7042,23 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
   }
 
   bodyContents.push(_flexSeparator({ margin: 'md' }));
-  bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 成員本週梯次應付明細' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
+  bodyContents.push(_flexText(_translateHelper('stats.member_roster_weekly', {}, loc), { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
 
   if (summary.users && summary.users.length > 0) {
     for (var u = 0; u < summary.users.length; u++) {
       var user = summary.users[u];
       bodyContents.push(_flexBox([
-        _flexText(user.userName, { size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText(user.userName || _translateHelper('common.member', {}, loc), { size: 'sm', color: FLEX_COLORS.textPrimary }),
         _flexText('$' + user.total + (loc === 'zh-TW' ? ' 元' : ''), { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
       ], { layout: 'horizontal', justifyContent: 'space-between', margin: 'xs' }));
     }
   } else {
-    bodyContents.push(_flexText((loc === 'zh-TW' ? '尚無成員訂購紀錄' : _translateHelper('stats.no_orders', {}, loc)), { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
+    bodyContents.push(_flexText(_translateHelper('stats.no_member_records', {}, loc), { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
   }
 
   // Append payment contents if provided
   if (paymentInfo && paymentInfo.hasPaymentInfo) {
-    var weeklyPayBoxes = _buildPaymentContents(paymentInfo);
+    var weeklyPayBoxes = _buildPaymentContents(paymentInfo, loc);
     for (var wp = 0; wp < weeklyPayBoxes.length; wp++) {
       bodyContents.push(weeklyPayBoxes[wp]);
     }
@@ -6742,7 +7070,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
       type: 'button',
       action: {
         type: 'message',
-        label: (loc === 'zh-TW' ? '🔒 截止本週預訂（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
+        label: _translateHelper('stats.close_btn_weekly', {}, loc),
         text: '本週結單'
       },
       style: 'secondary',
@@ -6758,9 +7086,9 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
     ? ('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元')
     : _translateHelper('stats.total_summary', { qty: summary.grandTotalQuantity || 0, amount: summary.grandTotalAmount || 0 }, loc);
   var headerBg = isClosed ? FLEX_COLORS.primaryDark : FLEX_COLORS.primary;
-  var footerMsg = (loc === 'zh-TW')
-    ? (isClosed ? '⏰ 本週預訂已截止，請各成員依此表金額完成付款' : '📋 請各成員依此表金額完成對帳與付款')
-    : (isClosed ? _translateHelper('stats.weekly_subtitle_closed', {}, loc) : _translateHelper('stats.weekly_subtitle_open', {}, loc));
+  var footerMsg = isClosed
+    ? _translateHelper('stats.footer_weekly_closed', {}, loc)
+    : _translateHelper('stats.footer_weekly_open', {}, loc);
 
   return {
     type: 'bubble',
@@ -7897,6 +8225,16 @@ function handleTextMessage(event) {
     return k;
   };
 
+  var _displayDay = function (sheetDay) {
+    if (typeof I18nModule !== 'undefined' && I18nModule && typeof I18nModule.displayDayOfWeek === 'function') {
+      return I18nModule.displayDayOfWeek(sheetDay, userLocale);
+    }
+    if (typeof displayDayOfWeek === 'function') {
+      return displayDayOfWeek(sheetDay, userLocale);
+    }
+    return sheetDay;
+  };
+
   var _getCmdRegex = function (cmdKey, fallbackRegex) {
     if (typeof I18nModule !== 'undefined' && I18nModule && typeof I18nModule.buildCommandRegex === 'function') {
       return I18nModule.buildCommandRegex(cmdKey);
@@ -8081,29 +8419,57 @@ function handleTextMessage(event) {
   }
 
   // Helper to format payment text for personal order queries
-  function _formatPaymentText(payInfo) {
+  function _formatPaymentText(payInfo, loc) {
     if (!payInfo || !payInfo.hasPaymentInfo) return '';
-    var pLines = ['\n💳【付款資訊】'];
+    var l = loc || userLocale || 'zh-TW';
+    if (l === 'zh-TW') {
+      var pLines = ['\n💳【付款資訊】'];
+      if (payInfo.bankAccount || payInfo.bankCode || payInfo.bankQrUrl) {
+        var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || '');
+        if (payInfo.bankAccount) {
+          pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+        }
+        if (payInfo.bankQrUrl) {
+          pLines.push('• 銀行轉帳 QR Code：' + payInfo.bankQrUrl);
+        }
+      }
+      if (payInfo.linePayUrl) {
+        if (payInfo.isPersonalLinePay) {
+          var idHint = payInfo.linePayUserId ? ' (LINE ID: ' + payInfo.linePayUserId + ')' : '';
+          pLines.push('• LINE Pay 好友轉帳：' + payInfo.linePayUrl);
+          pLines.push('  (請於錢包點選「轉帳」搜尋好友「' + payInfo.linePayRecipientName + '」' + idHint + ')');
+        } else {
+          pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+        }
+      }
+      if (payInfo.linePayQrUrl) {
+        pLines.push('• LINE Pay 收款碼：' + payInfo.linePayQrUrl);
+      }
+      return pLines.join('\n');
+    }
+
+    // Localized version
+    var pLines = ['\n' + _translateMsg('payment.info_title')];
     if (payInfo.bankAccount || payInfo.bankCode || payInfo.bankQrUrl) {
-      var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || '');
+      var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || _translateMsg('payment.bank_transfer'));
       if (payInfo.bankAccount) {
-        pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+        pLines.push(_translateMsg('payment.bank_transfer_bullet') + bankStr + ' ' + _translateMsg('payment.account_number', { account: payInfo.bankAccount }) + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
       }
       if (payInfo.bankQrUrl) {
-        pLines.push('• 銀行轉帳 QR Code：' + payInfo.bankQrUrl);
+        pLines.push(_translateMsg('payment.bank_qr_bullet') + payInfo.bankQrUrl);
       }
     }
     if (payInfo.linePayUrl) {
       if (payInfo.isPersonalLinePay) {
         var idHint = payInfo.linePayUserId ? ' (LINE ID: ' + payInfo.linePayUserId + ')' : '';
-        pLines.push('• LINE Pay 好友轉帳：' + payInfo.linePayUrl);
-        pLines.push('  (請於錢包點選「轉帳」搜尋好友「' + payInfo.linePayRecipientName + '」' + idHint + ')');
+        pLines.push(_translateMsg('payment.linepay_friend_bullet') + payInfo.linePayUrl);
+        pLines.push('  (' + _translateMsg('payment.linepay_hint', { recipient: payInfo.linePayRecipientName, idHint: idHint }) + ')');
       } else {
-        pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+        pLines.push(_translateMsg('payment.linepay_bullet') + payInfo.linePayUrl);
       }
     }
     if (payInfo.linePayQrUrl) {
-      pLines.push('• LINE Pay 收款碼：' + payInfo.linePayQrUrl);
+      pLines.push(_translateMsg('payment.linepay_qr_bullet') + payInfo.linePayQrUrl);
     }
     return pLines.join('\n');
   }
@@ -8121,24 +8487,38 @@ function handleTextMessage(event) {
         var daySub = 0;
         var isPast = isDayPast(d);
         var isCutoff = (d === todayDay) && isTodayCutoffPassed(d);
-        var lockTag = isPast ? ' 🔒[已過期]' : (isCutoff ? ' 🔒[已截止]' : '');
+        var lockTag = '';
+        if (isPast) {
+          lockTag = (userLocale === 'zh-TW') ? ' 🔒[已過期]' : (' 🔒[' + _translateMsg('cancel.reason_expired') + ']');
+        } else if (isCutoff) {
+          lockTag = (userLocale === 'zh-TW') ? ' 🔒[已截止]' : (' 🔒[' + _translateMsg('cancel.reason_cutoff') + ']');
+        }
         var itemsText = dOrders.map(function (o) {
           daySub += o.subtotal;
           var childTag = o.childName ? ' [' + o.childName + ']' : '';
           return o.itemName + childTag + ' x' + o.quantity + ' ($' + o.subtotal + ')';
-        }).join('、');
+        }).join(userLocale === 'zh-TW' ? '、' : ', ');
         grandTotal += daySub;
-        lines.push('【' + d + lockTag + '】' + itemsText + ' (小計 $' + daySub + ')');
+        var subtotalText = (userLocale === 'zh-TW')
+          ? (' (小計 $' + daySub + ')')
+          : _translateMsg('my_orders.subtotal', { subtotal: daySub });
+        var displayD = (userLocale === 'zh-TW') ? d : (_displayDay(d) || d);
+        lines.push('【' + displayD + lockTag + '】' + itemsText + subtotalText);
       }
     });
 
     if (lines.length === 0) {
-      return LineModule.replyText(replyToken, '您本週（週一至週五）尚未有任何預訂紀錄喔！');
+      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您本週（週一至週五）尚未有任何預訂紀錄喔！' : _translateMsg('my_orders.no_weekly_orders'));
     }
 
     var payInfoWeekly = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var payTextWeekly = _formatPaymentText(payInfoWeekly);
-    var weeklyMsg = '🍱【您的本週梯次訂單】\n' + lines.join('\n') + '\n─────\n本週總計：$' + grandTotal + ' 元' + payTextWeekly;
+    var payTextWeekly = _formatPaymentText(payInfoWeekly, userLocale);
+    var weeklyMsg;
+    if (userLocale === 'zh-TW') {
+      weeklyMsg = '🍱【您的本週梯次訂單】\n' + lines.join('\n') + '\n─────\n本週總計：$' + grandTotal + ' 元' + payTextWeekly;
+    } else {
+      weeklyMsg = _translateMsg('my_orders.weekly_title') + '\n' + lines.join('\n') + '\n─────\n' + _translateMsg('my_orders.weekly_total', { amount: grandTotal }) + payTextWeekly;
+    }
     return LineModule.replyText(replyToken, weeklyMsg);
   }
 
@@ -8150,10 +8530,13 @@ function handleTextMessage(event) {
       myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null, userDisplayName);
     }
     if (!myOrders || myOrders.length === 0) {
-      return LineModule.replyText(replyToken, '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。');
+      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。' : _translateMsg('my_orders.no_today_orders'));
     }
     var isCutoff = isTodayCutoffPassed(todayDay);
-    var statusTag = isCutoff ? ' 🔒[已截止]' : '';
+    var statusTag = '';
+    if (isCutoff) {
+      statusTag = (userLocale === 'zh-TW') ? ' 🔒[已截止]' : (' 🔒[' + _translateMsg('cancel.reason_cutoff') + ']');
+    }
     var total = 0;
     var myLines = myOrders.map(function (o) {
       total += o.subtotal;
@@ -8161,9 +8544,16 @@ function handleTextMessage(event) {
       return '• ' + o.itemName + childTag + ' x' + o.quantity + ' ($' + o.subtotal + ')' + statusTag;
     });
     var payInfoToday = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var payTextToday = _formatPaymentText(payInfoToday);
-    var cutoffNotice = isCutoff ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : '';
-    var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + cutoffNotice + payTextToday;
+    var payTextToday = _formatPaymentText(payInfoToday, userLocale);
+    var cutoffNotice = isCutoff
+      ? ((userLocale === 'zh-TW') ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : _translateMsg('my_orders.cutoff_notice'))
+      : '';
+    var msg;
+    if (userLocale === 'zh-TW') {
+      msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + cutoffNotice + payTextToday;
+    } else {
+      msg = _translateMsg('my_orders.today_title') + '\n' + myLines.join('\n') + '\n─────\n' + _translateMsg('my_orders.today_total', { amount: total }) + cutoffNotice + payTextToday;
+    }
     return LineModule.replyText(replyToken, msg);
   }
 
@@ -8815,9 +9205,21 @@ function handleTextMessage(event) {
       ? SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName)
       : SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek, userDisplayName);
 
-    var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly });
+    var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly, locale: userLocale });
     var altSuffix = isWeekly ? '（本週）' : '';
-    return LineModule.replyFlex(replyToken, '訂單已記錄' + (altSuffix ? altSuffix + '：' : '：') + lastAdded.dayOfWeek + ' ' + lastAdded.itemName, receiptFlex);
+    var altText;
+    if (userLocale === 'zh-TW') {
+      altText = '訂單已記錄' + (altSuffix ? altSuffix + '：' : '：') + lastAdded.dayOfWeek + ' ' + lastAdded.itemName;
+    } else {
+      var suffixLabel = isWeekly ? ' (' + _translateMsg('stats.weekly_title') + ')' : '';
+      var displayD = _displayDay(lastAdded.dayOfWeek) || lastAdded.dayOfWeek;
+      altText = _translateMsg('receipt.alt_text', {
+        suffix: suffixLabel,
+        day: displayD,
+        item: lastAdded.itemName
+      });
+    }
+    return LineModule.replyFlex(replyToken, altText, receiptFlex);
   }
 
   return null;
