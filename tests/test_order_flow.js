@@ -2279,4 +2279,227 @@ if (SheetModule._mockStore.UserPreferences) {
 
 console.log('  ✔ i18n core, single-locale, user-locale toggle, 6 languages & aliases verified.\n');
 
+// --------------------------------------------------------------------------
+// Test 15: Weekend Ordering & Saturday Pre-ordering Flow
+// --------------------------------------------------------------------------
+console.log('▶ Test 15: Weekend Ordering & Saturday Pre-ordering Flow');
+
+// 1. Standard mode (ALLOW_WEEKEND_ORDERING = 'false'): Saturday night pre-ordering
+SheetModule._mockStore.Config['ALLOW_WEEKEND_ORDERING'] = 'false';
+SheetModule._mockStore.Config['IS_ORDERING_OPEN'] = 'true';
+SheetModule._mockStore.Orders = [];
+
+// 2026-09-12 is Saturday (20:00:00 Taiwan time)
+var satNight = new Date('2026-09-12T12:00:00.000Z'); // UTC 12:00 = 20:00 Taipei
+globalThis._mockCurrentDate = satNight;
+
+assert.strictEqual(OrderModule.getTodayDayOfWeek(satNight), '週一', 'When weekend ordering disabled, Saturday defaults todayDay to 週一');
+assert.strictEqual(OrderModule.isDayPast('週一', satNight), false, 'Next week Monday must NOT be past on Saturday');
+assert.strictEqual(OrderModule.isDayPast('週五', satNight), false, 'Next week Friday must NOT be past on Saturday');
+assert.strictEqual(OrderModule.isDayPast('週六', satNight), true, 'Saturday must be considered invalid/past when weekend ordering disabled');
+assert.strictEqual(OrderModule.isDayPast('週日', satNight), true, 'Sunday must be considered invalid/past when weekend ordering disabled');
+
+// A. User pre-orders on Saturday night with "+1 招牌排骨飯" (defaults to next Monday)
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sat_default',
+  source: { userId: 'usr_sat_1', displayName: '週六點餐者' },
+  message: { type: 'text', text: '+1 招牌排骨飯' }
+});
+assert.ok(lastReply, 'Ordering on Saturday night with IS_ORDERING_OPEN=true must receive a reply');
+assert.strictEqual(lastReply.type, 'flex', 'Should return receipt flex');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 1, 'Order record should be saved');
+assert.strictEqual(SheetModule._mockStore.Orders[0].dayOfWeek, '週一', 'Order should be placed for next Monday');
+assert.strictEqual(SheetModule._mockStore.Orders[0].itemName, '招牌排骨飯');
+
+// B. User pre-orders on Saturday night with "週二+1 酥炸雞腿飯"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sat_tue',
+  source: { userId: 'usr_sat_1', displayName: '週六點餐者' },
+  message: { type: 'text', text: '週二+1 酥炸雞腿飯' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 2);
+assert.strictEqual(SheetModule._mockStore.Orders[1].dayOfWeek, '週二');
+
+// C. User attempts "週六+1 招牌排骨飯" when ALLOW_WEEKEND_ORDERING = 'false'
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sat_disabled',
+  source: { userId: 'usr_sat_1', displayName: '週六點餐者' },
+  message: { type: 'text', text: '週六+1 招牌排骨飯' }
+});
+assert.ok(lastReply && lastReply.type === 'text', 'Should reject weekend order when disabled');
+assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'), 'Rejection text should indicate not open or cutoff');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 2, 'No new order should be added for Saturday');
+
+// D. Saturday night when IS_ORDERING_OPEN = 'false'
+SheetModule._mockStore.Config['IS_ORDERING_OPEN'] = 'false';
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sat_closed',
+  source: { userId: 'usr_sat_2', displayName: '週六夜間點餐者' },
+  message: { type: 'text', text: '+1 招牌排骨飯' }
+});
+assert.ok(lastReply && lastReply.type === 'text');
+assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'));
+assert.strictEqual(SheetModule._mockStore.Orders.length, 2, 'No new order when ordering is closed');
+
+// 2. Weekend Enabled mode (ALLOW_WEEKEND_ORDERING = 'true')
+SheetModule._mockStore.Config['ALLOW_WEEKEND_ORDERING'] = 'true';
+SheetModule._mockStore.Config['IS_ORDERING_OPEN'] = 'true';
+SheetModule._mockStore.Orders = [];
+
+// Setup weekend menu & schedule
+SheetModule._mockStore.WeeklySchedule.push(
+  { dayOfWeek: '週六', restaurantName: '週末早午餐', cutoffTime: '10:30', uberEatsUrl: '', notes: '週末限定', isActive: 'TRUE' },
+  { dayOfWeek: '週日', restaurantName: '週末牛肉麵', cutoffTime: '10:30', uberEatsUrl: '', notes: '週末限定', isActive: 'TRUE' }
+);
+SheetModule._mockStore.Menu.push(
+  { dayOfWeek: '週六', restaurantName: '週末早午餐', category: '早午餐', itemName: '班尼迪克蛋', price: 150, isAvailable: 'TRUE', description: '' },
+  { dayOfWeek: '週日', restaurantName: '週末牛肉麵', category: '麵食', itemName: '紅燒牛肉麵', price: 160, isAvailable: 'TRUE', description: '' }
+);
+
+// Saturday morning before cutoff: 2026-09-12 10:00:00 Taiwan time (UTC 02:00)
+var satMorning = new Date('2026-09-12T02:00:00.000Z');
+globalThis._mockCurrentDate = satMorning;
+
+assert.strictEqual(OrderModule.isWeekendOrderingEnabled(), true, 'Weekend ordering should be enabled');
+assert.strictEqual(OrderModule.getTodayDayOfWeek(satMorning), '週六', 'Saturday should be todayDay when weekend enabled');
+var allDays7 = OrderModule.getDaysOfWeek();
+assert.strictEqual(allDays7.length, 7, 'getDaysOfWeek() must return 7 days when weekend ordering enabled');
+assert.strictEqual(allDays7[5], '週六');
+assert.strictEqual(allDays7[6], '週日');
+
+// Saturday before cutoff: none of Sat, Sun, Mon are past
+assert.strictEqual(OrderModule.isDayPast('週六', satMorning), false);
+assert.strictEqual(OrderModule.isDayPast('週日', satMorning), false);
+assert.strictEqual(OrderModule.isDayPast('週一', satMorning), false);
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週六', satMorning), false);
+
+// E. Order for Saturday today "+1 班尼迪克蛋"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sat_today',
+  source: { userId: 'usr_sat_weekend', displayName: '週末饕客' },
+  message: { type: 'text', text: '+1 班尼迪克蛋' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Saturday today order should succeed');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 1);
+assert.strictEqual(SheetModule._mockStore.Orders[0].dayOfWeek, '週六');
+assert.strictEqual(SheetModule._mockStore.Orders[0].itemName, '班尼迪克蛋');
+
+// F. Order for Sunday tomorrow "週日+1 紅燒牛肉麵"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sun_tomorrow',
+  source: { userId: 'usr_sat_weekend', displayName: '週末饕客' },
+  message: { type: 'text', text: '週日+1 紅燒牛肉麵' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Sunday order should succeed');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 2);
+assert.strictEqual(SheetModule._mockStore.Orders[1].dayOfWeek, '週日');
+assert.strictEqual(SheetModule._mockStore.Orders[1].itemName, '紅燒牛肉麵');
+
+// G. Order for next week Monday "週一+1 招牌排骨飯"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_mon_next',
+  source: { userId: 'usr_sat_weekend', displayName: '週末饕客' },
+  message: { type: 'text', text: '週一+1 招牌排骨飯' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Next Monday order should succeed');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 3);
+assert.strictEqual(SheetModule._mockStore.Orders[2].dayOfWeek, '週一');
+
+// H. Saturday after cutoff: 2026-09-12 11:30:00 Taiwan time (UTC 03:30)
+var satAfterCutoff = new Date('2026-09-12T03:30:00.000Z');
+globalThis._mockCurrentDate = satAfterCutoff;
+assert.strictEqual(OrderModule.isTodayCutoffPassed('週六', satAfterCutoff), true, 'Saturday cutoff should pass at 11:30');
+
+// Trying to order for Saturday today after cutoff should fail
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sat_late',
+  source: { userId: 'usr_late', displayName: '遲到者' },
+  message: { type: 'text', text: '週六+1 班尼迪克蛋' }
+});
+assert.ok(lastReply && lastReply.type === 'text', 'Should reject Saturday order after cutoff');
+assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'));
+assert.strictEqual(SheetModule._mockStore.Orders.length, 3, 'No order should be added after Saturday cutoff');
+
+// But ordering for Sunday or Monday after Saturday cutoff still succeeds!
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_sun_valid',
+  source: { userId: 'usr_late', displayName: '遲到者' },
+  message: { type: 'text', text: '週日+1 紅燒牛肉麵' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Sunday order after Saturday cutoff must succeed');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 4);
+
+// I. Day Specific Menus for Saturday & Sunday
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_menu_sat',
+  source: { userId: 'usr_sat_weekend', displayName: '週末饕客' },
+  message: { type: 'text', text: '週六菜單' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastReply.altText.includes('週末早午餐'));
+
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_menu_sun',
+  source: { userId: 'usr_sat_weekend', displayName: '週末饕客' },
+  message: { type: 'text', text: 'sunday menu' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(lastReply.altText.includes('週末牛肉麵'));
+
+// J. Weekly Order Summary with Weekend
+var weeklySummary7 = SheetModule.getWeeklyOrderSummary();
+assert.strictEqual(weeklySummary7.daySummaries.length, 7, 'Weekly summary must have 7 days when weekend enabled');
+var satSummary = weeklySummary7.daySummaries.find(function (ds) { return ds.dayOfWeek === '週六'; });
+var sunSummary = weeklySummary7.daySummaries.find(function (ds) { return ds.dayOfWeek === '週日'; });
+assert.ok(satSummary && satSummary.totalQuantity === 1, 'Saturday summary should record 1 item');
+assert.ok(sunSummary && sunSummary.totalQuantity === 2, 'Sunday summary should record 2 items');
+
+// K. Personal Weekly Query "本週訂單" includes weekend items
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_my_weekly_7',
+  source: { userId: 'usr_sat_weekend', displayName: '週末饕客' },
+  message: { type: 'text', text: '本週訂單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('【週六 🔒[已截止]】班尼迪克蛋'), 'Saturday order must show with cutoff tag');
+assert.ok(lastReply.text.includes('【週日】紅燒牛肉麵'), 'Sunday order must show');
+assert.ok(lastReply.text.includes('【週一】招牌排骨飯'), 'Monday order must show');
+
+// L. Cancellation on Weekend
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_cancel_sun',
+  source: { userId: 'usr_sat_weekend', displayName: '週末饕客' },
+  message: { type: 'text', text: '取消 週日 紅燒牛肉麵' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已為您取消') && lastReply.text.includes('週日') && lastReply.text.includes('紅燒牛肉麵'));
+
+// Cleanup weekend test state
+SheetModule._mockStore.Config['ALLOW_WEEKEND_ORDERING'] = 'false';
+SheetModule._mockStore.WeeklySchedule = SheetModule._mockStore.WeeklySchedule.filter(function (s) {
+  return s.dayOfWeek !== '週六' && s.dayOfWeek !== '週日';
+});
+SheetModule._mockStore.Menu = SheetModule._mockStore.Menu.filter(function (m) {
+  return m.dayOfWeek !== '週六' && m.dayOfWeek !== '週日';
+});
+SheetModule._mockStore.Orders = [];
+globalThis._mockCurrentDate = null;
+
+console.log('  ✔ Saturday pre-ordering, weekend ordering toggle, cutoff, summary & cancel verified.\n');
+
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
+
