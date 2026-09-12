@@ -189,6 +189,9 @@ npm run bundle
   預設啟用 **`USER_IDENTIFIER_MODE: 'HASHED_ID'`**，採用不可逆的單向加鹽 HMAC-SHA256 雜湊（產生如 `usr_8f9c21b4a7d3e5f0`）取代明文 User ID，在 Google 試算表中絕不留存真實 LINE User ID，即使開放共用試算表檢視權限亦完全無從反查真實帳號。系統同時提供 `NICKNAME`（零技術 ID 純暱稱索引）與 `USER_ID`（傳統模式）供自訂，並可透過 Apps Script 內部屬性 `ORGANIZER_PUSH_ID` 以逗號分隔格式靈活支援「多開單人家長自動辨識推播」或「幹部廣播」，兼顧群組輪流開單與個資私密性。詳情請參閱 [docs/deployment_guide.md#q13使用者個人資料保護與隱私去識別化機制-privacy-protection--de-identification](docs/deployment_guide.md#q13使用者個人資料保護與隱私去識別化機制-privacy-protection--de-identification)。
 - **如何將現有存有明文 LINE User ID 的舊試算表升級為雜湊去識別化？**
   本系統提供**雙軌向下相容**（無需修改歷史資料，新訂單自動雜湊且舊訂單依然能正常查單/退訂）。若想徹底抹除歷史明文 User ID，只需更新 [`dist/Code.gs`](dist/Code.gs) 後，點選 Google 試算表選單「`🍱 便當訂餐管理` ➡️ `🔒 一鍵升級歷史 ID 為去識別化雜湊`」，系統即會以批次作業自動將 `Orders`、`Children`、`Config` 內的所有歷史明文 User ID 轉換為 `usr_...` 雜湊代號，具備不重複轉換之冪等性保護。詳情請參閱 [docs/deployment_guide.md#3-如何將現有存有明文-line-user-id-的試算表升級為去識別化雜湊-id](docs/deployment_guide.md#3-如何將現有存有明文-line-user-id-的試算表升級為去識別化雜湊-id)。
+- **週六/週末點餐與預約下週餐點？支援週末（週六、週日）開單點餐嗎？**
+  - **週六預約下週餐點**：平日模式下（預設 `ALLOW_WEEKEND_ORDERING: 'false'`），只要開單人開放點餐 (`IS_ORDERING_OPEN: 'true'`)，成員在週六即可自由預訂下週一至週五餐點（例如輸入「`+1 招牌排骨飯`」預設預約下週一，或「`週二+1 酥炸雞腿飯`」預約下週二）。下週平日梯次在週六絕不被誤判為已過期！
+  - **支援週末訂餐 (`ALLOW_WEEKEND_ORDERING`)**：若週末亦有活動、自習或活動便當需求，只需在 `Config` 工作表中將 `ALLOW_WEEKEND_ORDERING` 設為 `true`，系統即自動擴展為 7 天週期，全面支援週六與週日排程、菜單、點餐截單、結單與統計匯總。詳情請參閱 [docs/deployment_guide.md#q15週末點餐與週六預點下週餐點功能說明-allow_weekend_ordering](docs/deployment_guide.md#q15週末點餐與週六預點下週餐點功能說明-allow_weekend_ordering)。
 
 ---
 
