@@ -746,6 +746,16 @@ function handleTextMessage(event) {
     return k;
   };
 
+  var _displayDay = function (sheetDay) {
+    if (typeof I18nModule !== 'undefined' && I18nModule && typeof I18nModule.displayDayOfWeek === 'function') {
+      return I18nModule.displayDayOfWeek(sheetDay, userLocale);
+    }
+    if (typeof displayDayOfWeek === 'function') {
+      return displayDayOfWeek(sheetDay, userLocale);
+    }
+    return sheetDay;
+  };
+
   var _getCmdRegex = function (cmdKey, fallbackRegex) {
     if (typeof I18nModule !== 'undefined' && I18nModule && typeof I18nModule.buildCommandRegex === 'function') {
       return I18nModule.buildCommandRegex(cmdKey);
@@ -930,29 +940,57 @@ function handleTextMessage(event) {
   }
 
   // Helper to format payment text for personal order queries
-  function _formatPaymentText(payInfo) {
+  function _formatPaymentText(payInfo, loc) {
     if (!payInfo || !payInfo.hasPaymentInfo) return '';
-    var pLines = ['\n💳【付款資訊】'];
+    var l = loc || userLocale || 'zh-TW';
+    if (l === 'zh-TW') {
+      var pLines = ['\n💳【付款資訊】'];
+      if (payInfo.bankAccount || payInfo.bankCode || payInfo.bankQrUrl) {
+        var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || '');
+        if (payInfo.bankAccount) {
+          pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+        }
+        if (payInfo.bankQrUrl) {
+          pLines.push('• 銀行轉帳 QR Code：' + payInfo.bankQrUrl);
+        }
+      }
+      if (payInfo.linePayUrl) {
+        if (payInfo.isPersonalLinePay) {
+          var idHint = payInfo.linePayUserId ? ' (LINE ID: ' + payInfo.linePayUserId + ')' : '';
+          pLines.push('• LINE Pay 好友轉帳：' + payInfo.linePayUrl);
+          pLines.push('  (請於錢包點選「轉帳」搜尋好友「' + payInfo.linePayRecipientName + '」' + idHint + ')');
+        } else {
+          pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+        }
+      }
+      if (payInfo.linePayQrUrl) {
+        pLines.push('• LINE Pay 收款碼：' + payInfo.linePayQrUrl);
+      }
+      return pLines.join('\n');
+    }
+
+    // Localized version
+    var pLines = ['\n' + _translateMsg('payment.info_title')];
     if (payInfo.bankAccount || payInfo.bankCode || payInfo.bankQrUrl) {
-      var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || '');
+      var bankStr = (payInfo.bankCode ? payInfo.bankCode + ' ' : '') + (payInfo.bankName || _translateMsg('payment.bank_transfer'));
       if (payInfo.bankAccount) {
-        pLines.push('• 銀行轉帳：' + bankStr + ' 帳號 ' + payInfo.bankAccount + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
+        pLines.push(_translateMsg('payment.bank_transfer_bullet') + bankStr + ' ' + _translateMsg('payment.account_number', { account: payInfo.bankAccount }) + (payInfo.bankAccountName ? ' (' + payInfo.bankAccountName + ')' : ''));
       }
       if (payInfo.bankQrUrl) {
-        pLines.push('• 銀行轉帳 QR Code：' + payInfo.bankQrUrl);
+        pLines.push(_translateMsg('payment.bank_qr_bullet') + payInfo.bankQrUrl);
       }
     }
     if (payInfo.linePayUrl) {
       if (payInfo.isPersonalLinePay) {
         var idHint = payInfo.linePayUserId ? ' (LINE ID: ' + payInfo.linePayUserId + ')' : '';
-        pLines.push('• LINE Pay 好友轉帳：' + payInfo.linePayUrl);
-        pLines.push('  (請於錢包點選「轉帳」搜尋好友「' + payInfo.linePayRecipientName + '」' + idHint + ')');
+        pLines.push(_translateMsg('payment.linepay_friend_bullet') + payInfo.linePayUrl);
+        pLines.push('  (' + _translateMsg('payment.linepay_hint', { recipient: payInfo.linePayRecipientName, idHint: idHint }) + ')');
       } else {
-        pLines.push('• LINE Pay 轉帳：' + payInfo.linePayUrl);
+        pLines.push(_translateMsg('payment.linepay_bullet') + payInfo.linePayUrl);
       }
     }
     if (payInfo.linePayQrUrl) {
-      pLines.push('• LINE Pay 收款碼：' + payInfo.linePayQrUrl);
+      pLines.push(_translateMsg('payment.linepay_qr_bullet') + payInfo.linePayQrUrl);
     }
     return pLines.join('\n');
   }
@@ -970,24 +1008,38 @@ function handleTextMessage(event) {
         var daySub = 0;
         var isPast = isDayPast(d);
         var isCutoff = (d === todayDay) && isTodayCutoffPassed(d);
-        var lockTag = isPast ? ' 🔒[已過期]' : (isCutoff ? ' 🔒[已截止]' : '');
+        var lockTag = '';
+        if (isPast) {
+          lockTag = (userLocale === 'zh-TW') ? ' 🔒[已過期]' : (' 🔒[' + _translateMsg('cancel.reason_expired') + ']');
+        } else if (isCutoff) {
+          lockTag = (userLocale === 'zh-TW') ? ' 🔒[已截止]' : (' 🔒[' + _translateMsg('cancel.reason_cutoff') + ']');
+        }
         var itemsText = dOrders.map(function (o) {
           daySub += o.subtotal;
           var childTag = o.childName ? ' [' + o.childName + ']' : '';
           return o.itemName + childTag + ' x' + o.quantity + ' ($' + o.subtotal + ')';
-        }).join('、');
+        }).join(userLocale === 'zh-TW' ? '、' : ', ');
         grandTotal += daySub;
-        lines.push('【' + d + lockTag + '】' + itemsText + ' (小計 $' + daySub + ')');
+        var subtotalText = (userLocale === 'zh-TW')
+          ? (' (小計 $' + daySub + ')')
+          : _translateMsg('my_orders.subtotal', { subtotal: daySub });
+        var displayD = (userLocale === 'zh-TW') ? d : (_displayDay(d) || d);
+        lines.push('【' + displayD + lockTag + '】' + itemsText + subtotalText);
       }
     });
 
     if (lines.length === 0) {
-      return LineModule.replyText(replyToken, '您本週（週一至週五）尚未有任何預訂紀錄喔！');
+      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您本週（週一至週五）尚未有任何預訂紀錄喔！' : _translateMsg('my_orders.no_weekly_orders'));
     }
 
     var payInfoWeekly = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var payTextWeekly = _formatPaymentText(payInfoWeekly);
-    var weeklyMsg = '🍱【您的本週梯次訂單】\n' + lines.join('\n') + '\n─────\n本週總計：$' + grandTotal + ' 元' + payTextWeekly;
+    var payTextWeekly = _formatPaymentText(payInfoWeekly, userLocale);
+    var weeklyMsg;
+    if (userLocale === 'zh-TW') {
+      weeklyMsg = '🍱【您的本週梯次訂單】\n' + lines.join('\n') + '\n─────\n本週總計：$' + grandTotal + ' 元' + payTextWeekly;
+    } else {
+      weeklyMsg = _translateMsg('my_orders.weekly_title') + '\n' + lines.join('\n') + '\n─────\n' + _translateMsg('my_orders.weekly_total', { amount: grandTotal }) + payTextWeekly;
+    }
     return LineModule.replyText(replyToken, weeklyMsg);
   }
 
@@ -999,10 +1051,13 @@ function handleTextMessage(event) {
       myOrders = SheetModule.getUserOrders(userId, groupId, todayDate, null, userDisplayName);
     }
     if (!myOrders || myOrders.length === 0) {
-      return LineModule.replyText(replyToken, '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。');
+      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您今日尚未有訂餐紀錄喔！可以直接輸入「+1 [餐點名稱]」點餐。' : _translateMsg('my_orders.no_today_orders'));
     }
     var isCutoff = isTodayCutoffPassed(todayDay);
-    var statusTag = isCutoff ? ' 🔒[已截止]' : '';
+    var statusTag = '';
+    if (isCutoff) {
+      statusTag = (userLocale === 'zh-TW') ? ' 🔒[已截止]' : (' 🔒[' + _translateMsg('cancel.reason_cutoff') + ']');
+    }
     var total = 0;
     var myLines = myOrders.map(function (o) {
       total += o.subtotal;
@@ -1010,9 +1065,16 @@ function handleTextMessage(event) {
       return '• ' + o.itemName + childTag + ' x' + o.quantity + ' ($' + o.subtotal + ')' + statusTag;
     });
     var payInfoToday = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
-    var payTextToday = _formatPaymentText(payInfoToday);
-    var cutoffNotice = isCutoff ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : '';
-    var msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + cutoffNotice + payTextToday;
+    var payTextToday = _formatPaymentText(payInfoToday, userLocale);
+    var cutoffNotice = isCutoff
+      ? ((userLocale === 'zh-TW') ? '\n⚠️ 今日點餐已超過截止時間，不可修改或取消餐點。' : _translateMsg('my_orders.cutoff_notice'))
+      : '';
+    var msg;
+    if (userLocale === 'zh-TW') {
+      msg = '【您的今日訂單】\n' + myLines.join('\n') + '\n─────\n總計：$' + total + ' 元' + cutoffNotice + payTextToday;
+    } else {
+      msg = _translateMsg('my_orders.today_title') + '\n' + myLines.join('\n') + '\n─────\n' + _translateMsg('my_orders.today_total', { amount: total }) + cutoffNotice + payTextToday;
+    }
     return LineModule.replyText(replyToken, msg);
   }
 
@@ -1664,9 +1726,21 @@ function handleTextMessage(event) {
       ? SheetModule.getUserOrders(userId, groupId, null, null, userDisplayName)
       : SheetModule.getUserOrders(userId, groupId, todayDate, lastAdded.dayOfWeek, userDisplayName);
 
-    var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly });
+    var receiptFlex = FlexModule.createOrderReceiptFlex(userDisplayName, lastAdded, allMyOrders, { isWeekly: isWeekly, locale: userLocale });
     var altSuffix = isWeekly ? '（本週）' : '';
-    return LineModule.replyFlex(replyToken, '訂單已記錄' + (altSuffix ? altSuffix + '：' : '：') + lastAdded.dayOfWeek + ' ' + lastAdded.itemName, receiptFlex);
+    var altText;
+    if (userLocale === 'zh-TW') {
+      altText = '訂單已記錄' + (altSuffix ? altSuffix + '：' : '：') + lastAdded.dayOfWeek + ' ' + lastAdded.itemName;
+    } else {
+      var suffixLabel = isWeekly ? ' (' + _translateMsg('stats.weekly_title') + ')' : '';
+      var displayD = _displayDay(lastAdded.dayOfWeek) || lastAdded.dayOfWeek;
+      altText = _translateMsg('receipt.alt_text', {
+        suffix: suffixLabel,
+        day: displayD,
+        item: lastAdded.itemName
+      });
+    }
+    return LineModule.replyFlex(replyToken, altText, receiptFlex);
   }
 
   return null;
