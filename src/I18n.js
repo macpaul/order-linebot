@@ -165,6 +165,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 點擊「+1 點餐」按鈕即可直接加訂！',
     'menu.footer_hint2': '亦可輸入「{day}菜名+數量」或「取消 菜名」',
     'menu.alt_text': '【訂餐開始】{restaurant} 菜單',
+    'menu.page_indicator': '📄 第 {page} / {total} 頁 (共 {total} 頁)',
+    'menu.more_pages_hint': '📖 查看更多菜單品項 · 請點選頁數（共 {total} 頁）：',
+    'menu.btn_page': '📄 第 {page} 頁',
+    'menu.page_footer': '📄 目前為第 {page} / {total} 頁 · 全店共 {items} 道餐點',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ 取消訂單選單',
@@ -387,6 +391,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 Tap "+1 Order" button to place your order!',
     'menu.footer_hint2': 'Or type "{day} [item] + [qty]" or "cancel [item]"',
     'menu.alt_text': '[Ordering Open] {restaurant} Menu',
+    'menu.page_indicator': '📄 Page {page} / {total} (Total {total} pages)',
+    'menu.more_pages_hint': '📖 View more items · Tap a page number (Total {total} pages):',
+    'menu.btn_page': '📄 Page {page}',
+    'menu.page_footer': '📄 Currently page {page} / {total} · {items} items in total',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ Cancel Orders',
@@ -609,6 +617,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡「+1 注文」ボタンをタップして直接追加注文できます！',
     'menu.footer_hint2': 'または「{day} [メニュー]+[数量]」や「取消 [メニュー]」と入力',
     'menu.alt_text': '【注文受付中】{restaurant} メニュー',
+    'menu.page_indicator': '📄 {page} / {total} ページ (全 {total} ページ)',
+    'menu.more_pages_hint': '📖 他のメニュー項目を表示 · ページ番号を選択（全 {total} ページ）：',
+    'menu.btn_page': '📄 {page} ページ',
+    'menu.page_footer': '📄 現在 {page} / {total} ページ · 全 {items} 品目',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ 注文取消メニュー',
@@ -831,6 +843,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': "💡 '+1 주문' 버튼을 눌러 바로 추가 주문하세요!",
     'menu.footer_hint2': "또는 '{day} [메뉴]+[수량]' 이나 '취소 [메뉴]' 를 입력하세요",
     'menu.alt_text': '[주문 시작] {restaurant} 메뉴',
+    'menu.page_indicator': '📄 {page} / {total} 페이지 (총 {total} 페이지)',
+    'menu.more_pages_hint': '📖 추가 메뉴 보기 · 페이지 번호를 선택하세요 (총 {total} 페이지):',
+    'menu.btn_page': '📄 {page} 페이지',
+    'menu.page_footer': '📄 현재 {page} / {total} 페이지 · 총 {items}개 메뉴',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ 주문 취소 메뉴',
@@ -1053,6 +1069,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 แตะปุ่ม "+1 สั่ง" เพื่อสั่งอาหารเพิ่มได้ทันที!',
     'menu.footer_hint2': 'หรือพิมพ์ "{day} [ชื่ออาหาร] + [จำนวน]" หรือ "ยกเลิก [ชื่ออาหาร]"',
     'menu.alt_text': '[เปิดรับออเดอร์] เมนู {restaurant}',
+    'menu.page_indicator': '📄 หน้า {page} / {total} (ทั้งหมด {total} หน้า)',
+    'menu.more_pages_hint': '📖 ดูรายการเพิ่มเติม · แตะเลือกหน้า (ทั้งหมด {total} หน้า):',
+    'menu.btn_page': '📄 หน้า {page}',
+    'menu.page_footer': '📄 ขณะนี้หน้า {page} / {total} · มีทั้งหมด {items} รายการ',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ เมนูยกเลิกออเดอร์',
@@ -1275,6 +1295,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 Ketuk tombol "+1 Pesan" untuk langsung memesan tambahan!',
     'menu.footer_hint2': 'Atau ketik "{day} [menu] + [jumlah]" atau "batal [menu]"',
     'menu.alt_text': '[Pemesanan Dibuka] Menu {restaurant}',
+    'menu.page_indicator': '📄 Halaman {page} / {total} (Total {total} halaman)',
+    'menu.more_pages_hint': '📖 Lihat menu lainnya · Pilih halaman (Total {total} halaman):',
+    'menu.btn_page': '📄 Hal {page}',
+    'menu.page_footer': '📄 Saat ini halaman {page} / {total} · Total {items} menu',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ Menu Batalkan Pesanan',
