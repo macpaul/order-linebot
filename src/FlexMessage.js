@@ -1723,8 +1723,12 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
   var titleText = (loc === 'zh-TW')
     ? (isClosed ? '📊 本週梯次結單總表' : '📊 本週梯次訂餐統計總表')
     : (isClosed ? _translateHelper('stats.weekly_title_closed', {}, loc) : _translateHelper('stats.weekly_title', {}, loc));
+  var hasWeekend = summary && summary.daySummaries && summary.daySummaries.some(function (ds) {
+    return ds.dayOfWeek === '週六' || ds.dayOfWeek === '週日';
+  });
+  var headerSubScope = hasWeekend ? '本週全梯次 總計 ' : '週一至週五 總計 ';
   var headerSub = (loc === 'zh-TW')
-    ? ('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元')
+    ? (headerSubScope + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元')
     : _translateHelper('stats.total_summary', { qty: summary.grandTotalQuantity || 0, amount: summary.grandTotalAmount || 0 }, loc);
   var headerBg = isClosed ? FLEX_COLORS.primaryDark : FLEX_COLORS.primary;
   var footerMsg = isClosed
