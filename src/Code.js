@@ -84,7 +84,7 @@ function showUberEatsImportDialog() {
   if (typeof SpreadsheetApp === 'undefined') return;
   var ui = SpreadsheetApp.getUi();
 
-  var dayPrompt = ui.prompt('匯入 Uber Eats 菜單 (步驟 1/2)', '請輸入要排程的星期（例如：週一、週二、週三、週四、週五 或 ALL）：', ui.ButtonSet.OK_CANCEL);
+  var dayPrompt = ui.prompt('匯入 Uber Eats 菜單 (步驟 1/2)', '請輸入要排程的星期（例如：週一至週五、週六、週日 或 ALL）：', ui.ButtonSet.OK_CANCEL);
   if (dayPrompt.getSelectedButton() !== ui.Button.OK) return;
   var dayOfWeek = dayPrompt.getResponseText().trim();
   if (!dayOfWeek) dayOfWeek = '週一';
@@ -144,7 +144,7 @@ function showCustomRestaurantImportDialog() {
 
   var dayPrompt = ui.prompt(
     '匯入自訂餐廳菜單 (步驟 1/2)',
-    '請輸入要排程的星期（例如：週一、週二、週三、週四、週五 或 ALL）：',
+    '請輸入要排程的星期（例如：週一至週五、週六、週日 或 ALL）：',
     ui.ButtonSet.OK_CANCEL
   );
   if (dayPrompt.getSelectedButton() !== ui.Button.OK) return;
