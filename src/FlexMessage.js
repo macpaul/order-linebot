@@ -2167,6 +2167,7 @@ function createLanguageSelectFlex(currentLocale) {
       createWeeklySummaryFlex: createWeeklySummaryFlex,
       createChildrenListFlex: createChildrenListFlex,
       createChildrenHelpFlex: createChildrenHelpFlex,
+      createLanguageSelectFlex: createLanguageSelectFlex,
       // Internal helpers exposed for Node.js testing.
       _flexText: _flexText,
       _flexBox: _flexBox,
