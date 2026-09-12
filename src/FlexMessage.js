@@ -277,16 +277,25 @@ function _calcOrderTotal(orders) {
  * @param {string} [dayOfWeek] - Optional day of week (e.g. "週一", "週二").
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale) {
+function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale, page, pageSize) {
   var loc = _resolveLocale(locale);
-  var groups = _groupMenuByCategory(menuItems);
+  var allItems = Array.isArray(menuItems) ? menuItems : [];
+  var totalItems = allItems.length;
+  var effPageSize = (typeof pageSize === 'number' && pageSize > 0) ? pageSize : 20;
+  var totalPages = Math.max(1, Math.ceil(totalItems / effPageSize));
+  var curPage = Math.max(1, Math.min(parseInt(page, 10) || 1, totalPages));
+
+  var startIndex = (curPage - 1) * effPageSize;
+  var pageItems = allItems.slice(startIndex, startIndex + effPageSize);
+  var groups = _groupMenuByCategory(pageItems);
+
   var displayDay = dayOfWeek ? _displayDayHelper(dayOfWeek, loc) : '';
   var dayBadge = displayDay ? '【' + displayDay + '】' : '';
   var titleSuffix = _translateHelper('menu.title_suffix', {}, loc);
   var headerTitle = restaurantName ? (restaurantName + titleSuffix) : _translateHelper('stats.today_title', {}, loc);
 
   /* ---- header ---- */
-  var header = _flexBox([
+  var headerTexts = [
     _flexText(dayBadge + headerTitle, {
       size: 'xl',
       weight: 'bold',
@@ -299,7 +308,19 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
       align: 'start',
       margin: 'xs'
     })
-  ], {
+  ];
+
+  if (totalPages > 1) {
+    headerTexts.push(_flexText(_translateHelper('menu.page_indicator', { page: curPage, total: totalPages }, loc), {
+      size: 'xs',
+      weight: 'bold',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start',
+      margin: 'xs'
+    }));
+  }
+
+  var header = _flexBox(headerTexts, {
     layout: 'vertical',
     spacing: 'none',
     paddingAll: 'lg',
@@ -310,7 +331,6 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   /* ---- body: category sections ---- */
   var bodyContents = [];
   var totalRendered = 0;
-  var MAX_ITEMS_PER_MENU = 35;
 
   if (groups.length === 0) {
     bodyContents.push(_flexText('（' + _translateHelper('stats.no_orders', {}, loc) + '）', {
@@ -321,8 +341,6 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
     }));
   } else {
     groups.forEach(function (group, gi) {
-      if (totalRendered >= MAX_ITEMS_PER_MENU) return;
-
       // Category heading
       bodyContents.push(_flexText('【' + group.category + '】', {
         size: 'md',
@@ -334,7 +352,6 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
 
       // Item rows with order buttons
       group.items.forEach(function (item) {
-        if (totalRendered >= MAX_ITEMS_PER_MENU) return;
         totalRendered++;
 
         var name = item.itemName || '';
@@ -413,6 +430,44 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
         }));
       });
     });
+
+    // Pagination buttons if multiple pages exist
+    if (totalPages > 1) {
+      bodyContents.push(_flexSeparator({ margin: 'md' }));
+      bodyContents.push(_flexText(_translateHelper('menu.more_pages_hint', { total: totalPages }, loc), {
+        size: 'xs',
+        weight: 'bold',
+        color: FLEX_COLORS.primaryDark,
+        align: 'start',
+        margin: 'sm'
+      }));
+
+      var pageButtons = [];
+      for (var p = 1; p <= totalPages; p++) {
+        if (p === curPage) continue;
+        var pCmd = (dayOfWeek ? dayOfWeek + '菜單 ' : '菜單 ') + '第' + p + '頁';
+        pageButtons.push({
+          type: 'button',
+          action: {
+            type: 'message',
+            label: _translateHelper('menu.btn_page', { page: p }, loc),
+            text: pCmd
+          },
+          style: 'primary',
+          color: FLEX_COLORS.primary,
+          height: 'sm'
+        });
+      }
+
+      for (var bi = 0; bi < pageButtons.length; bi += 3) {
+        var rowBtns = pageButtons.slice(bi, bi + 3);
+        bodyContents.push(_flexBox(rowBtns, {
+          layout: 'horizontal',
+          spacing: 'sm',
+          margin: 'xs'
+        }));
+      }
+    }
   }
 
   var body = _flexBox(bodyContents, {
@@ -426,7 +481,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   var footerText1 = _translateHelper('menu.footer_hint1', {}, loc);
   var footerText2 = _translateHelper('menu.footer_hint2', { day: displayDay ? displayDay + ' ' : '' }, loc);
 
-  var footer = _flexBox([
+  var footerContents = [
     _flexText(footerText1, {
       size: 'xs',
       weight: 'bold',
@@ -439,7 +494,18 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
       align: 'center',
       margin: 'xs'
     })
-  ], {
+  ];
+
+  if (totalPages > 1) {
+    footerContents.push(_flexText(_translateHelper('menu.page_footer', { page: curPage, total: totalPages, items: totalItems }, loc), {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'xs'
+    }));
+  }
+
+  var footer = _flexBox(footerContents, {
     layout: 'vertical',
     paddingAll: 'sm',
     backgroundColor: FLEX_COLORS.background
