@@ -852,8 +852,10 @@ function handleTextMessage(event) {
 
   // 1-1. LANGUAGE SETTINGS: 設定語言 / 切換語言 / lang / language
   var langCmdRegex = _getCmdRegex('cmd.lang', /^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language)$/i);
-
-  var langParamMatch = text.match(/^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language|set language|switch language)\s+([a-zA-Z\-_]+)$/i);
+  var langPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern)
+    ? I18nModule.buildCommandPrefixPattern('cmd.lang')
+    : '(?:\\/)?(?:設定語言|切換語言|語言設定|語言|lang|language|set language|switch language)';
+  var langParamMatch = text.match(new RegExp('^' + langPrefix + '\\s+([a-zA-Z\\-_]+)$', 'i'));
   if (langCmdRegex.test(text) || langParamMatch) {
     var userLocaleEnabled = false;
     if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.isUserLocaleEnabled) {
