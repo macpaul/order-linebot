@@ -381,12 +381,13 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
             flex: 2
           };
         } else {
+          var soldOutLabel = _translateHelper('menu.sold_out', {}, loc);
           actionButton = {
             type: 'button',
             action: {
               type: 'message',
-              label: (loc === 'zh-TW' ? '已售完' : 'Sold Out'),
-              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + (loc === 'zh-TW' ? ' 已售完' : ' Sold Out')
+              label: soldOutLabel,
+              text: (dayOfWeek ? dayOfWeek + ' ' : '') + name + ' ' + soldOutLabel
             },
             style: 'secondary',
             height: 'sm',
@@ -422,12 +423,8 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   });
 
   /* ---- footer ---- */
-  var footerText1 = (loc === 'zh-TW')
-    ? '💡 點擊「+1 點餐」按鈕即可直接加訂！'
-    : ('💡 ' + _translateHelper('menu.btn_order', {}, loc));
-  var footerText2 = (loc === 'zh-TW')
-    ? ('亦可輸入「' + (dayOfWeek ? dayOfWeek + ' ' : '') + '菜名+數量」或「取消 菜名」')
-    : ('e.g. ' + (displayDay ? displayDay + ' ' : '') + '+1 [item]');
+  var footerText1 = _translateHelper('menu.footer_hint1', {}, loc);
+  var footerText2 = _translateHelper('menu.footer_hint2', { day: displayDay ? displayDay + ' ' : '' }, loc);
 
   var footer = _flexBox([
     _flexText(footerText1, {
@@ -476,10 +473,11 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
   var orders = userOrders || [];
   var total = _calcOrderTotal(orders);
   var isWeekly = options && options.isWeekly !== undefined ? !!options.isWeekly : true;
+  var loc = _resolveLocale(options && options.locale ? options.locale : null);
 
   /* ---- header ---- */
   var header = _flexBox([
-    _flexText('✅ 加購成功', {
+    _flexText(_translateHelper('receipt.title', {}, loc), {
       size: 'xl',
       weight: 'bold',
       color: FLEX_COLORS.textOnColor,
@@ -496,8 +494,11 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
   var bodyContents = [];
 
   // User label
-  var titleSuffix = isWeekly ? ' 的本週訂單' : ' 的今日訂單';
-  bodyContents.push(_flexText((userName || '成員') + titleSuffix, {
+  var memberName = userName || _translateHelper('common.member', {}, loc);
+  var userTitle = isWeekly
+    ? _translateHelper('receipt.weekly_user_orders', { name: memberName }, loc)
+    : _translateHelper('receipt.daily_user_orders', { name: memberName }, loc);
+  bodyContents.push(_flexText(userTitle, {
     size: 'lg',
     weight: 'bold',
     color: FLEX_COLORS.textPrimary,
@@ -509,7 +510,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
 
   // Order lines
   if (orders.length === 0) {
-    bodyContents.push(_flexText('（尚無項目）', {
+    bodyContents.push(_flexText(_translateHelper('receipt.no_items', {}, loc), {
       size: 'md',
       color: FLEX_COLORS.textSecondary,
       align: 'start'
@@ -519,7 +520,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
     var dayMap = {};
     var dayKeys = [];
     orders.forEach(function (o) {
-      var d = o.dayOfWeek || '今日';
+      var d = o.dayOfWeek || _translateHelper('common.today', {}, loc);
       if (!dayMap[d]) {
         dayMap[d] = [];
         dayKeys.push(d);
@@ -528,7 +529,8 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
     });
 
     dayKeys.forEach(function (day, di) {
-      bodyContents.push(_flexText('【' + day + '】', {
+      var displayDay = _displayDayHelper(day, loc);
+      bodyContents.push(_flexText(_translateHelper('common.bracket_open', {}, loc) + displayDay + _translateHelper('common.bracket_close', {}, loc), {
         size: 'sm',
         weight: 'bold',
         color: FLEX_COLORS.primaryDark,
@@ -607,7 +609,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
   bodyContents.push(_flexSeparator({ margin: 'md' }));
 
   // Grand total
-  var totalLabel = isWeekly ? '本週合計' : '合計';
+  var totalLabel = isWeekly ? _translateHelper('receipt.total_weekly', {}, loc) : _translateHelper('receipt.total_daily', {}, loc);
   bodyContents.push(_flexBox([
     _flexText(totalLabel, {
       size: 'lg',
@@ -637,7 +639,7 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
 
   /* ---- footer ---- */
   var footer = _flexBox([
-    _flexText('💡 回覆「取消」可開啟選單自選退訂特定餐點', {
+    _flexText(_translateHelper('receipt.cancel_hint', {}, loc), {
       size: 'xs',
       color: FLEX_COLORS.textSecondary,
       align: 'center'
@@ -662,14 +664,15 @@ function createOrderReceiptFlex(userName, addedItem, userOrders, options) {
  * @param {Object} paymentInfo
  * @returns {Array<Object>} Flex component array
  */
-function _buildPaymentContents(paymentInfo) {
+function _buildPaymentContents(paymentInfo, locale) {
   if (!paymentInfo || !paymentInfo.hasPaymentInfo) {
     return [];
   }
 
+  var loc = _resolveLocale(locale);
   var contents = [];
   contents.push(_flexSeparator({ margin: 'md' }));
-  contents.push(_flexText('💳 付款方式與匯款資訊', {
+  contents.push(_flexText(_translateHelper('payment.title', {}, loc), {
     weight: 'bold',
     size: 'sm',
     color: FLEX_COLORS.primaryDark,
@@ -678,7 +681,8 @@ function _buildPaymentContents(paymentInfo) {
 
   // Bank transfer block
   if (paymentInfo.bankAccount || paymentInfo.bankCode || paymentInfo.bankQrUrl) {
-    var bankTitle = (paymentInfo.bankCode ? paymentInfo.bankCode + ' ' : '') + (paymentInfo.bankName || '銀行跨行匯款');
+    var defaultBankName = _translateHelper('payment.bank_transfer', {}, loc);
+    var bankTitle = (paymentInfo.bankCode ? paymentInfo.bankCode + ' ' : '') + (paymentInfo.bankName || defaultBankName);
     var bankRows = [
       _flexText('🏦 ' + bankTitle, {
         size: 'sm',
@@ -688,7 +692,7 @@ function _buildPaymentContents(paymentInfo) {
     ];
 
     if (paymentInfo.bankAccount) {
-      bankRows.push(_flexText('帳號：' + paymentInfo.bankAccount, {
+      bankRows.push(_flexText(_translateHelper('payment.account_number', { account: paymentInfo.bankAccount }, loc), {
         size: 'sm',
         weight: 'bold',
         color: FLEX_COLORS.textPrimary,
@@ -697,7 +701,7 @@ function _buildPaymentContents(paymentInfo) {
     }
 
     if (paymentInfo.bankAccountName) {
-      bankRows.push(_flexText('戶名：' + paymentInfo.bankAccountName, {
+      bankRows.push(_flexText(_translateHelper('payment.account_name', { name: paymentInfo.bankAccountName }, loc), {
         size: 'xs',
         color: FLEX_COLORS.textSecondary,
         margin: 'xs'
@@ -716,11 +720,11 @@ function _buildPaymentContents(paymentInfo) {
         align: 'center',
         action: {
           type: 'uri',
-          label: '放大檢視',
+          label: _translateHelper('payment.zoom_qr', {}, loc),
           uri: paymentInfo.bankQrUrl
         }
       });
-      bankRows.push(_flexText('🔍 點擊 QR Code 可放大檢視或截圖掃碼轉帳', {
+      bankRows.push(_flexText(_translateHelper('payment.qr_hint', {}, loc), {
         size: 'xxs',
         color: FLEX_COLORS.textSecondary,
         align: 'center',
@@ -728,7 +732,7 @@ function _buildPaymentContents(paymentInfo) {
       }));
     }
 
-    bankRows.push(_flexText('💡 轉帳完成後請私訊或於群組告知主揪以利對帳', {
+    bankRows.push(_flexText(_translateHelper('payment.notify_hint', {}, loc), {
       size: 'xxs',
       color: FLEX_COLORS.textSecondary,
       margin: 'xs'
@@ -746,7 +750,7 @@ function _buildPaymentContents(paymentInfo) {
   // LINE Pay button & QR
   if (paymentInfo.linePayUrl || paymentInfo.linePayQrUrl || paymentInfo.isPersonalLinePay) {
     if (paymentInfo.linePayUrl && /^(?:https|line):\/\//i.test(paymentInfo.linePayUrl)) {
-      var buttonLabel = paymentInfo.isPersonalLinePay ? '🟢 開啟 LINE 錢包轉帳' : '🟢 前往 LINE Pay 轉帳';
+      var buttonLabel = paymentInfo.isPersonalLinePay ? _translateHelper('payment.btn_wallet', {}, loc) : _translateHelper('payment.btn_linepay', {}, loc);
       contents.push({
         type: 'button',
         action: {
@@ -762,7 +766,7 @@ function _buildPaymentContents(paymentInfo) {
 
       if (paymentInfo.isPersonalLinePay) {
         var idHint = paymentInfo.linePayUserId ? ' (LINE ID: ' + paymentInfo.linePayUserId + ')' : '';
-        contents.push(_flexText('📱 請於錢包點選「轉帳」並搜尋好友：「' + paymentInfo.linePayRecipientName + '」' + idHint, {
+        contents.push(_flexText(_translateHelper('payment.linepay_hint', { recipient: paymentInfo.linePayRecipientName, idHint: idHint }, loc), {
           size: 'xxs',
           color: FLEX_COLORS.textSecondary,
           align: 'center',
@@ -783,7 +787,7 @@ function _buildPaymentContents(paymentInfo) {
         align: 'center',
         action: {
           type: 'uri',
-          label: 'LINE Pay 收款碼',
+          label: _translateHelper('payment.linepay_qr', {}, loc),
           uri: paymentInfo.linePayQrUrl
         }
       });
@@ -955,7 +959,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
   // Member billing & order roster (今日成員應付明細與點餐名冊)
   if (data.users && data.users.length > 0) {
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 今日成員應付名冊' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), {
+    bodyContents.push(_flexText(_translateHelper('stats.member_roster_today', {}, loc), {
       weight: 'bold',
       size: 'sm',
       color: FLEX_COLORS.textPrimary,
@@ -965,7 +969,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
     data.users.forEach(function (u) {
       var userItemsStr = (u.items && u.items.length > 0) ? u.items.join('、') : '';
       var userColChildren = [
-        _flexText(u.userName || (loc === 'zh-TW' ? '成員' : 'Member'), {
+        _flexText(u.userName || _translateHelper('common.member', {}, loc), {
           size: 'sm',
           weight: 'bold',
           color: FLEX_COLORS.textPrimary
@@ -1006,7 +1010,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
 
   // Append payment contents if available
   if (paymentInfo && paymentInfo.hasPaymentInfo) {
-    var payBoxes = _buildPaymentContents(paymentInfo);
+    var payBoxes = _buildPaymentContents(paymentInfo, loc);
     for (var p = 0; p < payBoxes.length; p++) {
       bodyContents.push(payBoxes[p]);
     }
@@ -1018,7 +1022,7 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
       type: 'button',
       action: {
         type: 'message',
-        label: (loc === 'zh-TW' ? '🔒 截止今日訂餐（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
+        label: _translateHelper('stats.close_btn_today', {}, loc),
         text: '今日結單'
       },
       style: 'secondary',
@@ -1035,9 +1039,9 @@ function createSummaryFlex(restaurantName, summaryData, isClosed, paymentInfo, l
   });
 
   /* ---- footer ---- */
-  var footerMsg = (loc === 'zh-TW')
-    ? (isClosed ? '⏰ 已截止，請各成員儘速完成付款' : '🟢 目前開放點餐中')
-    : (isClosed ? _translateHelper('stats.today_subtitle_closed', {}, loc) : _translateHelper('stats.today_subtitle_open', {}, loc));
+  var footerMsg = isClosed
+    ? _translateHelper('stats.footer_closed', {}, loc)
+    : _translateHelper('stats.footer_open', {}, loc);
 
   var footer = _flexBox([
     _flexText(footerMsg, {
@@ -1416,7 +1420,7 @@ function createCancelOrderFlex(userName, activeOrders, lockMap, isOrganizer, loc
       });
     } else if (!anyDayUnlocked && dayOrder.length > 0) {
       bodyContents.push(_flexSeparator({ margin: 'md' }));
-      bodyContents.push(_flexText(loc === 'zh-TW' ? '⚠️ 所有訂單均已超過結單時間或日期，無法修改或取消。若有特殊需求請洽開單人。' : '⚠️ ' + _translateHelper('cancel.footer_member', {}, loc), {
+      bodyContents.push(_flexText(_translateHelper('cancel.all_locked_warning', {}, loc), {
         size: 'xs',
         color: FLEX_COLORS.warning,
         align: 'center',
@@ -1679,23 +1683,23 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
   }
 
   bodyContents.push(_flexSeparator({ margin: 'md' }));
-  bodyContents.push(_flexText((loc === 'zh-TW' ? '👤 成員本週梯次應付明細' : '👤 ' + _translateHelper('stats.today_subtitle_closed', {}, loc)), { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
+  bodyContents.push(_flexText(_translateHelper('stats.member_roster_weekly', {}, loc), { weight: 'bold', size: 'sm', margin: 'md', color: FLEX_COLORS.textPrimary }));
 
   if (summary.users && summary.users.length > 0) {
     for (var u = 0; u < summary.users.length; u++) {
       var user = summary.users[u];
       bodyContents.push(_flexBox([
-        _flexText(user.userName, { size: 'sm', color: FLEX_COLORS.textPrimary }),
+        _flexText(user.userName || _translateHelper('common.member', {}, loc), { size: 'sm', color: FLEX_COLORS.textPrimary }),
         _flexText('$' + user.total + (loc === 'zh-TW' ? ' 元' : ''), { size: 'sm', weight: 'bold', color: FLEX_COLORS.danger })
       ], { layout: 'horizontal', justifyContent: 'space-between', margin: 'xs' }));
     }
   } else {
-    bodyContents.push(_flexText((loc === 'zh-TW' ? '尚無成員訂購紀錄' : _translateHelper('stats.no_orders', {}, loc)), { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
+    bodyContents.push(_flexText(_translateHelper('stats.no_member_records', {}, loc), { size: 'xs', color: FLEX_COLORS.textSecondary, margin: 'xs' }));
   }
 
   // Append payment contents if provided
   if (paymentInfo && paymentInfo.hasPaymentInfo) {
-    var weeklyPayBoxes = _buildPaymentContents(paymentInfo);
+    var weeklyPayBoxes = _buildPaymentContents(paymentInfo, loc);
     for (var wp = 0; wp < weeklyPayBoxes.length; wp++) {
       bodyContents.push(weeklyPayBoxes[wp]);
     }
@@ -1707,7 +1711,7 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
       type: 'button',
       action: {
         type: 'message',
-        label: (loc === 'zh-TW' ? '🔒 截止本週預訂（結單）' : '🔒 ' + _translateHelper('help.cmd_close.title', {}, loc)),
+        label: _translateHelper('stats.close_btn_weekly', {}, loc),
         text: '本週結單'
       },
       style: 'secondary',
@@ -1723,9 +1727,9 @@ function createWeeklySummaryFlex(weeklySummary, isClosed, paymentInfo, locale) {
     ? ('週一至週五 總計 ' + (summary.grandTotalQuantity || 0) + ' 份 · 總金額 $' + (summary.grandTotalAmount || 0) + ' 元')
     : _translateHelper('stats.total_summary', { qty: summary.grandTotalQuantity || 0, amount: summary.grandTotalAmount || 0 }, loc);
   var headerBg = isClosed ? FLEX_COLORS.primaryDark : FLEX_COLORS.primary;
-  var footerMsg = (loc === 'zh-TW')
-    ? (isClosed ? '⏰ 本週預訂已截止，請各成員依此表金額完成付款' : '📋 請各成員依此表金額完成對帳與付款')
-    : (isClosed ? _translateHelper('stats.weekly_subtitle_closed', {}, loc) : _translateHelper('stats.weekly_subtitle_open', {}, loc));
+  var footerMsg = isClosed
+    ? _translateHelper('stats.footer_weekly_closed', {}, loc)
+    : _translateHelper('stats.footer_weekly_open', {}, loc);
 
   return {
     type: 'bubble',
