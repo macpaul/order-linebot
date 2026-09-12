@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-12T15:24:29.146Z
+ * Automatically generated on: 2026-09-12T15:42:55.605Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -47,7 +47,7 @@ var CONFIG = {
   },
 
   /**
-   * Default system locale ('zh-TW', 'en', 'ja', 'ko', 'th', 'id')
+   * Default system locale ('zh-TW', 'en', 'ja', 'ko', 'th', 'id', 'vi')
    */
   DEFAULT_LOCALE: 'zh-TW',
 
@@ -204,7 +204,8 @@ var SUPPORTED_LOCALES = {
   'ja':    { code: 'ja',    name: '日本語',    icon: '🇯🇵' },
   'ko':    { code: 'ko',    name: '한국어',    icon: '🇰🇷' },
   'th':    { code: 'th',    name: 'ภาษาไทย',  icon: '🇹🇭' },
-  'id':    { code: 'id',    name: 'Indonesia',icon: '🇮🇩' }
+  'id':    { code: 'id',    name: 'Indonesia',icon: '🇮🇩' },
+  'vi':    { code: 'vi',    name: 'Tiếng Việt',icon: '🇻🇳' }
 };
 
 var I18N_MESSAGES = {
@@ -1562,6 +1563,231 @@ var I18N_MESSAGES = {
     'my_orders.today_total': 'Total: Rp {amount}',
     'my_orders.subtotal': ' (Subtotal Rp {subtotal})',
     'my_orders.cutoff_notice': '\n⚠️ Batas waktu pemesanan hari ini telah lewat. Pesanan tidak dapat diubah atau dibatalkan.'
+  },
+  'vi': {
+    // Common
+    'common.member': 'Thành viên',
+    'common.organizer': 'Người mở đơn',
+    'common.today': 'Hôm nay',
+    'common.all': 'Chung',
+    'common.all_days': 'Tất cả',
+    'common.self': 'Bản thân',
+    'common.other': 'Khác',
+    'common.general': 'Chung',
+    'common.currency_prefix': '',
+    'common.currency_suffix': ' đ',
+    'common.unit_serving': ' phần',
+    'common.unit_record': ' mục',
+    'common.separator': ', ',
+    'common.bracket_open': '[',
+    'common.bracket_close': ']',
+    'common.unknown': 'Không rõ',
+    'common.anonymous_member': 'Thành viên ẩn danh',
+
+    // Weekdays
+    'weekday.mon': 'Thứ Hai',
+    'weekday.tue': 'Thứ Ba',
+    'weekday.wed': 'Thứ Tư',
+    'weekday.thu': 'Thứ Năm',
+    'weekday.fri': 'Thứ Sáu',
+    'weekday.sat': 'Thứ Bảy',
+    'weekday.sun': 'Chủ Nhật',
+
+    // Help Flex
+    'help.title': '📖 Hướng dẫn Đặt cơm trưa',
+    'help.tip_click': '💡 Nhấn vào các nút lệnh bên trên để gửi trực tiếp!',
+    'help.license': 'Giấy phép: Mã nguồn mở AGPL-3.0 ',
+    'help.alt_text': 'Hướng dẫn lệnh đặt cơm trưa',
+    'help.cmd_weekly_schedule.title': '📅 Thực đơn Tuần này',
+    'help.cmd_weekly_schedule.desc': 'Xem lịch đặt món từ Thứ Hai đến Thứ Sáu',
+    'help.cmd_weekly_schedule.btn': 'Tuần này',
+    'help.cmd_weekly_schedule.cmd': 'thực đơn tuần này',
+    'help.cmd_today_menu.title': '🍱 Thực đơn Hôm nay',
+    'help.cmd_today_menu.desc': 'Xem thực đơn hôm nay & đặt món',
+    'help.cmd_today_menu.btn': 'Xem thực đơn',
+    'help.cmd_today_menu.cmd': 'thực đơn',
+    'help.cmd_children.title': '👶 Quản lý Bé',
+    'help.cmd_children.desc': 'Danh sách bé & chia suất ăn',
+    'help.cmd_children.btn': 'Cài đặt bé',
+    'help.cmd_children.cmd': 'cài đặt bé',
+    'help.cmd_my_today.title': '📝 Đơn của tôi hôm nay',
+    'help.cmd_my_today.desc': 'Xem các món đã đặt hôm nay',
+    'help.cmd_my_today.btn': 'Hôm nay',
+    'help.cmd_my_today.cmd': 'đơn của tôi',
+    'help.cmd_my_weekly.title': '📦 Đơn hàng tuần này',
+    'help.cmd_my_weekly.desc': 'Xem tất cả món đặt tuần này',
+    'help.cmd_my_weekly.btn': 'Cả tuần',
+    'help.cmd_my_weekly.cmd': 'đơn tuần này',
+    'help.cmd_cancel.title': '🗑️ Hủy món đã đặt',
+    'help.cmd_cancel.desc': 'Hủy món cụ thể trong đơn',
+    'help.cmd_cancel.btn': 'Hủy món',
+    'help.cmd_cancel.cmd': 'hủy',
+    'help.cmd_weekly_stats.title': '📊 Thống kê Tuần',
+    'help.cmd_weekly_stats.desc': 'Tổng hợp & đối soát tuần này',
+    'help.cmd_weekly_stats.btn': 'Thống kê tuần',
+    'help.cmd_weekly_stats.cmd': 'thống kê tuần',
+    'help.cmd_today_stats.title': '📈 Thống kê Hôm nay',
+    'help.cmd_today_stats.desc': 'Tổng số lượng & danh sách thành viên',
+    'help.cmd_today_stats.btn': 'Thống kê ngày',
+    'help.cmd_today_stats.cmd': 'thống kê hôm nay',
+    'help.cmd_close.title': '🔒 Chốt đơn',
+    'help.cmd_close.desc': 'Đóng đặt món & thông tin thanh toán',
+    'help.cmd_close.btn': 'Chốt đơn',
+    'help.cmd_close.cmd': 'chốt đơn',
+    'help.cmd_language.title': '🌐 Cài đặt Ngôn ngữ',
+    'help.cmd_language.desc': 'Thay đổi ngôn ngữ hiển thị',
+    'help.cmd_language.btn': 'Đổi ngôn ngữ',
+    'help.cmd_language.cmd': 'cài đặt ngôn ngữ',
+
+    // Language selector
+    'lang.title': '🌐 Cài đặt Ngôn ngữ (Language Settings)',
+    'lang.subtitle': 'Vui lòng chọn ngôn ngữ bạn muốn dùng:',
+    'lang.current_prefix': 'Ngôn ngữ hiện tại: ',
+    'lang.set_success': '✅ Đã chuyển đổi ngôn ngữ sang "{lang}" thành công! Các thông báo tiếp theo sẽ dùng ngôn ngữ này.',
+    'lang.disabled': '⚠️ Chức năng tùy chỉnh ngôn ngữ cá nhân hiện đang bị quản trị viên tắt.',
+    'lang.invalid': '⚠️ Mã ngôn ngữ "{lang}" không hợp lệ. Lựa chọn: {options}',
+    'lang.prompt_select': '🌐 Vui lòng chọn ngôn ngữ:',
+
+    // Submenu: Children Management
+    'children_menu.title': '👶 Menu Quản lý Bé',
+    'children_menu.subtitle': 'Nhấn các nút để xem danh sách hoặc gửi lệnh mẫu',
+    'children_menu.item_list_title': '👦 Bé của tôi / Danh sách bé',
+    'children_menu.item_list_desc': 'Xem hồ sơ bé và ghi chú lớp học',
+    'children_menu.btn_list': 'Xem danh sách',
+    'children_menu.cmd_list': 'bé của tôi',
+    'children_menu.item_batch_title': '👶 Cài đặt bé (Hàng loạt)',
+    'children_menu.item_batch_desc': 'Đăng ký danh sách bé (ghi đè danh sách cũ)',
+    'children_menu.btn_batch': 'Cài đặt loạt',
+    'children_menu.cmd_batch': 'cài đặt bé BéBi, BéBo',
+    'children_menu.item_add_title': '➕ Thêm Bé',
+    'children_menu.item_add_desc': 'Thêm thông tin bé và ghi chú lớp học',
+    'children_menu.btn_add': 'Thêm Bé',
+    'children_menu.cmd_add': 'thêm bé BéBi Lớp 1A',
+    'children_menu.item_del_title': '🗑️ Xóa Bé',
+    'children_menu.item_del_desc': 'Xóa thông tin bé đã đăng ký',
+    'children_menu.btn_delete': 'Xóa Bé',
+    'children_menu.cmd_delete': 'xóa bé BéBi',
+    'children_menu.footer': '💡 Nhấn nút để gửi lệnh mẫu, hoặc tự chỉnh sửa tên bé và ghi chú lớp học trong khung chat!',
+    'children_menu.alt_text': '👶 Menu Quản lý Bé',
+
+    // Submenu: Children List Card
+    'children_list.title': '👶 Danh sách Bé & Suất ăn',
+    'children_list.subtitle': 'Hồ sơ bé đã đăng ký cho {name}',
+    'children_list.empty': '(Hiện chưa đăng ký bé nào)',
+    'children_list.btn_setup': 'Cài đặt Bé',
+    'children_list.cmd_setup': 'cài đặt bé',
+    'children_list.alt_text': '👶 Danh sách Bé',
+
+    // Submenu: Weekly Schedule Card
+    'schedule.title': '📅 Lịch Đặt món Tuần này',
+    'schedule.subtitle': 'Quán ăn Thứ Hai đến Thứ Sáu · Hỗ trợ đặt trước',
+    'schedule.no_restaurant': 'Chưa chỉ định quán ăn',
+    'schedule.cutoff_prefix': '⏰ Hạn ',
+    'schedule.btn_menu': 'Thực đơn',
+    'schedule.footer': '💡 Nhập "[Thứ]+1 [món]" hoặc nhấn "Thực đơn" để đặt',
+    'schedule.alt_text': '📅 Lịch Tuần này (Thứ Hai đến Thứ Sáu)',
+
+    // Submenu: Today Menu Card
+    'menu.title_suffix': ' Thực đơn',
+    'menu.cutoff_prefix': '⏰ Giờ chốt hôm nay: ',
+    'menu.btn_order': '+1 Đặt món',
+    'menu.sold_out': 'Đã hết',
+    'menu.footer_hint1': '💡 Nhấn nút "+1 Đặt món" để đặt thêm trực tiếp!',
+    'menu.footer_hint2': 'Hoặc nhập "{day} [tên món] + [số lượng]" hay "hủy [tên món]"',
+    'menu.alt_text': '[Bắt đầu đặt món] Thực đơn {restaurant}',
+    'menu.page_indicator': '📄 Trang {page} / {total} (Tổng {total} trang)',
+    'menu.more_pages_hint': '📖 Xem thêm món ăn · Vui lòng chọn số trang (Tổng {total} trang):',
+    'menu.btn_page': '📄 Trang {page}',
+    'menu.page_footer': '📄 Hiện là trang {page} / {total} · Toàn quán có {items} món',
+
+    // Submenu: Cancel Order Card
+    'cancel.title': '🗑️ Menu Hủy Đơn Hàng',
+    'cancel.title_org': '👑 Menu Hủy Đơn (Người mở đơn)',
+    'cancel.subtitle': 'Các món đang đặt của {name}',
+    'cancel.no_orders': '(Hiện không có đơn đặt món nào đang hoạt động)',
+    'cancel.day_items': '【Các món đặt {day}】',
+    'cancel.locked': 'Không thể hủy',
+    'cancel.reason_expired': 'Đã qua ngày',
+    'cancel.reason_cutoff': 'Đã chốt giờ',
+    'cancel.btn_cancel_item': 'Hủy món này',
+    'cancel.btn_cancel_day': 'Hủy các món 【{day}】 của tôi',
+    'cancel.btn_cancel_all': 'Hủy tất cả món đã đặt (Thứ Hai - Thứ Sáu)',
+    'cancel.org_section': '👑 Chức năng Người mở đơn',
+    'cancel.btn_org_day': '⚠️ Hủy tất cả đơn hôm nay (Cần xác nhận)',
+    'cancel.btn_org_all': '🚨 Hủy tất cả đơn chưa chốt (Cần xác nhận)',
+    'cancel.all_locked_warning': '⚠️ Tất cả đơn hàng đã quá giờ chốt hoặc quá ngày, không thể hủy. Vui lòng liên hệ người mở đơn.',
+    'cancel.footer_org': '💡 Người mở đơn có thể quản lý đơn; việc hủy hàng loạt yêu cầu xác nhận.',
+    'cancel.footer_member': '💡 Bạn chỉ có thể hủy đơn do chính mình đặt. Mọi nhu cầu khác vui lòng báo người mở đơn.',
+    'cancel.confirm_header': '🚨 Cảnh báo Xác nhận Hủy (Người mở đơn)',
+    'cancel.btn_abort': 'Không hủy',
+    'cancel.confirm_footer': '⚠️ Sau khi xác nhận, các đơn sẽ bị hủy ngay lập tức và không thể khôi phục.',
+    'cancel.alt_text': '🗑️ Vui lòng chọn món cần hủy',
+
+    // Submenu: Summaries (Today & Weekly)
+    'stats.today_title': '🍱 Thống kê Đặt món Hôm nay',
+    'stats.today_title_closed': '🔒 Đã Chốt Đơn Hôm Nay',
+    'stats.weekly_title': '📊 Thống kê Đặt món Tuần này',
+    'stats.weekly_title_closed': '🔒 Đã Chốt Đơn Tuần Này',
+    'stats.weekly_subtitle_open': 'Thống kê trực tiếp · Chi tiết Thứ Hai đến Thứ Sáu',
+    'stats.weekly_subtitle_closed': 'Tổng kết đặt món & thông tin thanh toán',
+    'stats.today_subtitle_open': 'Thống kê trực tiếp · Chi tiết thành viên & tổng cộng',
+    'stats.today_subtitle_closed': 'Đã chốt · Danh sách thành viên & thanh toán',
+    'stats.member_roster_today': '👤 Danh sách Thanh toán Hôm nay',
+    'stats.member_roster_weekly': '👤 Danh sách Thanh toán Tuần này',
+    'stats.no_member_records': 'Chưa có thông tin đơn hàng của thành viên',
+    'stats.status_open': 'Đang mở',
+    'stats.status_closed': 'Đã chốt',
+    'stats.footer_closed': '⏰ Đã chốt đặt món, vui lòng tiến hành thanh toán sớm',
+    'stats.footer_open': '🟢 Hiện đang mở nhận đặt món',
+    'stats.footer_weekly_closed': '⏰ Đã chốt đơn tuần, vui lòng thanh toán theo danh sách',
+    'stats.footer_weekly_open': '📋 Vui lòng kiểm tra số tiền và hoàn tất chuyển khoản',
+    'stats.close_btn_today': '🔒 Chốt đơn Hôm nay',
+    'stats.close_btn_weekly': '🔒 Chốt đơn Tuần này',
+    'stats.no_orders': 'Không có đơn đặt món',
+    'stats.total_summary': 'Tổng cộng {qty} phần · {amount} đ',
+    'stats.alt_text_today': '【Thống kê hôm nay】{restaurant} ({qty} phần / {amount} đ)',
+    'stats.alt_text_weekly': '📊 Bảng Thống kê Đặt món Tuần này',
+    'stats.alt_text_closed_weekly': '【Đã chốt】Tổng kết Tuần & Thông tin thanh toán',
+    'stats.alt_text_closed_today': '【Đã chốt】Tổng kết {restaurant}',
+
+    // Payment Information Card & Bullet Points
+    'payment.title': '💳 Phương thức Thanh toán & Chuyển khoản',
+    'payment.bank_transfer': 'Chuyển khoản Ngân hàng',
+    'payment.account_number': 'Số TK: {account}',
+    'payment.account_name': 'Chủ TK: {name}',
+    'payment.zoom_qr': 'Phóng to mã QR',
+    'payment.qr_hint': '🔍 Nhấn vào mã QR để phóng to hoặc chụp màn hình để chuyển khoản',
+    'payment.notify_hint': '💡 Sau khi chuyển khoản, vui lòng nhắn riêng hoặc thông báo trong nhóm cho người mở đơn',
+    'payment.btn_wallet': '🟢 Mở LINE Wallet để chuyển khoản',
+    'payment.btn_linepay': '🟢 Thanh toán qua LINE Pay',
+    'payment.linepay_hint': '📱 Trong Wallet, chọn "Transfer" và tìm bạn: "{recipient}"{idHint}',
+    'payment.linepay_qr': 'Mã QR Nhận tiền LINE Pay',
+    'payment.info_title': '💳【Thông tin Thanh toán】',
+    'payment.bank_transfer_bullet': '• Chuyển khoản: ',
+    'payment.bank_qr_bullet': '• Mã QR Ngân hàng: ',
+    'payment.linepay_bullet': '• Chuyển khoản LINE Pay: ',
+    'payment.linepay_friend_bullet': '• Chuyển cho bạn LINE Pay: ',
+    'payment.linepay_qr_bullet': '• Mã QR Nhận tiền LINE Pay: ',
+
+    // Order Receipt Card
+    'receipt.title': '✅ Đặt món Thành công',
+    'receipt.weekly_user_orders': 'Đơn hàng tuần của {name}',
+    'receipt.daily_user_orders': 'Đơn hàng hôm nay của {name}',
+    'receipt.no_items': '(Chưa có món nào)',
+    'receipt.total_weekly': 'Tổng cộng tuần này',
+    'receipt.total_daily': 'Tổng cộng',
+    'receipt.cancel_hint': '💡 Nhắn "hủy" để mở menu hủy các món đã đặt',
+    'receipt.alt_text': 'Đã ghi nhận đặt món{suffix}: {day} {item}',
+
+    // My Orders Query Responses
+    'my_orders.no_weekly_orders': 'Bạn chưa có đơn đặt trước nào trong tuần này (Thứ Hai - Thứ Sáu)!',
+    'my_orders.no_today_orders': 'Bạn chưa có đơn đặt hôm nay! Nhập "+1 [tên món]" để đặt món.',
+    'my_orders.weekly_title': '🍱【Đơn Hàng Tuần Này Của Bạn】',
+    'my_orders.today_title': '【Đơn Hàng Hôm Nay Của Bạn】',
+    'my_orders.weekly_total': 'Tổng cộng tuần: {amount} đ',
+    'my_orders.today_total': 'Tổng cộng: {amount} đ',
+    'my_orders.subtotal': ' (Thành tiền: {subtotal} đ)',
+    'my_orders.cutoff_notice': '\n⚠️ Đã quá giờ chốt đặt món hôm nay, không thể chỉnh sửa hoặc hủy đơn.'
   }
 };
 
@@ -1691,6 +1917,27 @@ var I18N_COMMANDS = {
     'cmd.import_uber':  ['impor uber'],
     'cmd.import_custom':['impor restoran'],
     'cmd.lang':     ['atur bahasa', 'ganti bahasa', 'bahasa', 'lang']
+  },
+  'vi': {
+    'cmd.help':     ['trợ giúp', 'hướng dẫn', 'lệnh', 'help', '/help'],
+    'cmd.menu':     ['thực đơn', 'menu', 'thuc don', '/menu'],
+    'cmd.weekly':   ['thực đơn tuần này', 'thực đơn tuần', 'lịch tuần', 'lịch tuần này'],
+    'cmd.my_order': ['đơn của tôi', 'kiểm tra đơn', 'xem đơn'],
+    'cmd.my_weekly':['đơn tuần này', 'đơn cả tuần', 'đơn tuần của tôi'],
+    'cmd.cancel':   ['hủy món', 'hủy đơn', 'hủy', 'huy'],
+    'cmd.close':    ['chốt đơn', 'đóng đơn', 'kết thúc'],
+    'cmd.open':     ['mở đơn', 'bắt đầu đặt món'],
+    'cmd.children': ['cài đặt bé', 'quản lý bé', 'danh sách bé'],
+    'cmd.my_kids':  ['bé của tôi', 'danh sách bé của tôi', 'các bé'],
+    'cmd.add_kid':  ['thêm bé', 'thêm con'],
+    'cmd.del_kid':  ['xóa bé', 'xóa con'],
+    'cmd.abort_cancel': ['không hủy', 'hủy thao tác'],
+    'cmd.stats_today':  ['thống kê hôm nay', 'thống kê ngày', 'thống kê'],
+    'cmd.stats_weekly': ['thống kê tuần', 'thống kê tuần này'],
+    'cmd.stats_text':   ['thống kê văn bản', 'thống kê chữ'],
+    'cmd.import_uber':  ['nhập uber', 'nhập ubereats'],
+    'cmd.import_custom':['nhập nhà hàng', 'nhập quán'],
+    'cmd.lang':     ['cài đặt ngôn ngữ', 'đổi ngôn ngữ', 'ngôn ngữ', 'lang', '/lang']
   }
 };
 
@@ -7495,7 +7742,8 @@ function createLanguageSelectFlex(currentLocale) {
     'ja':    { code: 'ja',    name: '日本語',    icon: '🇯🇵' },
     'ko':    { code: 'ko',    name: '한국어',    icon: '🇰🇷' },
     'th':    { code: 'th',    name: 'ภาษาไทย',  icon: '🇹🇭' },
-    'id':    { code: 'id',    name: 'Indonesia',icon: '🇮🇩' }
+    'id':    { code: 'id',    name: 'Indonesia',icon: '🇮🇩' },
+    'vi':    { code: 'vi',    name: 'Tiếng Việt',icon: '🇻🇳' }
   };
 
   var bodyContents = [];
@@ -7587,6 +7835,7 @@ function createLanguageSelectFlex(currentLocale) {
       createWeeklySummaryFlex: createWeeklySummaryFlex,
       createChildrenListFlex: createChildrenListFlex,
       createChildrenHelpFlex: createChildrenHelpFlex,
+      createLanguageSelectFlex: createLanguageSelectFlex,
       // Internal helpers exposed for Node.js testing.
       _flexText: _flexText,
       _flexBox: _flexBox,
@@ -8219,12 +8468,12 @@ function parseMenuPageNumber(str) {
 function isMenuPageCommand(text) {
   if (!text) return false;
   var clean = text.trim();
-  // 1. Standalone page request: e.g. "第2頁", "第 2 頁", "第2页", "第二頁", "page 2", "Page 2", "p.2", "2頁"
-  if (/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i.test(clean)) {
+  // 1. Standalone page request: e.g. "第2頁", "第 2 頁", "第2页", "第二頁", "page 2", "Page 2", "trang 2", "p.2", "2頁"
+  if (/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i.test(clean)) {
     return true;
   }
-  // 2. Day or generic menu with page: e.g. "週一菜單 第2頁", "菜單 第2頁", "menu page 2", "今日菜單 2"
-  if (/(?:菜單|menu|メニュー|메뉴|เมนู)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
+  // 2. Day or generic menu with page: e.g. "週一菜單 第2頁", "菜單 第2頁", "menu page 2", "今日菜單 2", "thực đơn trang 2"
+  if (/(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
     return true;
   }
   return false;
@@ -8463,8 +8712,10 @@ function handleTextMessage(event) {
 
   // 1-1. LANGUAGE SETTINGS: 設定語言 / 切換語言 / lang / language
   var langCmdRegex = _getCmdRegex('cmd.lang', /^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language)$/i);
-
-  var langParamMatch = text.match(/^(?:\/)?(?:設定語言|切換語言|語言設定|語言|lang|language|set language|switch language)\s+([a-zA-Z\-_]+)$/i);
+  var langPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern)
+    ? I18nModule.buildCommandPrefixPattern('cmd.lang')
+    : '(?:\\/)?(?:設定語言|切換語言|語言設定|語言|lang|language|set language|switch language)';
+  var langParamMatch = text.match(new RegExp('^' + langPrefix + '\\s+([a-zA-Z\\-_]+)$', 'i'));
   if (langCmdRegex.test(text) || langParamMatch) {
     var userLocaleEnabled = false;
     if (typeof I18nModule !== 'undefined' && I18nModule && I18nModule.isUserLocaleEnabled) {
@@ -8520,18 +8771,18 @@ function handleTextMessage(event) {
 
   // 3. DAY SPECIFIC MENU: 週一菜單 / 週二菜單 / 週三菜單 ... [第X頁]
   var DAY_MENU_ALIAS_MAP = {
-    '週一': '週一', '禮拜一': '週一', '星期一': '週一', 'monday': '週一', 'mon': '週一', '月曜': '週一', '月曜日': '週一', '월요일': '週一', '월': '週一', 'จันทร์': '週一', 'senin': '週一',
-    '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二',
-    '週三': '週三', '禮拜三': '週三', '星期三': '週三', 'wednesday': '週三', 'wed': '週三', '水曜': '週三', '水曜日': '週三', '수요일': '週三', '수': '週三', 'พุธ': '週三', 'rabu': '週三',
-    '週四': '週四', '禮拜四': '週四', '星期四': '週四', 'thursday': '週四', 'thu': '週四', '木曜': '週四', '木曜日': '週四', '목요일': '週四', '목': '週四', 'พฤหัส': '週四', 'kamis': '週四',
-    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五',
-    '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六',
-    '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日'
+    '週一': '週一', '禮拜一': '週一', '星期一': '週一', 'monday': '週一', 'mon': '週一', '月曜': '週一', '月曜日': '週一', '월요일': '週一', '월': '週一', 'จันทร์': '週一', 'senin': '週一', 'thứ hai': '週一', 'thứ 2': '週一', 'thu hai': '週一', 'thu 2': '週一',
+    '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二', 'thứ ba': '週二', 'thứ 3': '週二', 'thu ba': '週二', 'thu 3': '週二',
+    '週三': '週三', '禮拜三': '週三', '星期三': '週三', 'wednesday': '週三', 'wed': '週三', '水曜': '週三', '水曜日': '週三', '수요일': '週三', '수': '週三', 'พุธ': '週三', 'rabu': '週三', 'thứ tư': '週三', 'thứ 4': '週三', 'thu tư': '週三', 'thu tu': '週三', 'thu 4': '週三',
+    '週四': '週四', '禮拜四': '週四', '星期四': '週四', 'thursday': '週四', 'thu': '週四', '木曜': '週四', '木曜日': '週四', '목요일': '週四', '목': '週四', 'พฤหัส': '週四', 'kamis': '週四', 'thứ năm': '週四', 'thứ 5': '週四', 'thu năm': '週四', 'thu nam': '週四', 'thu 5': '週四',
+    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五', 'thứ sáu': '週五', 'thứ 6': '週五', 'thu sáu': '週五', 'thu sau': '週五', 'thu 6': '週五',
+    '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六', 'thứ bảy': '週六', 'thứ 7': '週六', 'thu bảy': '週六', 'thu bay': '週六', 'thu 7': '週六',
+    '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日', 'chủ nhật': '週日', 'chu nhat': '週日', 'cn': '週日'
   };
-  var dayMenuMatch = text.match(/^(?:本週)?([^\s]+)\s*(?:菜單|menu|メニュー|메뉴|เมนู)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var dayMenuMatch = text.match(/^(?:本週)?(.+?)\s*(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
   if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
     var targetDay = DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()];
-    var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5]) || 1;
+    var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5] || dayMenuMatch[6]) || 1;
     var daySchedule = SheetModule.getScheduleByDay(targetDay);
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
     var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
@@ -8618,14 +8869,14 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
   }
 
-  // 6. TODAY MENU / MENU PAGINATION: 菜單 / menu / 菜單 第X頁 / 第X頁 / page X
-  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|菜單|menu|メニュー|메뉴|เมนู))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
-  var standalonePageMatch = !menuPageMatch ? text.match(/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i) : null;
+  // 6. TODAY MENU / MENU PAGINATION: 菜單 / menu / 菜單 第X頁 / 第X頁 / page X / thực đơn trang X
+  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var standalonePageMatch = !menuPageMatch ? text.match(/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i) : null;
   var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|menu)$/i);
 
   if (menuPageMatch || standalonePageMatch || todayMenuRegex.test(text)) {
     var mMatch = menuPageMatch || standalonePageMatch;
-    var reqPage = mMatch ? (parseMenuPageNumber(mMatch[1] || mMatch[2] || mMatch[3] || mMatch[4]) || 1) : 1;
+    var reqPage = mMatch ? (parseMenuPageNumber(mMatch[1] || mMatch[2] || mMatch[3] || mMatch[4] || mMatch[5]) || 1) : 1;
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
