@@ -24,6 +24,7 @@ var _mockStore = {
     'PAYMENT_LINEPAY_QR_URL': '',
     'SOURCE_CODE_URL': 'https://tinyurl.com/4c92wtee',
     'ALLOW_SWITCH_ORGANIZER': 'true',
+    'ALLOW_WEEKEND_ORDERING': 'false',
     'USER_IDENTIFIER_MODE': 'HASHED_ID',
     'HASH_SALT': ''
   },
@@ -155,7 +156,8 @@ function initSheets() {
         ['USER_IDENTIFIER_MODE', 'HASHED_ID', '使用者識別索引模式 (HASHED_ID: 單向加鹽雜湊去識別化 / USER_ID: 原始 LINE ID / NICKNAME: 純暱稱代號)'],
         ['HASH_SALT', '', '去識別化雜湊自訂密鑰 Salt (選填，留空自動使用安全預設密鑰)'],
         ['DEFAULT_LOCALE', 'zh-TW', '全域預設語系 (zh-TW: 繁中 / en: 英文 / ja: 日文 / ko: 韓文 / th: 泰文 / id: 印尼文)'],
-        ['ENABLE_USER_LOCALE', 'false', '是否允許使用者透過選單自訂語言 (true: 允許並在選單顯示 / false: 統一使用預設語系)']
+        ['ENABLE_USER_LOCALE', 'false', '是否允許使用者透過選單自訂語言 (true: 允許並在選單顯示 / false: 統一使用預設語系)'],
+        ['ALLOW_WEEKEND_ORDERING', 'false', '是否支援週末點餐 (true: 支援週六與週日點餐 / false: 僅支援週一至週五)']
       ]
     },
     {
@@ -421,6 +423,31 @@ function setConfigValue(key, value) {
   }
   sheet.appendRow([key, String(value), '']);
   return true;
+}
+
+/**
+ * Check if weekend ordering (Saturday & Sunday) is enabled
+ * @returns {boolean}
+ */
+function isWeekendOrderingEnabled() {
+  var val = getConfigValue('ALLOW_WEEKEND_ORDERING', '');
+  if (val === '') {
+    val = getConfigValue('ENABLE_WEEKEND_ORDERING', '');
+  }
+  if (val === '') {
+    val = (typeof CONFIG !== 'undefined' && (CONFIG.ALLOW_WEEKEND_ORDERING || CONFIG.ENABLE_WEEKEND_ORDERING)) || 'false';
+  }
+  return String(val).toLowerCase() === 'true' || val === '1';
+}
+
+/**
+ * Get active days of week based on weekend ordering setting
+ * @returns {Array<string>}
+ */
+function getDaysOfWeek() {
+  return isWeekendOrderingEnabled()
+    ? ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+    : ['週一', '週二', '週三', '週四', '週五'];
 }
 
 /**
@@ -1614,7 +1641,7 @@ function getOrderSummary(groupId, date, dayOfWeek) {
  */
 function getWeeklyOrderSummary(groupId) {
   var schedule = getWeeklySchedule();
-  var days = ['週一', '週二', '週三', '週四', '週五'];
+  var days = getDaysOfWeek();
   var daySummaries = [];
   var grandTotalAmount = 0;
   var grandTotalQuantity = 0;
@@ -2429,6 +2456,8 @@ function setUserLocalePreference(userId, locale, userName, userNickname) {
   g.getEffectiveUserId = getEffectiveUserId;
   g.getUserLocalePreference = getUserLocalePreference;
   g.setUserLocalePreference = setUserLocalePreference;
+  g.isWeekendOrderingEnabled = isWeekendOrderingEnabled;
+  g.getDaysOfWeek = getDaysOfWeek;
   g._mockStore = _mockStore;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -2439,6 +2468,8 @@ function setUserLocalePreference(userId, locale, userName, userNickname) {
       initSheets: initSheets,
       getConfigValue: getConfigValue,
       setConfigValue: setConfigValue,
+      isWeekendOrderingEnabled: isWeekendOrderingEnabled,
+      getDaysOfWeek: getDaysOfWeek,
       getWeeklySchedule: getWeeklySchedule,
       getScheduleByDay: getScheduleByDay,
       setWeeklyScheduleDay: setWeeklyScheduleDay,
