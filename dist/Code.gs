@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-12T15:10:56.570Z
+ * Automatically generated on: 2026-09-12T15:24:29.146Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -339,6 +339,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 點擊「+1 點餐」按鈕即可直接加訂！',
     'menu.footer_hint2': '亦可輸入「{day}菜名+數量」或「取消 菜名」',
     'menu.alt_text': '【訂餐開始】{restaurant} 菜單',
+    'menu.page_indicator': '📄 第 {page} / {total} 頁 (共 {total} 頁)',
+    'menu.more_pages_hint': '📖 查看更多菜單品項 · 請點選頁數（共 {total} 頁）：',
+    'menu.btn_page': '📄 第 {page} 頁',
+    'menu.page_footer': '📄 目前為第 {page} / {total} 頁 · 全店共 {items} 道餐點',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ 取消訂單選單',
@@ -561,6 +565,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 Tap "+1 Order" button to place your order!',
     'menu.footer_hint2': 'Or type "{day} [item] + [qty]" or "cancel [item]"',
     'menu.alt_text': '[Ordering Open] {restaurant} Menu',
+    'menu.page_indicator': '📄 Page {page} / {total} (Total {total} pages)',
+    'menu.more_pages_hint': '📖 View more items · Tap a page number (Total {total} pages):',
+    'menu.btn_page': '📄 Page {page}',
+    'menu.page_footer': '📄 Currently page {page} / {total} · {items} items in total',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ Cancel Orders',
@@ -783,6 +791,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡「+1 注文」ボタンをタップして直接追加注文できます！',
     'menu.footer_hint2': 'または「{day} [メニュー]+[数量]」や「取消 [メニュー]」と入力',
     'menu.alt_text': '【注文受付中】{restaurant} メニュー',
+    'menu.page_indicator': '📄 {page} / {total} ページ (全 {total} ページ)',
+    'menu.more_pages_hint': '📖 他のメニュー項目を表示 · ページ番号を選択（全 {total} ページ）：',
+    'menu.btn_page': '📄 {page} ページ',
+    'menu.page_footer': '📄 現在 {page} / {total} ページ · 全 {items} 品目',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ 注文取消メニュー',
@@ -1005,6 +1017,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': "💡 '+1 주문' 버튼을 눌러 바로 추가 주문하세요!",
     'menu.footer_hint2': "또는 '{day} [메뉴]+[수량]' 이나 '취소 [메뉴]' 를 입력하세요",
     'menu.alt_text': '[주문 시작] {restaurant} 메뉴',
+    'menu.page_indicator': '📄 {page} / {total} 페이지 (총 {total} 페이지)',
+    'menu.more_pages_hint': '📖 추가 메뉴 보기 · 페이지 번호를 선택하세요 (총 {total} 페이지):',
+    'menu.btn_page': '📄 {page} 페이지',
+    'menu.page_footer': '📄 현재 {page} / {total} 페이지 · 총 {items}개 메뉴',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ 주문 취소 메뉴',
@@ -1227,6 +1243,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 แตะปุ่ม "+1 สั่ง" เพื่อสั่งอาหารเพิ่มได้ทันที!',
     'menu.footer_hint2': 'หรือพิมพ์ "{day} [ชื่ออาหาร] + [จำนวน]" หรือ "ยกเลิก [ชื่ออาหาร]"',
     'menu.alt_text': '[เปิดรับออเดอร์] เมนู {restaurant}',
+    'menu.page_indicator': '📄 หน้า {page} / {total} (ทั้งหมด {total} หน้า)',
+    'menu.more_pages_hint': '📖 ดูรายการเพิ่มเติม · แตะเลือกหน้า (ทั้งหมด {total} หน้า):',
+    'menu.btn_page': '📄 หน้า {page}',
+    'menu.page_footer': '📄 ขณะนี้หน้า {page} / {total} · มีทั้งหมด {items} รายการ',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ เมนูยกเลิกออเดอร์',
@@ -1449,6 +1469,10 @@ var I18N_MESSAGES = {
     'menu.footer_hint1': '💡 Ketuk tombol "+1 Pesan" untuk langsung memesan tambahan!',
     'menu.footer_hint2': 'Atau ketik "{day} [menu] + [jumlah]" atau "batal [menu]"',
     'menu.alt_text': '[Pemesanan Dibuka] Menu {restaurant}',
+    'menu.page_indicator': '📄 Halaman {page} / {total} (Total {total} halaman)',
+    'menu.more_pages_hint': '📖 Lihat menu lainnya · Pilih halaman (Total {total} halaman):',
+    'menu.btn_page': '📄 Hal {page}',
+    'menu.page_footer': '📄 Saat ini halaman {page} / {total} · Total {items} menu',
 
     // Submenu: Cancel Order Card
     'cancel.title': '🗑️ Menu Batalkan Pesanan',
@@ -5674,16 +5698,25 @@ function _calcOrderTotal(orders) {
  * @param {string} [dayOfWeek] - Optional day of week (e.g. "週一", "週二").
  * @returns {Object} LINE Flex bubble contents object (type: "bubble").
  */
-function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale) {
+function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale, page, pageSize) {
   var loc = _resolveLocale(locale);
-  var groups = _groupMenuByCategory(menuItems);
+  var allItems = Array.isArray(menuItems) ? menuItems : [];
+  var totalItems = allItems.length;
+  var effPageSize = (typeof pageSize === 'number' && pageSize > 0) ? pageSize : 20;
+  var totalPages = Math.max(1, Math.ceil(totalItems / effPageSize));
+  var curPage = Math.max(1, Math.min(parseInt(page, 10) || 1, totalPages));
+
+  var startIndex = (curPage - 1) * effPageSize;
+  var pageItems = allItems.slice(startIndex, startIndex + effPageSize);
+  var groups = _groupMenuByCategory(pageItems);
+
   var displayDay = dayOfWeek ? _displayDayHelper(dayOfWeek, loc) : '';
   var dayBadge = displayDay ? '【' + displayDay + '】' : '';
   var titleSuffix = _translateHelper('menu.title_suffix', {}, loc);
   var headerTitle = restaurantName ? (restaurantName + titleSuffix) : _translateHelper('stats.today_title', {}, loc);
 
   /* ---- header ---- */
-  var header = _flexBox([
+  var headerTexts = [
     _flexText(dayBadge + headerTitle, {
       size: 'xl',
       weight: 'bold',
@@ -5696,7 +5729,19 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
       align: 'start',
       margin: 'xs'
     })
-  ], {
+  ];
+
+  if (totalPages > 1) {
+    headerTexts.push(_flexText(_translateHelper('menu.page_indicator', { page: curPage, total: totalPages }, loc), {
+      size: 'xs',
+      weight: 'bold',
+      color: FLEX_COLORS.textOnColor,
+      align: 'start',
+      margin: 'xs'
+    }));
+  }
+
+  var header = _flexBox(headerTexts, {
     layout: 'vertical',
     spacing: 'none',
     paddingAll: 'lg',
@@ -5707,7 +5752,6 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   /* ---- body: category sections ---- */
   var bodyContents = [];
   var totalRendered = 0;
-  var MAX_ITEMS_PER_MENU = 35;
 
   if (groups.length === 0) {
     bodyContents.push(_flexText('（' + _translateHelper('stats.no_orders', {}, loc) + '）', {
@@ -5718,8 +5762,6 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
     }));
   } else {
     groups.forEach(function (group, gi) {
-      if (totalRendered >= MAX_ITEMS_PER_MENU) return;
-
       // Category heading
       bodyContents.push(_flexText('【' + group.category + '】', {
         size: 'md',
@@ -5731,7 +5773,6 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
 
       // Item rows with order buttons
       group.items.forEach(function (item) {
-        if (totalRendered >= MAX_ITEMS_PER_MENU) return;
         totalRendered++;
 
         var name = item.itemName || '';
@@ -5810,6 +5851,44 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
         }));
       });
     });
+
+    // Pagination buttons if multiple pages exist
+    if (totalPages > 1) {
+      bodyContents.push(_flexSeparator({ margin: 'md' }));
+      bodyContents.push(_flexText(_translateHelper('menu.more_pages_hint', { total: totalPages }, loc), {
+        size: 'xs',
+        weight: 'bold',
+        color: FLEX_COLORS.primaryDark,
+        align: 'start',
+        margin: 'sm'
+      }));
+
+      var pageButtons = [];
+      for (var p = 1; p <= totalPages; p++) {
+        if (p === curPage) continue;
+        var pCmd = (dayOfWeek ? dayOfWeek + '菜單 ' : '菜單 ') + '第' + p + '頁';
+        pageButtons.push({
+          type: 'button',
+          action: {
+            type: 'message',
+            label: _translateHelper('menu.btn_page', { page: p }, loc),
+            text: pCmd
+          },
+          style: 'primary',
+          color: FLEX_COLORS.primary,
+          height: 'sm'
+        });
+      }
+
+      for (var bi = 0; bi < pageButtons.length; bi += 3) {
+        var rowBtns = pageButtons.slice(bi, bi + 3);
+        bodyContents.push(_flexBox(rowBtns, {
+          layout: 'horizontal',
+          spacing: 'sm',
+          margin: 'xs'
+        }));
+      }
+    }
   }
 
   var body = _flexBox(bodyContents, {
@@ -5823,7 +5902,7 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
   var footerText1 = _translateHelper('menu.footer_hint1', {}, loc);
   var footerText2 = _translateHelper('menu.footer_hint2', { day: displayDay ? displayDay + ' ' : '' }, loc);
 
-  var footer = _flexBox([
+  var footerContents = [
     _flexText(footerText1, {
       size: 'xs',
       weight: 'bold',
@@ -5836,7 +5915,18 @@ function createMenuFlex(restaurantName, cutoffTime, menuItems, dayOfWeek, locale
       align: 'center',
       margin: 'xs'
     })
-  ], {
+  ];
+
+  if (totalPages > 1) {
+    footerContents.push(_flexText(_translateHelper('menu.page_footer', { page: curPage, total: totalPages, items: totalItems }, loc), {
+      size: 'xxs',
+      color: FLEX_COLORS.textSecondary,
+      align: 'center',
+      margin: 'xs'
+    }));
+  }
+
+  var footer = _flexBox(footerContents, {
     layout: 'vertical',
     paddingAll: 'sm',
     backgroundColor: FLEX_COLORS.background
@@ -8109,8 +8199,39 @@ function isAnnouncementOrReconciliation(text) {
   return false;
 }
 
+/**
+ * Parse a page number from string (Arabic or Chinese numerals)
+ */
+function parseMenuPageNumber(str) {
+  if (!str) return null;
+  var s = String(str).trim();
+  var num = parseInt(s, 10);
+  if (!isNaN(num) && num > 0) return num;
+  var chMap = { '一': 1, '二': 2, '兩': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+  if (chMap[s]) return chMap[s];
+  return null;
+}
+
+/**
+ * Detect whether a text is a menu pagination request (e.g. "第2頁", "週一菜單 第2頁", "菜單 2")
+ * to ensure page commands are never treated as food order items.
+ */
+function isMenuPageCommand(text) {
+  if (!text) return false;
+  var clean = text.trim();
+  // 1. Standalone page request: e.g. "第2頁", "第 2 頁", "第2页", "第二頁", "page 2", "Page 2", "p.2", "2頁"
+  if (/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i.test(clean)) {
+    return true;
+  }
+  // 2. Day or generic menu with page: e.g. "週一菜單 第2頁", "菜單 第2頁", "menu page 2", "今日菜單 2"
+  if (/(?:菜單|menu|メニュー|메뉴|เมนู)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
+    return true;
+  }
+  return false;
+}
+
 function parseOrderText(text) {
-  if (!text || isAnnouncementOrReconciliation(text)) return [];
+  if (!text || isAnnouncementOrReconciliation(text) || isMenuPageCommand(text)) return [];
   var protectedText = _protectBrackets(text);
   var clean = protectedText.replace(/，|；/g, ',');
   var lines = clean.split(/[\n,]+/);
@@ -8120,6 +8241,7 @@ function parseOrderText(text) {
   var isMathOrPriceStr = function (str) {
     if (!str) return true;
     var s = str.trim();
+    if (isMenuPageCommand(s)) return true;
     // Math operators +, -, *, /, = (e.g. 43+48, 341-313, 20=7)
     if (/[+\-*\/=]/.test(s)) return true;
     // Standalone numbers or trailing price, e.g. "45", "90", "便當 45", "餡餅 90"
@@ -8131,7 +8253,7 @@ function parseOrderText(text) {
 
   for (var i = 0; i < lines.length; i++) {
     var raw = _restoreBrackets(lines[i]).trim();
-    if (!raw) continue;
+    if (!raw || isMenuPageCommand(raw)) continue;
 
     var dayOfWeek = null;
     var dayMatch = raw.match(/^(週[一二三四五六日天]|禮拜[一二三四五六日天]|星期[一二三四五六日天])/);
@@ -8169,7 +8291,7 @@ function parseOrderText(text) {
     var match1 = raw.match(/^\+([0-9]+)\s*(.+)$/);
     if (match1) {
       var cand1 = match1[2].trim();
-      if (!isMathOrPriceStr(cand1)) {
+      if (!isMathOrPriceStr(cand1) && !isMenuPageCommand(cand1)) {
         qty = parseInt(match1[1], 10);
         itemName = cand1;
         _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
@@ -8181,7 +8303,7 @@ function parseOrderText(text) {
     var match2 = raw.match(/^(.+?)\s*\+\s*([0-9]+)$/);
     if (match2) {
       var cand2 = match2[1].trim();
-      if (!isMathOrPriceStr(cand2)) {
+      if (!isMathOrPriceStr(cand2) && !isMenuPageCommand(cand2)) {
         itemName = cand2;
         qty = parseInt(match2[2], 10);
         _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
@@ -8193,7 +8315,7 @@ function parseOrderText(text) {
     var match3 = raw.match(/^(.+?)\s*[*xX]\s*([0-9]+)$/);
     if (match3) {
       var cand3 = match3[1].trim();
-      if (!isMathOrPriceStr(cand3)) {
+      if (!isMathOrPriceStr(cand3) && !isMenuPageCommand(cand3)) {
         itemName = cand3;
         qty = parseInt(match3[2], 10);
         _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
@@ -8205,7 +8327,7 @@ function parseOrderText(text) {
     var match4 = raw.match(/^點餐\s+(.+?)(?:\s+([0-9]+))?$/);
     if (match4) {
       var cand4 = match4[1].trim();
-      if (!isMathOrPriceStr(cand4)) {
+      if (!isMathOrPriceStr(cand4) && !isMenuPageCommand(cand4)) {
         itemName = cand4;
         qty = match4[2] ? parseInt(match4[2], 10) : 1;
         _pushParsedOrderItem(parsedItems, dayOfWeek, itemName, qty, childPrefix);
@@ -8221,6 +8343,9 @@ function parseOrderText(text) {
  * Match an ordered item name with the menu items
  */
 function matchMenuItem(rawItemName, menuList) {
+  if (!rawItemName || isMenuPageCommand(rawItemName)) {
+    return { itemName: rawItemName, price: 0 };
+  }
   if (!menuList || menuList.length === 0) {
     return { itemName: rawItemName, price: 0 };
   }
@@ -8393,7 +8518,7 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, altSchedule, scheduleFlex);
   }
 
-  // 3. DAY SPECIFIC MENU: 週一菜單 / 週二菜單 / 週三菜單 ...
+  // 3. DAY SPECIFIC MENU: 週一菜單 / 週二菜單 / 週三菜單 ... [第X頁]
   var DAY_MENU_ALIAS_MAP = {
     '週一': '週一', '禮拜一': '週一', '星期一': '週一', 'monday': '週一', 'mon': '週一', '月曜': '週一', '月曜日': '週一', '월요일': '週一', '월': '週一', 'จันทร์': '週一', 'senin': '週一',
     '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二',
@@ -8403,15 +8528,17 @@ function handleTextMessage(event) {
     '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六',
     '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日'
   };
-  var dayMenuMatch = text.match(/^(?:本週)?([^\s]+)\s*(?:菜單|menu|メニュー|메뉴|เมนู)$/i);
+  var dayMenuMatch = text.match(/^(?:本週)?([^\s]+)\s*(?:菜單|menu|メニュー|메뉴|เมนู)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
   if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
     var targetDay = DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()];
+    var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5]) || 1;
     var daySchedule = SheetModule.getScheduleByDay(targetDay);
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
     var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
     var dayMenu = SheetModule.getMenuItems(targetDay, restName);
-    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale);
-    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 菜單') : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單'));
+    var dayMenuFlex = FlexModule.createMenuFlex(restName, cutoff, dayMenu, targetDay, userLocale, reqPage);
+    var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
+    var dayAltText = (userLocale === 'zh-TW') ? (targetDay + ' ' + restName + ' 菜單' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: restName }) || (targetDay + ' ' + restName + ' 菜單' + pageSuffix));
     return LineModule.replyFlex(replyToken, dayAltText, dayMenuFlex);
   }
 
@@ -8491,14 +8618,20 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
   }
 
-  // 6. TODAY MENU: 菜單 / menu
+  // 6. TODAY MENU / MENU PAGINATION: 菜單 / menu / 菜單 第X頁 / 第X頁 / page X
+  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|菜單|menu|メニュー|메뉴|เมนู))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var standalonePageMatch = !menuPageMatch ? text.match(/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i) : null;
   var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|menu)$/i);
-  if (todayMenuRegex.test(text)) {
+
+  if (menuPageMatch || standalonePageMatch || todayMenuRegex.test(text)) {
+    var mMatch = menuPageMatch || standalonePageMatch;
+    var reqPage = mMatch ? (parseMenuPageNumber(mMatch[1] || mMatch[2] || mMatch[3] || mMatch[4]) || 1) : 1;
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
-    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale);
-    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 菜單') : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單'));
+    var curMenuFlex = FlexModule.createMenuFlex(curRestaurant, curCutoff, curMenu, todayDay, userLocale, reqPage);
+    var pageSuffix = reqPage > 1 ? (' (第' + reqPage + '頁)') : '';
+    var curAltText = (userLocale === 'zh-TW') ? (curRestaurant + ' 菜單' + pageSuffix) : (_translateMsg('menu.alt_text', { restaurant: curRestaurant }) || (curRestaurant + ' 菜單' + pageSuffix));
     return LineModule.replyFlex(replyToken, curAltText, curMenuFlex);
   }
 
@@ -9372,6 +9505,19 @@ function handlePostbackEvent(event) {
     return handleTextMessage(pseudoLangEvent);
   }
 
+  if (action === 'menu_page') {
+    var day = params.day || '';
+    var reqP = params.page || '1';
+    var pseudoMenuEvent = {
+      replyToken: replyToken,
+      source: event.source,
+      message: {
+        text: (day ? day + '菜單 ' : '菜單 ') + '第' + reqP + '頁'
+      }
+    };
+    return handleTextMessage(pseudoMenuEvent);
+  }
+
   if (action === 'prompt_note') {
     return null;
   }
@@ -9403,6 +9549,8 @@ function handlePostbackEvent(event) {
   g.isAnnouncementOrReconciliation = isAnnouncementOrReconciliation;
   g.isWeekendOrderingEnabled = isWeekendOrderingEnabled;
   g.getDaysOfWeek = getDaysOfWeek;
+  g.isMenuPageCommand = isMenuPageCommand;
+  g.parseMenuPageNumber = parseMenuPageNumber;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -9422,7 +9570,9 @@ function handlePostbackEvent(event) {
       resolveOrganizerPushTargets: resolveOrganizerPushTargets,
       formatOrderSummaryText: formatOrderSummaryText,
       isUserOrganizer: isUserOrganizer,
-      isAnnouncementOrReconciliation: isAnnouncementOrReconciliation
+      isAnnouncementOrReconciliation: isAnnouncementOrReconciliation,
+      isMenuPageCommand: isMenuPageCommand,
+      parseMenuPageNumber: parseMenuPageNumber
     };
   }
 })();
