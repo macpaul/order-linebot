@@ -2501,5 +2501,162 @@ globalThis._mockCurrentDate = null;
 
 console.log('  ✔ Saturday pre-ordering, weekend ordering toggle, cutoff, summary & cancel verified.\n');
 
+// --------------------------------------------------------------------------
+// Test 16: Menu Pagination & Order Immunity
+// --------------------------------------------------------------------------
+console.log('▶ Test 16: Menu Pagination & Order Immunity');
+
+// 1. Direct FlexMessage pagination rendering verification
+var bigMenu45 = [];
+for (var mi = 1; mi <= 45; mi++) {
+  bigMenu45.push({
+    category: mi <= 25 ? '飯類' : '麵類',
+    itemName: '特餐' + mi,
+    price: 80 + mi,
+    isAvailable: true,
+    description: '特餐說明' + mi
+  });
+}
+
+// Page 1 of 3 (zh-TW)
+var flexP1 = FlexModule.createMenuFlex('大豪吃餐廳', '10:30', bigMenu45, '週一', 'zh-TW', 1, 20);
+assert.strictEqual(flexP1.type, 'bubble');
+var p1Json = JSON.stringify(flexP1);
+assert.ok(p1Json.includes('第 1 / 3 頁 (共 3 頁)'), 'Page 1 header must include page 1 / 3 indicator');
+assert.ok(p1Json.includes('全店共 45 道餐點'), 'Page 1 footer must include total items 45');
+assert.ok(p1Json.includes('週一菜單 第2頁'), 'Page 1 must have button targeting page 2');
+assert.ok(p1Json.includes('週一菜單 第3頁'), 'Page 1 must have button targeting page 3');
+assert.ok(!p1Json.includes('週一菜單 第1頁'), 'Page 1 must not have button targeting current page 1');
+
+// Page 2 of 3 (zh-TW)
+var flexP2 = FlexModule.createMenuFlex('大豪吃餐廳', '10:30', bigMenu45, '週一', 'zh-TW', 2, 20);
+var p2Json = JSON.stringify(flexP2);
+assert.ok(p2Json.includes('第 2 / 3 頁 (共 3 頁)'), 'Page 2 header must include page 2 / 3 indicator');
+assert.ok(p2Json.includes('週一菜單 第1頁'), 'Page 2 must have button targeting page 1');
+assert.ok(p2Json.includes('週一菜單 第3頁'), 'Page 2 must have button targeting page 3');
+assert.ok(!p2Json.includes('週一菜單 第2頁'), 'Page 2 must not have button targeting current page 2');
+
+// English locale pagination (en)
+var flexP1En = FlexModule.createMenuFlex('Tasty Food', '10:30', bigMenu45, '週一', 'en', 1, 20);
+var p1EnJson = JSON.stringify(flexP1En);
+assert.ok(p1EnJson.includes('Page 1 / 3 (Total 3 pages)'), 'English header must show Page 1 / 3 (Total 3 pages)');
+assert.ok(p1EnJson.includes('Page 2'), 'English button must show Page 2');
+assert.ok(p1EnJson.includes('Currently page 1 / 3'), 'English footer must show currently page 1 / 3');
+
+// 2. Unit testing isMenuPageCommand & parseMenuPageNumber
+assert.strictEqual(OrderModule.isMenuPageCommand('第2頁'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('第 2 頁'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('第二頁'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('page 2'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('Page 3'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('2頁'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('菜單 第2頁'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('週一菜單 第2頁'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('menu page 2'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('menu 2'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('招牌排骨飯'), false);
+assert.strictEqual(OrderModule.isMenuPageCommand('排骨飯+1'), false);
+
+assert.strictEqual(OrderModule.parseMenuPageNumber('2'), 2);
+assert.strictEqual(OrderModule.parseMenuPageNumber('二'), 2);
+assert.strictEqual(OrderModule.parseMenuPageNumber('三'), 3);
+assert.strictEqual(OrderModule.parseMenuPageNumber('10'), 10);
+
+// 3. Order Immunity: parseOrderText must never extract page requests as order items!
+assert.deepStrictEqual(OrderModule.parseOrderText('第2頁'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('第 2 頁'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('菜單 第2頁'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('週一菜單 第2頁'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('第2頁+1'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('+1 第2頁'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('點餐 第2頁'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('page 2'), []);
+
+// 4. End-to-end Chat Command & Immunity
+SheetModule._mockStore.Config['IS_ORDERING_OPEN'] = 'true';
+SheetModule._mockStore.Config['RESTAURANT_NAME'] = '大豪吃餐廳';
+SheetModule._mockStore.Config['CUTOFF_TIME'] = '11:00';
+SheetModule.setWeeklyScheduleDay('週一', '大豪吃餐廳', '10:30');
+SheetModule._mockStore.Orders = [];
+SheetModule._mockStore.Menu = [];
+
+bigMenu45.forEach(function (item) {
+  SheetModule._mockStore.Menu.push({
+    dayOfWeek: '週一',
+    restaurantName: '大豪吃餐廳',
+    category: item.category,
+    itemName: item.itemName,
+    price: item.price,
+    isAvailable: 'TRUE',
+    description: item.description
+  });
+});
+
+// A. Send "菜單 第2頁"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_page_2_req',
+  source: { userId: 'usr_page_test', displayName: '分頁測試者' },
+  message: { type: 'text', text: '菜單 第2頁' }
+});
+assert.strictEqual(lastReply.type, 'flex', '菜單 第2頁 should reply with flex menu');
+assert.ok(lastReply.altText.includes('第2頁'));
+assert.ok(JSON.stringify(lastReply.flex).includes('第 2 / 3 頁'));
+assert.strictEqual(SheetModule._mockStore.Orders.length, 0, 'No order should be created when viewing page 2!');
+
+// B. Send standalone "第2頁"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_standalone_p2',
+  source: { userId: 'usr_page_test', displayName: '分頁測試者' },
+  message: { type: 'text', text: '第2頁' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Standalone 第2頁 should reply with flex menu');
+assert.ok(JSON.stringify(lastReply.flex).includes('第 2 / 3 頁'));
+assert.strictEqual(SheetModule._mockStore.Orders.length, 0, 'No order should be created when sending 第2頁!');
+
+// C. Send "週一菜單 第3頁"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_mon_p3',
+  source: { userId: 'usr_page_test', displayName: '分頁測試者' },
+  message: { type: 'text', text: '週一菜單 第3頁' }
+});
+assert.strictEqual(lastReply.type, 'flex', '週一菜單 第3頁 should reply with flex menu');
+assert.ok(JSON.stringify(lastReply.flex).includes('第 3 / 3 頁'));
+assert.strictEqual(SheetModule._mockStore.Orders.length, 0, 'No order should be created when viewing Monday page 3!');
+
+// D. Postback event action=menu_page
+lastReply = null;
+OrderModule.handlePostbackEvent({
+  replyToken: 'tok_postback_page',
+  source: { userId: 'usr_page_test', displayName: '分頁測試者' },
+  postback: {
+    data: 'action=menu_page&day=週一&page=2'
+  }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Postback menu_page should reply with flex menu');
+assert.ok(JSON.stringify(lastReply.flex).includes('第 2 / 3 頁'));
+assert.strictEqual(SheetModule._mockStore.Orders.length, 0, 'No order should be created via postback menu_page!');
+
+// E. Verify real food order still works properly
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_real_order',
+  source: { userId: 'usr_page_test', displayName: '分頁測試者' },
+  message: { type: 'text', text: '週一+1 特餐1' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Real food order should succeed');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 1, 'Exactly 1 order record should be saved');
+assert.strictEqual(SheetModule._mockStore.Orders[0].itemName, '特餐1');
+
+// Clean up
+SheetModule.setWeeklyScheduleDay('週一', '福山排骨便當', '10:30');
+SheetModule._mockStore.Orders = [];
+SheetModule._mockStore.Menu = [];
+
+console.log('  ✔ Menu pagination, page navigation buttons, and strict order immunity verified.\n');
+
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
+
 
