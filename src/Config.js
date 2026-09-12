@@ -43,6 +43,13 @@ var CONFIG = {
   ENABLE_USER_LOCALE: 'false',
 
   /**
+   * Allow weekend ordering (Saturday and Sunday)
+   * 'true': Members can place orders for Saturday and Sunday
+   * 'false': Only Monday to Friday ordering is supported
+   */
+  ALLOW_WEEKEND_ORDERING: 'false',
+
+  /**
    * Mon to Fri days of week in Chinese
    */
   DAYS_OF_WEEK: ['週一', '週二', '週三', '週四', '週五'],
