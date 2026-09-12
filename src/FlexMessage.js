@@ -2074,7 +2074,8 @@ function createLanguageSelectFlex(currentLocale) {
     'ja':    { code: 'ja',    name: '日本語',    icon: '🇯🇵' },
     'ko':    { code: 'ko',    name: '한국어',    icon: '🇰🇷' },
     'th':    { code: 'th',    name: 'ภาษาไทย',  icon: '🇹🇭' },
-    'id':    { code: 'id',    name: 'Indonesia',icon: '🇮🇩' }
+    'id':    { code: 'id',    name: 'Indonesia',icon: '🇮🇩' },
+    'vi':    { code: 'vi',    name: 'Tiếng Việt',icon: '🇻🇳' }
   };
 
   var bodyContents = [];
