@@ -608,12 +608,12 @@ function parseMenuPageNumber(str) {
 function isMenuPageCommand(text) {
   if (!text) return false;
   var clean = text.trim();
-  // 1. Standalone page request: e.g. "第2頁", "第 2 頁", "第2页", "第二頁", "page 2", "Page 2", "p.2", "2頁"
-  if (/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i.test(clean)) {
+  // 1. Standalone page request: e.g. "第2頁", "第 2 頁", "第2页", "第二頁", "page 2", "Page 2", "trang 2", "p.2", "2頁"
+  if (/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i.test(clean)) {
     return true;
   }
-  // 2. Day or generic menu with page: e.g. "週一菜單 第2頁", "菜單 第2頁", "menu page 2", "今日菜單 2"
-  if (/(?:菜單|menu|メニュー|메뉴|เมนู)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
+  // 2. Day or generic menu with page: e.g. "週一菜單 第2頁", "菜單 第2頁", "menu page 2", "今日菜單 2", "thực đơn trang 2"
+  if (/(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+))$/i.test(clean)) {
     return true;
   }
   return false;
@@ -909,18 +909,18 @@ function handleTextMessage(event) {
 
   // 3. DAY SPECIFIC MENU: 週一菜單 / 週二菜單 / 週三菜單 ... [第X頁]
   var DAY_MENU_ALIAS_MAP = {
-    '週一': '週一', '禮拜一': '週一', '星期一': '週一', 'monday': '週一', 'mon': '週一', '月曜': '週一', '月曜日': '週一', '월요일': '週一', '월': '週一', 'จันทร์': '週一', 'senin': '週一',
-    '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二',
-    '週三': '週三', '禮拜三': '週三', '星期三': '週三', 'wednesday': '週三', 'wed': '週三', '水曜': '週三', '水曜日': '週三', '수요일': '週三', '수': '週三', 'พุธ': '週三', 'rabu': '週三',
-    '週四': '週四', '禮拜四': '週四', '星期四': '週四', 'thursday': '週四', 'thu': '週四', '木曜': '週四', '木曜日': '週四', '목요일': '週四', '목': '週四', 'พฤหัส': '週四', 'kamis': '週四',
-    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五',
-    '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六',
-    '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日'
+    '週一': '週一', '禮拜一': '週一', '星期一': '週一', 'monday': '週一', 'mon': '週一', '月曜': '週一', '月曜日': '週一', '월요일': '週一', '월': '週一', 'จันทร์': '週一', 'senin': '週一', 'thứ hai': '週一', 'thứ 2': '週一', 'thu hai': '週一', 'thu 2': '週一',
+    '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二', 'thứ ba': '週二', 'thứ 3': '週二', 'thu ba': '週二', 'thu 3': '週二',
+    '週三': '週三', '禮拜三': '週三', '星期三': '週三', 'wednesday': '週三', 'wed': '週三', '水曜': '週三', '水曜日': '週三', '수요일': '週三', '수': '週三', 'พุธ': '週三', 'rabu': '週三', 'thứ tư': '週三', 'thứ 4': '週三', 'thu tư': '週三', 'thu tu': '週三', 'thu 4': '週三',
+    '週四': '週四', '禮拜四': '週四', '星期四': '週四', 'thursday': '週四', 'thu': '週四', '木曜': '週四', '木曜日': '週四', '목요일': '週四', '목': '週四', 'พฤหัส': '週四', 'kamis': '週四', 'thứ năm': '週四', 'thứ 5': '週四', 'thu năm': '週四', 'thu nam': '週四', 'thu 5': '週四',
+    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五', 'thứ sáu': '週五', 'thứ 6': '週五', 'thu sáu': '週五', 'thu sau': '週五', 'thu 6': '週五',
+    '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六', 'thứ bảy': '週六', 'thứ 7': '週六', 'thu bảy': '週六', 'thu bay': '週六', 'thu 7': '週六',
+    '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日', 'chủ nhật': '週日', 'chu nhat': '週日', 'cn': '週日'
   };
-  var dayMenuMatch = text.match(/^(?:本週)?([^\s]+)\s*(?:菜單|menu|メニュー|메뉴|เมนู)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var dayMenuMatch = text.match(/^(?:本週)?(.+?)\s*(?:菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don)(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
   if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
     var targetDay = DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()];
-    var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5]) || 1;
+    var reqPage = parseMenuPageNumber(dayMenuMatch[2] || dayMenuMatch[3] || dayMenuMatch[4] || dayMenuMatch[5] || dayMenuMatch[6]) || 1;
     var daySchedule = SheetModule.getScheduleByDay(targetDay);
     var restName = daySchedule ? daySchedule.restaurantName : targetDay + '便當';
     var cutoff = daySchedule ? daySchedule.cutoffTime : '10:30';
@@ -1007,14 +1007,14 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, '【訂餐開始】' + restaurant + ' 菜單', menuFlex);
   }
 
-  // 6. TODAY MENU / MENU PAGINATION: 菜單 / menu / 菜單 第X頁 / 第X頁 / page X
-  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|菜單|menu|メニュー|메뉴|เมนู))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
-  var standalonePageMatch = !menuPageMatch ? text.match(/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i) : null;
+  // 6. TODAY MENU / MENU PAGINATION: 菜單 / menu / 菜單 第X頁 / 第X頁 / page X / thực đơn trang X
+  var menuPageMatch = text.match(/^(?:(?:\/)?(?:今日菜單|菜單|menu|メニュー|메뉴|เมนู|thực\s*đơn|thuc\s*don))(?:\s*(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|([0-9]+)\s*[頁页]|([0-9]+)))?$/i);
+  var standalonePageMatch = !menuPageMatch ? text.match(/^(?:第\s*([0-9一二三四五六七八九十]+)\s*[頁页]|page\s*([0-9]+)|trang\s*([0-9]+)|p\.?\s*([0-9]+)|([0-9]+)\s*[頁页])$/i) : null;
   var todayMenuRegex = _getCmdRegex('cmd.menu', /^(?:\/)?(?:菜單|menu)$/i);
 
   if (menuPageMatch || standalonePageMatch || todayMenuRegex.test(text)) {
     var mMatch = menuPageMatch || standalonePageMatch;
-    var reqPage = mMatch ? (parseMenuPageNumber(mMatch[1] || mMatch[2] || mMatch[3] || mMatch[4]) || 1) : 1;
+    var reqPage = mMatch ? (parseMenuPageNumber(mMatch[1] || mMatch[2] || mMatch[3] || mMatch[4] || mMatch[5]) || 1) : 1;
     var curRestaurant = SheetModule.getConfigValue('RESTAURANT_NAME', '今日便當');
     var curCutoff = SheetModule.getConfigValue('CUTOFF_TIME', '11:00');
     var curMenu = SheetModule.getMenuItems(todayDay, curRestaurant);
