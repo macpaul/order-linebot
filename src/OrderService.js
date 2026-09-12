@@ -40,7 +40,33 @@ var I18nModule = null;
   }
 })();
 
-var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5 };
+var DAY_ORDER = { '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5, '週六': 6, '週日': 7 };
+
+/**
+ * Check if weekend ordering (Saturday & Sunday) is enabled
+ * @returns {boolean}
+ */
+function isWeekendOrderingEnabled() {
+  var val = (SheetModule && typeof SheetModule.getConfigValue === 'function')
+    ? (SheetModule.getConfigValue('ALLOW_WEEKEND_ORDERING', '') || SheetModule.getConfigValue('ENABLE_WEEKEND_ORDERING', ''))
+    : '';
+  if (val === '') {
+    val = (typeof ConfigModule !== 'undefined' && ConfigModule.CONFIG && (ConfigModule.CONFIG.ALLOW_WEEKEND_ORDERING || ConfigModule.CONFIG.ENABLE_WEEKEND_ORDERING)) ||
+          (typeof CONFIG !== 'undefined' && (CONFIG.ALLOW_WEEKEND_ORDERING || CONFIG.ENABLE_WEEKEND_ORDERING)) ||
+          'false';
+  }
+  return String(val).toLowerCase() === 'true' || val === '1';
+}
+
+/**
+ * Get active days of week based on weekend ordering setting
+ * @returns {Array<string>}
+ */
+function getDaysOfWeek() {
+  return isWeekendOrderingEnabled()
+    ? ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+    : ['週一', '週二', '週三', '週四', '週五'];
+}
 
 /**
  * Helper to get the effective timezone from SpreadsheetApp or SheetService
@@ -138,7 +164,12 @@ function getTodayDayOfWeek(refDate) {
     var dayMap = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
     dayOfWeekStr = dayMap[twDate.getDay()];
   }
-  if (dayOfWeekStr === '週六' || dayOfWeekStr === '週日') return '週一';
+  if (dayOfWeekStr === '週六' || dayOfWeekStr === '週日') {
+    if (isWeekendOrderingEnabled()) {
+      return dayOfWeekStr;
+    }
+    return '週一';
+  }
   return dayOfWeekStr;
 }
 
@@ -177,15 +208,21 @@ function isDayPast(targetDay, refDate) {
   var targetDayIndex = DAY_ORDER[targetDay];
   if (!targetDayIndex) return false;
 
-  // Saturday (6): whole week Mon-Fri (1-5) has passed
-  if (currentDayIndex === 6) {
+  var weekendEnabled = isWeekendOrderingEnabled();
+  if (!weekendEnabled && (targetDay === '週六' || targetDay === '週日')) {
     return true;
   }
-  // Mon-Fri (1-5): any day index strictly less than today is past
-  if (currentDayIndex >= 1 && currentDayIndex <= 5) {
-    return targetDayIndex < currentDayIndex;
+
+  // Convert currentDayIndex (0: Sun, 1: Mon .. 6: Sat) to 1..7 (1: Mon .. 6: Sat, 7: Sun)
+  var curIdx = (currentDayIndex === 0) ? 7 : currentDayIndex;
+
+  // On weekdays Mon-Fri (1-5): any day strictly before today is past
+  if (curIdx >= 1 && curIdx <= 5) {
+    return targetDayIndex < curIdx;
   }
-  // Sunday (0): orders apply to the upcoming week, not past
+
+  // On weekends (Saturday: 6, Sunday: 7):
+  // Orders for next week (or today/tomorrow on weekend) are not past!
   return false;
 }
 
@@ -236,8 +273,9 @@ function isTodayCutoffPassed(day, refDate) {
   }
   var actualTodayStr = dayMap[currentDayIndex];
 
-  // If today is weekend (Sun or Sat), weekdays Mon-Fri are not today
-  if (currentDayIndex < 1 || currentDayIndex > 5) {
+  var weekendEnabled = isWeekendOrderingEnabled();
+  // If weekend ordering is disabled and today is weekend (Sun or Sat), weekdays Mon-Fri are not today
+  if (!weekendEnabled && (currentDayIndex < 1 || currentDayIndex > 5)) {
     return false;
   }
 
@@ -575,10 +613,11 @@ function parseOrderText(text) {
     if (!raw) continue;
 
     var dayOfWeek = null;
-    var dayMatch = raw.match(/^(週[一二三四五]|禮拜[一二三四五]|星期[一二三四五])/);
+    var dayMatch = raw.match(/^(週[一二三四五六日天]|禮拜[一二三四五六日天]|星期[一二三四五六日天])/);
     if (dayMatch) {
       var d = dayMatch[1];
-      dayOfWeek = '週' + d.slice(-1);
+      var lastChar = d.slice(-1);
+      dayOfWeek = (lastChar === '天') ? '週日' : ('週' + lastChar);
       raw = raw.replace(dayMatch[0], '').trim();
     }
 
@@ -839,7 +878,9 @@ function handleTextMessage(event) {
     '週二': '週二', '禮拜二': '週二', '星期二': '週二', 'tuesday': '週二', 'tue': '週二', '火曜': '週二', '火曜日': '週二', '화요일': '週二', '화': '週二', 'อังคาร': '週二', 'selasa': '週二',
     '週三': '週三', '禮拜三': '週三', '星期三': '週三', 'wednesday': '週三', 'wed': '週三', '水曜': '週三', '水曜日': '週三', '수요일': '週三', '수': '週三', 'พุธ': '週三', 'rabu': '週三',
     '週四': '週四', '禮拜四': '週四', '星期四': '週四', 'thursday': '週四', 'thu': '週四', '木曜': '週四', '木曜日': '週四', '목요일': '週四', '목': '週四', 'พฤหัส': '週四', 'kamis': '週四',
-    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五'
+    '週五': '週五', '禮拜五': '週五', '星期五': '週五', 'friday': '週五', 'fri': '週五', '金曜': '週五', '金曜日': '週五', '금요일': '週五', '금': '週五', 'ศุกร์': '週五', 'jumat': '週五',
+    '週六': '週六', '禮拜六': '週六', '星期六': '週六', 'saturday': '週六', 'sat': '週六', '土曜': '週六', '土曜日': '週六', '토요일': '週六', '토': '週六', 'เสาร์': '週六', 'sabtu': '週六',
+    '週日': '週日', '週天': '週日', '禮拜日': '週日', '禮拜天': '週日', '星期日': '週日', '星期天': '週日', 'sunday': '週日', 'sun': '週日', '日曜': '週日', '日曜日': '週日', '일요일': '週日', '일': '週日', 'อาทิตย์': '週日', 'minggu': '週日'
   };
   var dayMenuMatch = text.match(/^(?:本週)?([^\s]+)\s*(?:菜單|menu|メニュー|메뉴|เมนู)$/i);
   if (dayMenuMatch && DAY_MENU_ALIAS_MAP[dayMenuMatch[1].toLowerCase()]) {
@@ -854,9 +895,10 @@ function handleTextMessage(event) {
   }
 
   // 4. UBER EATS IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址]
-  var importMatch = text.match(/^(?:匯入菜單|匯入外送|ubereats匯入)\s+(週[一二三四五]|ALL)\s+(https?:\/\/\S+)(?:\s+(.+))?$/i);
+  var importMatch = text.match(/^(?:匯入菜單|匯入外送|ubereats匯入)\s+(週[一二三四五六日天]|ALL)\s+(https?:\/\/\S+)(?:\s+(.+))?$/i);
   if (importMatch) {
-    var importDay = importMatch[1];
+    var rawImpDay = importMatch[1];
+    var importDay = (rawImpDay === '週天') ? '週日' : rawImpDay;
     var importUrl = importMatch[2];
     var customName = importMatch[3] ? importMatch[3].trim() : '';
 
@@ -998,7 +1040,7 @@ function handleTextMessage(event) {
   // 7. MY WEEKLY ORDERS: 我的本週訂單 / 本週訂單
   var myWeeklyRegex = _getCmdRegex('cmd.my_weekly', /^(?:\/)?(?:我的本週訂單|本週訂單)$/i);
   if (myWeeklyRegex.test(text)) {
-    var allDays = ['週一', '週二', '週三', '週四', '週五'];
+    var allDays = getDaysOfWeek();
     var lines = [];
     var grandTotal = 0;
 
@@ -1029,7 +1071,10 @@ function handleTextMessage(event) {
     });
 
     if (lines.length === 0) {
-      return LineModule.replyText(replyToken, (userLocale === 'zh-TW') ? '您本週（週一至週五）尚未有任何預訂紀錄喔！' : _translateMsg('my_orders.no_weekly_orders'));
+      var noWeeklyMsg = (userLocale === 'zh-TW')
+        ? (isWeekendOrderingEnabled() ? '您本週（週一至週日）尚未有任何預訂紀錄喔！' : '您本週（週一至週五）尚未有任何預訂紀錄喔！')
+        : _translateMsg('my_orders.no_weekly_orders');
+      return LineModule.replyText(replyToken, noWeeklyMsg);
     }
 
     var payInfoWeekly = SheetModule.getPaymentConfig ? SheetModule.getPaymentConfig() : null;
@@ -1155,7 +1200,7 @@ function handleTextMessage(event) {
   }
 
   // 9-2. 開單人二次確認執行：確認取消全體 [週幾] / 確認取消今日全部
-  var confirmDayCancelMatch = text.match(/^(?:\/)?(?:確認取消全體(?:\s*(週[一二三四五]|今日))?|確認取消今日全部)$/);
+  var confirmDayCancelMatch = text.match(/^(?:\/)?(?:確認取消全體(?:\s*(週[一二三四五六日天]|今日))?|確認取消今日全部)$/);
   if (confirmDayCancelMatch) {
     var isOrgDayConfirm = isUserOrganizer(userId, userDisplayName);
     if (!isOrgDayConfirm) {
@@ -1163,6 +1208,7 @@ function handleTextMessage(event) {
     }
     var dayArg = confirmDayCancelMatch[1] || todayDay;
     if (dayArg === '今日') dayArg = todayDay;
+    if (dayArg === '週天') dayArg = '週日';
     if (isDayPast(dayArg)) {
       return LineModule.replyText(replyToken, '⚠️ 【' + dayArg + '】已超過日期，過去梯次的餐點無法修改或取消喔！');
     }
@@ -1187,7 +1233,7 @@ function handleTextMessage(event) {
     if (!isOrgAllConfirm) {
       return LineModule.replyText(replyToken, '⚠️ 權限不足：只有開單人可以取消所有未截止預約訂單。');
     }
-    var allDays = ['週一', '週二', '週三', '週四', '週五'];
+    var allDays = getDaysOfWeek();
     var validDays = allDays.filter(function (d) {
       if (isDayPast(d)) return false;
       if (d === todayDay && isTodayCutoffPassed(d)) return false;
@@ -1208,7 +1254,7 @@ function handleTextMessage(event) {
   }
 
   // 9-4. 開單人請求取消當日全體餐點 (跳出二次確認警告卡)
-  var reqDayCancelMatch = text.match(/^(?:\/)?(?:取消(?:當日|今日|全體今日)所有餐點|取消全體\s*(週[一二三四五]|今日)?|取消當日全部)$/);
+  var reqDayCancelMatch = text.match(/^(?:\/)?(?:取消(?:當日|今日|全體今日)所有餐點|取消全體\s*(週[一二三四五六日天]|今日)?|取消當日全部)$/);
   if (reqDayCancelMatch) {
     var isOrgDayReq = isUserOrganizer(userId, userDisplayName);
     if (!isOrgDayReq) {
@@ -1216,6 +1262,7 @@ function handleTextMessage(event) {
     }
     var targetDayReq = reqDayCancelMatch[1] || todayDay;
     if (targetDayReq === '今日') targetDayReq = todayDay;
+    if (targetDayReq === '週天') targetDayReq = '週日';
     if (isDayPast(targetDayReq)) {
       return LineModule.replyText(replyToken, '⚠️ 【' + targetDayReq + '】已超過日期，過去梯次的餐點無法取消喔！');
     }
@@ -1277,7 +1324,7 @@ function handleTextMessage(event) {
       return LineModule.replyText(replyToken, '您目前沒有任何可取消的進行中訂單喔！');
     }
     var lockMap = {};
-    ['週一', '週二', '週三', '週四', '週五'].forEach(function (d) {
+    getDaysOfWeek().forEach(function (d) {
       if (isDayPast(d)) {
         lockMap[d] = { locked: true, reason: '已過期' };
       } else if (d === todayDay && isTodayCutoffPassed(d)) {
@@ -1350,9 +1397,10 @@ function handleTextMessage(event) {
     var cancelChild = '';
 
     // Extract day prefix if present (e.g. "週一 招牌三寶飯" or "今日 脆皮燒肉飯")
-    var prefixDayMatch = remainder.match(/^(週[一二三四五]|今日)(?:\s+(.*))?$/);
+    var prefixDayMatch = remainder.match(/^(週[一二三四五六日天]|今日)(?:\s+(.*))?$/);
     if (prefixDayMatch) {
-      cancelDay = prefixDayMatch[1] === '今日' ? todayDay : prefixDayMatch[1];
+      var rawPrefDay = prefixDayMatch[1];
+      cancelDay = rawPrefDay === '今日' ? todayDay : (rawPrefDay === '週天' ? '週日' : rawPrefDay);
       remainder = prefixDayMatch[2] ? prefixDayMatch[2].trim() : '';
     }
 
@@ -1383,7 +1431,7 @@ function handleTextMessage(event) {
     if (!isExplicitMy && remainder) {
       var tokens = remainder.split(/\s+/);
       var firstToken = tokens[0];
-      if (!/^(?:週[一二三四五]|今日)$/.test(firstToken) && firstToken !== cancelChild) {
+      if (!/^(?:週[一二三四五六日天]|今日)$/.test(firstToken) && firstToken !== cancelChild) {
         var userInGroup = SheetModule.findUserInGroup ? SheetModule.findUserInGroup(groupId, firstToken) : null;
         var isOtherToken = false;
         if (firstToken.indexOf('@') === 0) {
@@ -1416,9 +1464,10 @@ function handleTextMessage(event) {
 
     // Extract day suffix if cancelDay wasn't set yet (e.g. "小鮑伯 週一 排骨飯")
     if (!cancelDay && remainder) {
-      var suffixDayMatch = remainder.match(/^(週[一二三四五]|今日)(?:\s+(.*))?$/);
+      var suffixDayMatch = remainder.match(/^(週[一二三四五六日天]|今日)(?:\s+(.*))?$/);
       if (suffixDayMatch) {
-        cancelDay = suffixDayMatch[1] === '今日' ? todayDay : suffixDayMatch[1];
+        var rawSuffDay = suffixDayMatch[1];
+        cancelDay = rawSuffDay === '今日' ? todayDay : (rawSuffDay === '週天' ? '週日' : rawSuffDay);
         remainder = suffixDayMatch[2] ? suffixDayMatch[2].trim() : '';
       }
     }
@@ -1831,6 +1880,8 @@ function handlePostbackEvent(event) {
   g.formatOrderSummaryText = formatOrderSummaryText;
   g.isUserOrganizer = isUserOrganizer;
   g.isAnnouncementOrReconciliation = isAnnouncementOrReconciliation;
+  g.isWeekendOrderingEnabled = isWeekendOrderingEnabled;
+  g.getDaysOfWeek = getDaysOfWeek;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -1844,6 +1895,8 @@ function handlePostbackEvent(event) {
       getTodayDayOfWeek: getTodayDayOfWeek,
       isDayPast: isDayPast,
       isTodayCutoffPassed: isTodayCutoffPassed,
+      isWeekendOrderingEnabled: isWeekendOrderingEnabled,
+      getDaysOfWeek: getDaysOfWeek,
       notifyOrganizer: notifyOrganizer,
       resolveOrganizerPushTargets: resolveOrganizerPushTargets,
       formatOrderSummaryText: formatOrderSummaryText,
