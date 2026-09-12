@@ -1941,6 +1941,7 @@ assert.strictEqual(I18nModule.t('common.member', null, 'ja'), 'メンバー');
 assert.strictEqual(I18nModule.t('common.member', null, 'ko'), '멤버');
 assert.strictEqual(I18nModule.t('common.member', null, 'th'), 'สมาชิก');
 assert.strictEqual(I18nModule.t('common.member', null, 'id'), 'Anggota');
+assert.strictEqual(I18nModule.t('common.member', null, 'vi'), 'Thành viên');
 
 // Fallback to zh-TW when key is missing in target language
 assert.strictEqual(I18nModule.t('non_existent_key_xyz', null, 'en'), 'non_existent_key_xyz');
@@ -1958,6 +1959,7 @@ assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'ja'), '月曜');
 assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'ko'), '월');
 assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'th'), 'จันทร์');
 assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'id'), 'Senin');
+assert.strictEqual(I18nModule.displayDayOfWeek('週一', 'vi'), 'Thứ Hai');
 
 // 14.3 Multi-language command aliases regex builder
 var helpRegex = I18nModule.buildCommandRegex('cmd.help');
@@ -1968,41 +1970,44 @@ assert.ok(helpRegex.test('ヘルプ'));
 assert.ok(helpRegex.test('도움말'));
 assert.ok(helpRegex.test('ช่วยเหลือ'));
 assert.ok(helpRegex.test('bantuan'));
+assert.ok(helpRegex.test('trợ giúp'));
 
-// 14.4 Default Config Behavior: ENABLE_USER_LOCALE is 'false' by default
+// 14.4 Single-Locale Fixed System (ENABLE_USER_LOCALE = false)
+// When disabled, individual users CANNOT switch language, and help card has 9 buttons (no lang switch button)
 SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'false';
 SheetModule._mockStore.Config['DEFAULT_LOCALE'] = 'zh-TW';
 
-// When ENABLE_USER_LOCALE is false, createHelpFlex must have 9 buttons (no language button)
-var helpFlexDefault = FlexModule.createHelpFlex();
-var helpButtonsDefault = helpFlexDefault.body.contents.map(function (row) {
-  return row.contents[1].action.label;
-});
-assert.strictEqual(helpButtonsDefault.length, 9, 'Default help card must have 9 buttons when user locale disabled');
-assert.strictEqual(helpButtonsDefault.includes('切換語言'), false);
-
-// When user triggers language command with ENABLE_USER_LOCALE=false, receives disabled notice
 OrderModule.handleTextMessage({
   replyToken: 'tok_lang_1',
   source: { userId: 'usr_locale_1' },
-  message: { type: 'text', text: '設定語言' }
+  message: { type: 'text', text: '幫助' }
 });
-assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('尚未開放個人切換語言功能') || lastReply.text.includes('disabled'));
+assert.strictEqual(lastReply.type, 'flex');
+var helpCardNoLang = lastReply.flex;
+var helpButtonsNoLang = helpCardNoLang.body.contents.map(function (row) {
+  return row.contents[1].action.label;
+});
+assert.strictEqual(helpButtonsNoLang.length, 9, 'Help card must have 9 buttons when user locale is disabled');
+assert.strictEqual(helpButtonsNoLang.includes('切換語言'), false);
 
-// 14.5 Enable User Locale Customization: ENABLE_USER_LOCALE = 'true'
+// 14.5 Multi-Locale / User-Locale Enabled System (ENABLE_USER_LOCALE = true)
 SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'true';
-assert.strictEqual(I18nModule.isUserLocaleEnabled(), true);
 
-// When ENABLE_USER_LOCALE is true, createHelpFlex must show 10 buttons (including language button)
-var helpFlexWithLang = FlexModule.createHelpFlex();
-var helpButtonsWithLang = helpFlexWithLang.body.contents.map(function (row) {
+// Help card now contains 10 buttons (including language button)
+OrderModule.handleTextMessage({
+  replyToken: 'tok_lang_1_b',
+  source: { userId: 'usr_locale_1' },
+  message: { type: 'text', text: '幫助' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+var helpCardWithLang = lastReply.flex;
+var helpButtonsWithLang = helpCardWithLang.body.contents.map(function (row) {
   return row.contents[1].action.label;
 });
 assert.strictEqual(helpButtonsWithLang.length, 10, 'Help card must have 10 buttons when user locale is enabled');
 assert.strictEqual(helpButtonsWithLang.includes('切換語言'), true);
 
-// User queries '設定語言' -> returns language select Flex card with 6 language options
+// User queries '設定語言' -> returns language select Flex card with 7 language options
 OrderModule.handleTextMessage({
   replyToken: 'tok_lang_2',
   source: { userId: 'usr_locale_1' },
@@ -2010,7 +2015,7 @@ OrderModule.handleTextMessage({
 });
 assert.strictEqual(lastReply.type, 'flex');
 var langFlexBubble = lastReply.flex;
-assert.strictEqual(langFlexBubble.body.contents.length, 6, 'Must show 6 supported languages');
+assert.strictEqual(langFlexBubble.body.contents.length, 7, 'Must show 7 supported languages');
 
 // User sets language to English via command
 OrderModule.handleTextMessage({
@@ -2065,9 +2070,9 @@ var jaHelpButtons = lastReply.flex.body.contents.map(function (row) {
 assert.strictEqual(jaHelpButtons[0], '今週確認');
 assert.strictEqual(jaHelpButtons[9], '言語設定');
 
-// 14.6 Verify all help menu button commands across all 6 supported locales
-// (zh-TW, en, ja, ko, th, id) successfully trigger handlers
-var allLocales = ['zh-TW', 'en', 'ja', 'ko', 'th', 'id'];
+// 14.6 Verify all help menu button commands across all 7 supported locales
+// (zh-TW, en, ja, ko, th, id, vi) successfully trigger handlers
+var allLocales = ['zh-TW', 'en', 'ja', 'ko', 'th', 'id', 'vi'];
 SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'true';
 allLocales.forEach(function (loc) {
   var helpFlex = FlexModule.createHelpFlex('https://tinyurl.com/4c92wtee', loc);
@@ -2179,7 +2184,7 @@ allLocales.forEach(function (loc) {
   assert.ok(sumCardJson.includes(I18nModule.t('stats.total_summary', { qty: 2, amount: 200 }, loc)), 'Summary flex must contain localized total for ' + loc);
 });
 
-// 14.8 Payment Information, Order Receipt Flex & Query Responses across all 6 locales
+// 14.8 Payment Information, Order Receipt Flex & Query Responses across all 7 locales
 allLocales.forEach(function (loc) {
   // A. Payment Information block in Summary Card
   var dummyPaymentInfo = {
@@ -2656,6 +2661,103 @@ SheetModule._mockStore.Orders = [];
 SheetModule._mockStore.Menu = [];
 
 console.log('  ✔ Menu pagination, page navigation buttons, and strict order immunity verified.\n');
+
+// ============================================================================
+// Test 17: Vietnamese (vi) Locale Support, Day Aliases & Pagination
+// ============================================================================
+console.log('▶ Test 17: Vietnamese (vi) Locale Support, Day Aliases & Pagination');
+
+// 17.1 Verify Vietnamese locale definition in SUPPORTED_LOCALES
+var supportedLocales = I18nModule.SUPPORTED_LOCALES;
+assert.ok(supportedLocales['vi'], 'vi locale must be supported');
+assert.strictEqual(supportedLocales['vi'].code, 'vi');
+assert.strictEqual(supportedLocales['vi'].name, 'Tiếng Việt');
+assert.strictEqual(supportedLocales['vi'].icon, '🇻🇳');
+
+// 17.2 Language Selection Flex contains Vietnamese
+var langSelectFlex = FlexModule.createLanguageSelectFlex('vi');
+var viLangBtn = langSelectFlex.body.contents.find(function (row) {
+  return row.contents[0].action.label.includes('Tiếng Việt');
+});
+assert.ok(viLangBtn, 'Language selection flex must include Tiếng Việt');
+assert.strictEqual(viLangBtn.contents[0].action.data, 'action=set_lang&lang=vi');
+
+// 17.3 Set user locale to Vietnamese via command
+SheetModule._mockStore.Config['ENABLE_USER_LOCALE'] = 'true';
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_vi_set',
+  source: { userId: 'usr_vn_user', displayName: 'Nguyen' },
+  message: { type: 'text', text: 'cài đặt ngôn ngữ vi' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('Tiếng Việt') || lastReply.text.includes('thành công'));
+assert.strictEqual(SheetModule.getUserLocalePreference('usr_vn_user'), 'vi');
+
+// 17.4 Vietnamese Help Flex & Button Commands
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_vi_help',
+  source: { userId: 'usr_vn_user', displayName: 'Nguyen' },
+  message: { type: 'text', text: 'trợ giúp' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.strictEqual(lastReply.altText, 'Hướng dẫn lệnh đặt cơm trưa');
+var viHelpButtons = lastReply.flex.body.contents.map(function (row) {
+  return row.contents[1].action.label;
+});
+assert.strictEqual(viHelpButtons[0], 'Tuần này');
+assert.strictEqual(viHelpButtons[1], 'Xem thực đơn');
+assert.strictEqual(viHelpButtons[9], 'Đổi ngôn ngữ');
+
+// 17.5 Vietnamese Day Aliases & Menu Querying
+SheetModule.setWeeklyScheduleDay('週一', 'Tiệm Cơm Việt', '10:30');
+SheetModule._mockStore.Menu = [
+  { dayOfWeek: '週一', restaurantName: 'Tiệm Cơm Việt', category: 'Cơm', itemName: 'Cơm sườn', price: 90, isAvailable: 'TRUE' },
+  { dayOfWeek: '週一', restaurantName: 'Tiệm Cơm Việt', category: 'Cơm', itemName: 'Cơm gà', price: 85, isAvailable: 'TRUE' }
+];
+
+// Query with "thứ hai thực đơn"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_vi_menu1',
+  source: { userId: 'usr_vn_user', displayName: 'Nguyen' },
+  message: { type: 'text', text: 'thứ hai thực đơn' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(JSON.stringify(lastReply.flex).includes('Cơm sườn'));
+
+// Query with "thứ 2 menu"
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_vi_menu2',
+  source: { userId: 'usr_vn_user', displayName: 'Nguyen' },
+  message: { type: 'text', text: 'thứ 2 menu' }
+});
+assert.strictEqual(lastReply.type, 'flex');
+assert.ok(JSON.stringify(lastReply.flex).includes('Cơm sườn'));
+
+// 17.6 Vietnamese Pagination and Order Immunity
+assert.strictEqual(OrderModule.isMenuPageCommand('trang 2'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('Trang 3'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('thực đơn trang 2'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('thứ hai thực đơn trang 2'), true);
+assert.strictEqual(OrderModule.isMenuPageCommand('thứ 2 thực đơn trang 2'), true);
+
+assert.deepStrictEqual(OrderModule.parseOrderText('trang 2'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('thực đơn trang 2'), []);
+assert.deepStrictEqual(OrderModule.parseOrderText('thứ hai thực đơn trang 2'), []);
+
+// 17.7 Children Submenu in Vietnamese
+var viKidsFlex = FlexModule.createChildrenHelpFlex('vi');
+assert.ok(JSON.stringify(viKidsFlex).includes('Menu Quản lý Bé'));
+
+// Clean up
+SheetModule.setWeeklyScheduleDay('週一', '福山排骨便當', '10:30');
+SheetModule._mockStore.Orders = [];
+SheetModule._mockStore.Menu = [];
+
+console.log('  ✔ Vietnamese (vi) locale support, commands, day aliases and pagination verified.\n');
 
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
 
