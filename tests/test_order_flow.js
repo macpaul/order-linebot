@@ -286,6 +286,16 @@ OrderModule.handleTextMessage({
   source: { groupId: groupId, userId: 'user_carol' },
   message: { type: 'text', text: buttonComponent.action.text }
 });
+assert.strictEqual(lastReply.type, 'quick_reply', 'Member without kids clicking +1 gets quick reply');
+assert.strictEqual(lastReply.quickReply.items[0].action.label, '✏️ 手動輸入小孩名字');
+assert.strictEqual(lastReply.quickReply.items[1].action.label, '👤 本人');
+
+// Carol taps [👤 本人]
+OrderModule.handleTextMessage({
+  replyToken: 'token_carol_btn_order_self',
+  source: { groupId: groupId, userId: 'user_carol' },
+  message: { type: 'text', text: lastReply.quickReply.items[1].action.text }
+});
 assert.strictEqual(lastReply.type, 'flex');
 assert.ok(lastReply.altText.includes('日式厚切豬排飯'));
 
@@ -345,7 +355,7 @@ assert.strictEqual(SheetModule.getConfigValue('ORDER_RECEIPT_SCOPE'), 'DAILY');
 OrderModule.handleTextMessage({
   replyToken: 'token_daily_test',
   source: { groupId: groupId, userId: 'user_boss' },
-  message: { type: 'text', text: '週四 招牌三寶飯+1' }
+  message: { type: 'text', text: '週四 招牌三寶飯+1 (本人)' }
 });
 assert.strictEqual(lastReply.type, 'flex');
 assert.ok(lastReply.flex.body.contents[0].text.includes('老闆 的今日訂單'), 'Receipt should show daily orders when scope is DAILY');
@@ -360,7 +370,7 @@ console.log('  [Step D] Bob orders for Friday (週五 舒肥嫩雞胸餐盒+2)')
 OrderModule.handleTextMessage({
   replyToken: 'token_bob_fri',
   source: { groupId: groupId, userId: 'user_bob' },
-  message: { type: 'text', text: '週五 舒肥嫩雞胸餐盒+2' }
+  message: { type: 'text', text: '週五 舒肥嫩雞胸餐盒+2 (本人)' }
 });
 const bobFriOrders = SheetModule.getUserOrders('user_bob', groupId, null, '週五');
 assert.strictEqual(bobFriOrders.length, 1);
@@ -638,7 +648,7 @@ lastPush = null;
 OrderModule.handleTextMessage({
   replyToken: 'token_bob_order_thu',
   source: { groupId: groupId, userId: 'user_bob' },
-  message: { type: 'text', text: '週五 舒肥嫩雞胸餐盒+1' }
+  message: { type: 'text', text: '週五 舒肥嫩雞胸餐盒+1 (本人)' }
 });
 assert.strictEqual(lastReply.type, 'flex');
 assert.ok(lastPush !== null);
@@ -1362,7 +1372,35 @@ OrderModule.handleTextMessage({
   source: { groupId: groupId, userId: 'user_bob' },
   message: { type: 'text', text: '+1 脆皮燒肉飯' }
 });
-assert.strictEqual(lastReply.type, 'flex', 'Single member without kids immediately completes order with receipt flex');
+assert.strictEqual(lastReply.type, 'quick_reply', 'Member without registered kids triggers quick reply to input child name or choose self');
+const bobQrItems = lastReply.quickReply.items;
+assert.strictEqual(bobQrItems.length, 3, 'Must have 3 items: 手動輸入小孩名字, 本人, 小孩選單');
+assert.strictEqual(bobQrItems[0].action.label, '✏️ 手動輸入小孩名字');
+assert.strictEqual(bobQrItems[0].action.inputOption, 'openKeyboard');
+assert.strictEqual(bobQrItems[0].action.fillInText, '+1 脆皮燒肉飯 ()');
+assert.strictEqual(bobQrItems[1].action.label, '👤 本人');
+assert.strictEqual(bobQrItems[1].action.text, '+1 脆皮燒肉飯 (本人)');
+assert.strictEqual(bobQrItems[2].action.label, '👶 小孩選單');
+
+// Bob confirms as self
+OrderModule.handleTextMessage({
+  replyToken: 'token_bob_self_confirm',
+  source: { groupId: groupId, userId: 'user_bob' },
+  message: { type: 'text', text: bobQrItems[1].action.text }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Tapping [本人] immediately completes order');
+
+// Single-child parent (David, who has exactly 1 child registered: '獨生子')
+SheetModule.setChildren('user_david', 'David', '大衛', ['獨生子']);
+OrderModule.handleTextMessage({
+  replyToken: 'token_david_one_kid',
+  source: { groupId: groupId, userId: 'user_david' },
+  message: { type: 'text', text: '+1 脆皮燒肉飯' }
+});
+assert.strictEqual(lastReply.type, 'flex', 'Parent with exactly 1 child immediately completes order defaulting to that child');
+const davidOneKidOrders = SheetModule.getUserOrders('user_david', groupId, null, '週一');
+assert.strictEqual(davidOneKidOrders.length, 1);
+assert.strictEqual(davidOneKidOrders[0].childName, '獨生子', 'Meal must be automatically defaulted to the single child');
 
 console.log('  ✔ Quick Reply floating buttons & openKeyboard option verified.');
 
@@ -2390,6 +2428,7 @@ assert.strictEqual(OrderModule.isDayPast('週六', satNight), true, 'Saturday mu
 assert.strictEqual(OrderModule.isDayPast('週日', satNight), true, 'Sunday must be considered invalid/past when weekend ordering disabled');
 
 // A. User pre-orders on Saturday night with "+1 招牌排骨飯" (defaults to next Monday)
+SheetModule.setChildren('usr_sat_1', '週六點餐者', '週六點餐者', ['小六']);
 lastReply = null;
 OrderModule.handleTextMessage({
   replyToken: 'tok_sat_default',
@@ -2469,6 +2508,7 @@ assert.strictEqual(OrderModule.isDayPast('週一', satMorning), false);
 assert.strictEqual(OrderModule.isTodayCutoffPassed('週六', satMorning), false);
 
 // E. Order for Saturday today "+1 班尼迪克蛋"
+SheetModule.setChildren('usr_sat_weekend', '週末饕客', '週末饕客', ['週末寶']);
 lastReply = null;
 OrderModule.handleTextMessage({
   replyToken: 'tok_sat_today',
@@ -2520,6 +2560,7 @@ assert.ok(lastReply.text.includes('尚未開放點餐或已經截止'));
 assert.strictEqual(SheetModule._mockStore.Orders.length, 3, 'No order should be added after Saturday cutoff');
 
 // But ordering for Sunday or Monday after Saturday cutoff still succeeds!
+SheetModule.setChildren('usr_late', '遲到者', '遲到者', ['遲到寶']);
 lastReply = null;
 OrderModule.handleTextMessage({
   replyToken: 'tok_sun_valid',
@@ -2730,6 +2771,7 @@ assert.ok(JSON.stringify(lastReply.flex).includes('第 2 / 3 頁'));
 assert.strictEqual(SheetModule._mockStore.Orders.length, 0, 'No order should be created via postback menu_page!');
 
 // E. Verify real food order still works properly
+SheetModule.setChildren('usr_page_test', '分頁測試者', '分頁測試者', ['分頁寶']);
 lastReply = null;
 OrderModule.handleTextMessage({
   replyToken: 'tok_real_order',
