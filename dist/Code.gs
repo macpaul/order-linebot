@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-12T15:42:55.605Z
+ * Automatically generated on: 2026-09-13T15:57:00.451Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -414,6 +414,10 @@ var I18N_MESSAGES = {
     'payment.linepay_friend_bullet': '• LINE Pay 好友轉帳：',
     'payment.linepay_qr_bullet': '• LINE Pay 收款碼：',
 
+    // Quick Reply Recipient Assignment
+    'order.qr_prompt': '🍱 請選擇【{item}】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「{btn}」）',
+    'order.qr_note_btn': '✏️ 手動輸入小孩名字',
+
     // Order Receipt Card
     'receipt.title': '✅ 加購成功',
     'receipt.weekly_user_orders': '{name} 的本週訂單',
@@ -639,6 +643,10 @@ var I18N_MESSAGES = {
     'payment.linepay_bullet': '• LINE Pay Transfer: ',
     'payment.linepay_friend_bullet': '• LINE Pay Friend Transfer: ',
     'payment.linepay_qr_bullet': '• LINE Pay QR Code: ',
+
+    // Quick Reply Recipient Assignment
+    'order.qr_prompt': '🍱 Who would you like to assign [{item}] to?\n(Tap a shortcut below or tap "{btn}")',
+    'order.qr_note_btn': '✏️ Enter Child Name',
 
     // Order Receipt Card
     'receipt.title': '✅ Added Successfully',
@@ -866,6 +874,10 @@ var I18N_MESSAGES = {
     'payment.linepay_friend_bullet': '• LINE Pay 友だち送金：',
     'payment.linepay_qr_bullet': '• LINE Pay 受取コード：',
 
+    // Quick Reply Recipient Assignment
+    'order.qr_prompt': '🍱【{item}】はどのお子様またはご自身用ですか？\n（下のショートカットボタンまたは「{btn}」をタップしてください）',
+    'order.qr_note_btn': '✏️ お子様名を手動入力',
+
     // Order Receipt Card
     'receipt.title': '✅ 追加注文完了',
     'receipt.weekly_user_orders': '{name} 様の今週の注文',
@@ -1091,6 +1103,10 @@ var I18N_MESSAGES = {
     'payment.linepay_bullet': '• LINE Pay 송금: ',
     'payment.linepay_friend_bullet': '• LINE Pay 친구 송금: ',
     'payment.linepay_qr_bullet': '• LINE Pay 결제 QR: ',
+
+    // Quick Reply Recipient Assignment
+    'order.qr_prompt': '🍱 [{item}]을(를) 어느 자녀 또는 본인에게 배정하시겠습니까?\n(아래 단축 버튼 또는 "{btn}"을(를) 눌러주세요)',
+    'order.qr_note_btn': '✏️ 자녀 이름 직접 입력',
 
     // Order Receipt Card
     'receipt.title': '✅ 주문 추가 성공',
@@ -1318,6 +1334,10 @@ var I18N_MESSAGES = {
     'payment.linepay_friend_bullet': '• โอนเพื่อน LINE Pay: ',
     'payment.linepay_qr_bullet': '• QR รับเงิน LINE Pay: ',
 
+    // Quick Reply Recipient Assignment
+    'order.qr_prompt': '🍱 โปรดเลือกว่าจะจัดสรร [{item}] ให้เด็กคนไหนหรือตัวเอง?\n(แตะปุ่มลัดด้านล่าง หรือแตะ "{btn}")',
+    'order.qr_note_btn': '✏️ ป้อนชื่อลูก',
+
     // Order Receipt Card
     'receipt.title': '✅ สั่งซื้อสำเร็จ',
     'receipt.weekly_user_orders': 'รายการสัปดาห์นี้ของ {name}',
@@ -1544,6 +1564,10 @@ var I18N_MESSAGES = {
     'payment.linepay_friend_bullet': '• Transfer Teman LINE Pay: ',
     'payment.linepay_qr_bullet': '• QR Terima Uang LINE Pay: ',
 
+    // Quick Reply Recipient Assignment
+    'order.qr_prompt': '🍱 Pilih siapa yang akan menerima [{item}] (anak atau diri sendiri)?\n(Ketuk tombol pintas di bawah atau ketuk "{btn}")',
+    'order.qr_note_btn': '✏️ Input Nama Anak',
+
     // Order Receipt Card
     'receipt.title': '✅ Berhasil Ditambahkan',
     'receipt.weekly_user_orders': 'Pesanan Mingguan {name}',
@@ -1768,6 +1792,10 @@ var I18N_MESSAGES = {
     'payment.linepay_bullet': '• Chuyển khoản LINE Pay: ',
     'payment.linepay_friend_bullet': '• Chuyển cho bạn LINE Pay: ',
     'payment.linepay_qr_bullet': '• Mã QR Nhận tiền LINE Pay: ',
+
+    // Quick Reply Recipient Assignment
+    'order.qr_prompt': '🍱 Vui lòng chọn phân bổ [{item}] cho bé nào hoặc bản thân?\n(Nhấn nút phím tắt bên dưới hoặc nhấn "{btn}")',
+    'order.qr_note_btn': '✏️ Nhập tên bé',
 
     // Order Receipt Card
     'receipt.title': '✅ Đặt món Thành công',
@@ -9586,27 +9614,32 @@ function handleTextMessage(event) {
         };
       });
       // Add 本人
+      var selfLabel = (typeof _translateMsg === 'function' ? _translateMsg('common.self') : null) || '本人';
       quickReplyItems.push({
         type: 'action',
         action: {
           type: 'message',
-          label: '👤 本人',
-          text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (本人)'
+          label: '👤 ' + selfLabel,
+          text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + selfLabel + ')'
         }
       });
       // Add openKeyboard note button (Option 1 + Option 2 hybrid)
+      var noteBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_note_btn') : null) || '✏️ 手動輸入小孩名字';
       quickReplyItems.push({
         type: 'action',
         action: {
           type: 'postback',
-          label: '✏️ 其他備註',
+          label: noteBtnLabel,
           data: 'action=prompt_note&item=' + encodeURIComponent(oiPrompt.itemName) + (pDay ? '&day=' + encodeURIComponent(pDay) : '') + '&qty=' + pQty,
           inputOption: 'openKeyboard',
           fillInText: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' ()'
         }
       });
 
-      var promptMsg = '🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「✏️ 其他備註」手動輸入）';
+      var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_prompt', {
+        item: dayPrefix + oiPrompt.itemName,
+        btn: noteBtnLabel
+      }) : null) || ('🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「' + noteBtnLabel + '」）');
       if (LineModule.replyQuickReply) {
         return LineModule.replyQuickReply(replyToken, promptMsg, quickReplyItems);
       } else {
