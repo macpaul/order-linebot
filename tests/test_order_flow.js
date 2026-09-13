@@ -201,14 +201,14 @@ const helpButtons = helpBody.filter(c => c.layout === 'horizontal').map(c => c.c
 assert.strictEqual(helpButtons.length, 9);
 assert.strictEqual(helpButtons[0].action.text, '本週菜單');
 assert.strictEqual(helpButtons[1].action.text, '菜單');
-assert.strictEqual(helpButtons[2].action.text, '設定小孩');
+assert.strictEqual(helpButtons[2].action.text, '小孩選單');
 assert.strictEqual(helpButtons[3].action.text, '我的訂單');
 assert.strictEqual(helpButtons[4].action.text, '我的本週訂單');
 assert.strictEqual(helpButtons[5].action.text, '取消餐點');
 assert.strictEqual(helpButtons[8].action.text, '結單');
 console.log('  ✔ Buttonized Help card verified with 9 quick-action buttons.');
 
-// Verify clicking the 設定小孩 button from Help invokes children submenu
+// Verify clicking the 小孩選單 button from Help invokes children submenu
 OrderModule.handleTextMessage({
   replyToken: 'token_help_kids_button',
   source: { groupId: groupId, userId: 'user_alice' },
@@ -221,13 +221,29 @@ const kidsSubmenuButtons = kidsSubmenuBody.filter(c => c.layout === 'horizontal'
 assert.strictEqual(kidsSubmenuButtons.length, 4);
 assert.strictEqual(kidsSubmenuButtons[0].action.text, '我的小孩');
 assert.strictEqual(kidsSubmenuButtons[0].action.label, '看名單');
-assert.strictEqual(kidsSubmenuButtons[1].action.text, '設定小孩 大寶, 二寶');
+assert.strictEqual(kidsSubmenuButtons[1].action.text, '設定小孩');
 assert.strictEqual(kidsSubmenuButtons[1].action.label, '批次登記');
 assert.strictEqual(kidsSubmenuButtons[2].action.text, '新增小孩 小寶 附小一年一班');
 assert.strictEqual(kidsSubmenuButtons[2].action.label, '新增小孩');
 assert.strictEqual(kidsSubmenuButtons[3].action.text, '刪除小孩');
 assert.strictEqual(kidsSubmenuButtons[3].action.label, '刪除小孩');
-console.log('  ✔ Children submenu flex card triggered from 設定小孩 button with 4 interactive actions verified.');
+console.log('  ✔ Children submenu flex card triggered from 小孩選單 button with 4 interactive actions verified.');
+
+// Verify clicking 設定小孩 triggers prompt and quick replies
+OrderModule.handleTextMessage({
+  replyToken: 'token_kids_batch_prompt',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: kidsSubmenuButtons[1].action.text }
+});
+assert.strictEqual(lastReply.type, 'quick_reply');
+assert.ok(lastReply.text.includes('多位小孩請使用逗號「,」分隔'));
+assert.strictEqual(lastReply.quickReply.items.length, 2);
+assert.strictEqual(lastReply.quickReply.items[0].action.type, 'postback');
+assert.strictEqual(lastReply.quickReply.items[0].action.inputOption, 'openKeyboard');
+assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '設定小孩 ');
+assert.strictEqual(lastReply.quickReply.items[1].action.type, 'message');
+assert.strictEqual(lastReply.quickReply.items[1].action.text, '小孩選單');
+console.log('  ✔ Standalone 設定小孩 returns comma prompt and openKeyboard quick reply verified.');
 
 // Step A: View Weekly Schedule
 console.log('  [Step A] Member queries weekly schedule (本週菜單)');
@@ -2156,15 +2172,26 @@ allLocales.forEach(function (loc) {
   });
   assert.ok(lastReply && lastReply.type === 'flex', 'List kids command (' + listCmd + ') must return flex for ' + loc);
 
-  // Test Card 1: Batch set kids command
+  // Test Card 1: Batch set kids command (standalone triggers prompt with quick reply)
   var batchCmd = kidsCmdRows[1].contents[1].action.text;
   lastReply = null;
   OrderModule.handleTextMessage({
-    replyToken: 'tok_kid_batch_' + loc,
+    replyToken: 'tok_kid_batch_prompt_' + loc,
     source: { userId: 'usr_kid_test', displayName: 'KidTester' },
     message: { type: 'text', text: batchCmd }
   });
-  assert.ok(lastReply && lastReply.type === 'text', 'Batch set kids command (' + batchCmd + ') must return text response for ' + loc);
+  assert.ok(lastReply && lastReply.type === 'quick_reply', 'Standalone batch set kids command (' + batchCmd + ') must return quick reply for ' + loc);
+  assert.strictEqual(lastReply.quickReply.items.length, 2, 'Batch prompt must provide openKeyboard and menu quick reply for ' + loc);
+  assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, batchCmd + ' ', 'Batch prompt keyboard prefill must match command for ' + loc);
+
+  // Test Card 1b: Register kids using comma separation
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_kid_batch_exec_' + loc,
+    source: { userId: 'usr_kid_test', displayName: 'KidTester' },
+    message: { type: 'text', text: batchCmd + ' Child1, Child2' }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'Batch set kids command with arguments must return text response for ' + loc);
   var storedKids = SheetModule.getChildren('usr_kid_test', 'KidTester');
   assert.ok(storedKids && storedKids.length >= 2, 'Batch command must successfully register kids for ' + loc);
 
