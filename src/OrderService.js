@@ -1806,7 +1806,20 @@ function handleTextMessage(event) {
     }
 
     // 除非有不只一個小孩，才彈出快捷按鈕分配餐點；如果 User 沒有登記小孩，也彈出快捷按鈕讓 User 輸入小孩名字
-    if (allNoChild && orderItems.length === 1) {
+    var canPromptQuickReply = allNoChild && orderItems.length === 1;
+    if (canPromptQuickReply) {
+      var checkDay = orderItems[0].dayOfWeek || todayDay;
+      var isOpenCheck = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
+      if (!orderItems[0].dayOfWeek && !isOpenCheck) {
+        canPromptQuickReply = false;
+      } else if (isDayPast(checkDay)) {
+        canPromptQuickReply = false;
+      } else if (checkDay === todayDay && isTodayCutoffPassed(checkDay)) {
+        canPromptQuickReply = false;
+      }
+    }
+
+    if (canPromptQuickReply) {
       var oiPrompt = orderItems[0];
       var pDay = oiPrompt.dayOfWeek || '';
       var dayPrefix = pDay ? pDay + ' ' : '';
