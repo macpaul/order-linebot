@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-13T16:06:53.402Z
+ * Automatically generated on: 2026-09-13T16:20:34.985Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -251,10 +251,10 @@ var I18N_MESSAGES = {
     'help.cmd_today_menu.desc': '查看今日菜單並點餐',
     'help.cmd_today_menu.btn': '看菜單',
     'help.cmd_today_menu.cmd': '菜單',
-    'help.cmd_children.title': '👶 設定小孩',
-    'help.cmd_children.desc': '小孩名冊與用餐分配設定',
-    'help.cmd_children.btn': '設定小孩',
-    'help.cmd_children.cmd': '設定小孩',
+    'help.cmd_children.title': '👶 小孩選單',
+    'help.cmd_children.desc': '小孩名冊與用餐分配管理',
+    'help.cmd_children.btn': '小孩選單',
+    'help.cmd_children.cmd': '小孩選單',
     'help.cmd_my_today.title': '📝 我的訂單',
     'help.cmd_my_today.desc': '查詢個人今日點餐紀錄',
     'help.cmd_my_today.btn': '查今日',
@@ -300,10 +300,10 @@ var I18N_MESSAGES = {
     'children_menu.item_list_desc': '圖文卡片瀏覽名下小孩清單',
     'children_menu.btn_list': '看名單',
     'children_menu.cmd_list': '我的小孩',
-    'children_menu.item_batch_title': '👶 設定小孩 大寶, 二寶',
-    'children_menu.item_batch_desc': '批次綁定小孩（覆蓋現有名冊）',
+    'children_menu.item_batch_title': '👶 設定小孩',
+    'children_menu.item_batch_desc': '批次綁定小孩（使用逗號「,」分隔）',
     'children_menu.btn_batch': '批次登記',
-    'children_menu.cmd_batch': '設定小孩 大寶, 二寶',
+    'children_menu.cmd_batch': '設定小孩',
     'children_menu.item_add_title': '➕ 新增小孩 小寶 附小一年一班',
     'children_menu.item_add_desc': '新增單一小孩姓名與班級備註',
     'children_menu.btn_add': '新增小孩',
@@ -312,8 +312,13 @@ var I18N_MESSAGES = {
     'children_menu.item_del_desc': '移除指定小孩名冊紀錄',
     'children_menu.btn_delete': '刪除小孩',
     'children_menu.cmd_delete': '刪除小孩',
-    'children_menu.footer': '💡 點擊「批次登記 / 新增」送出範例指令，點擊「刪除小孩」可快速選取刪除對象，亦可在對話框直接輸入指令！',
+    'children_menu.footer': '💡 點擊「新增小孩」送出範例指令，點擊「設定小孩 / 刪除小孩」可快速操作，亦可在對話框直接輸入指令！',
     'children_menu.alt_text': '👶 小孩與用餐對象管理選單',
+
+    // Submenu: Batch Set Children Prompt
+    'children_batch.prompt': '💡 請輸入欲設定的小孩姓名，多位小孩請使用逗號「,」分隔。\n例如：「設定小孩 大寶, 二寶」\n（可直接點選下方快捷按鈕快速輸入）',
+    'children_batch.btn_input': '✏️ 手動輸入小孩姓名',
+    'children_batch.btn_menu': '👶 小孩選單',
 
     // Submenu: Children Delete Shortcuts
     'children_delete.prompt': '🗑️ 請選擇欲刪除的小孩：\n（可點選下方快捷按鈕直接刪除，或點選「取消刪除」）',
@@ -490,10 +495,10 @@ var I18N_MESSAGES = {
     'help.cmd_today_menu.desc': 'View today\'s menu & order',
     'help.cmd_today_menu.btn': 'Menu',
     'help.cmd_today_menu.cmd': 'menu',
-    'help.cmd_children.title': '👶 Manage Kids',
+    'help.cmd_children.title': '👶 Kids Menu',
     'help.cmd_children.desc': 'Children list & meal allocation',
-    'help.cmd_children.btn': 'Kids',
-    'help.cmd_children.cmd': 'children',
+    'help.cmd_children.btn': 'Kids Menu',
+    'help.cmd_children.cmd': 'kids menu',
     'help.cmd_my_today.title': '📝 Today\'s Orders',
     'help.cmd_my_today.desc': 'Check your orders for today',
     'help.cmd_my_today.btn': 'Today',
@@ -540,9 +545,9 @@ var I18N_MESSAGES = {
     'children_menu.btn_list': 'View List',
     'children_menu.cmd_list': 'my kids',
     'children_menu.item_batch_title': '👶 Set Kids (Batch)',
-    'children_menu.item_batch_desc': 'Batch bind children (replaces current roster)',
+    'children_menu.item_batch_desc': 'Batch bind children (separated by comma ,)',
     'children_menu.btn_batch': 'Batch Set',
-    'children_menu.cmd_batch': 'children Tim, Ben',
+    'children_menu.cmd_batch': 'children',
     'children_menu.item_add_title': '➕ Add Kid',
     'children_menu.item_add_desc': 'Add a child profile with optional class note',
     'children_menu.btn_add': 'Add Kid',
@@ -551,8 +556,13 @@ var I18N_MESSAGES = {
     'children_menu.item_del_desc': 'Remove a registered child profile',
     'children_menu.btn_delete': 'Delete Kid',
     'children_menu.cmd_delete': 'delete kid',
-    'children_menu.footer': '💡 Tap "Batch Set / Add Kid" for samples, tap "Delete Kid" to select from roster, or type commands directly in chat!',
+    'children_menu.footer': '💡 Tap "Add Kid" for samples, tap "Batch Set / Delete Kid" for quick actions, or type commands directly in chat!',
     'children_menu.alt_text': '👶 Children Management Menu',
+
+    // Submenu: Batch Set Children Prompt
+    'children_batch.prompt': '💡 Please enter child names separated by comma (,).\nExample: "children Tim, Ben"\n(You can also tap the shortcut button below)',
+    'children_batch.btn_input': '✏️ Enter Kid Names',
+    'children_batch.btn_menu': '👶 Kids Menu',
 
     // Submenu: Children Delete Shortcuts
     'children_delete.prompt': '🗑️ Please select a child to delete:\n(Tap a shortcut button below or tap "Cancel Delete")',
@@ -729,10 +739,10 @@ var I18N_MESSAGES = {
     'help.cmd_today_menu.desc': '本日のメニューを確認して注文',
     'help.cmd_today_menu.btn': 'メニュー',
     'help.cmd_today_menu.cmd': 'メニュー',
-    'help.cmd_children.title': '👶 お子様設定',
+    'help.cmd_children.title': '👶 子供メニュー',
     'help.cmd_children.desc': 'お子様名簿と配分設定',
-    'help.cmd_children.btn': 'お子様設定',
-    'help.cmd_children.cmd': '子供設定',
+    'help.cmd_children.btn': '子供メニュー',
+    'help.cmd_children.cmd': '子供メニュー',
     'help.cmd_my_today.title': '📝 本日の注文',
     'help.cmd_my_today.desc': '本日の注文履歴を確認',
     'help.cmd_my_today.btn': '本日注文',
@@ -778,10 +788,10 @@ var I18N_MESSAGES = {
     'children_menu.item_list_desc': '登録済みお子様一覧とクラス情報を確認',
     'children_menu.btn_list': '一覧を見る',
     'children_menu.cmd_list': '子供リスト',
-    'children_menu.item_batch_title': '👶 子供一括設定',
-    'children_menu.item_batch_desc': '複数のお子様を一括登録（既存名簿上書き）',
+    'children_menu.item_batch_title': '👶 子供設定',
+    'children_menu.item_batch_desc': '複数のお子様を一括登録（カンマ「,」区切り）',
     'children_menu.btn_batch': '一括登録',
-    'children_menu.cmd_batch': '子供設定 タロウ, ジロウ',
+    'children_menu.cmd_batch': '子供設定',
     'children_menu.item_add_title': '➕ 子供追加',
     'children_menu.item_add_desc': 'お子様のお名前とクラス備考を追加',
     'children_menu.btn_add': '子供追加',
@@ -790,8 +800,13 @@ var I18N_MESSAGES = {
     'children_menu.item_del_desc': '指定したお子様の登録を削除',
     'children_menu.btn_delete': '子供削除',
     'children_menu.cmd_delete': '子供削除',
-    'children_menu.footer': '💡 「一括登録 / 新規追加」でサンプル送信、「子供削除」で名簿から選択、チャット直接入力も可能です！',
+    'children_menu.footer': '💡 「子供追加」でサンプル送信、「子供設定 / 子供削除」で迅速に操作、チャット直接入力も可能です！',
     'children_menu.alt_text': '👶 お子様管理メニュー',
+
+    // Submenu: Batch Set Children Prompt
+    'children_batch.prompt': '💡 登録するお子様のお名前をカンマ「,」区切りで入力してください。\n例：「子供設定 タロウ, ジロウ」\n（下のショートカットボタンからも入力できます）',
+    'children_batch.btn_input': '✏️ お子様名を入力',
+    'children_batch.btn_menu': '👶 子供メニュー',
 
     // Submenu: Children Delete Shortcuts
     'children_delete.prompt': '🗑️ 削除するお子様を選択してください：\n（下のショートカットボタンをタップするか、「削除取消」をタップ）',
@@ -968,10 +983,10 @@ var I18N_MESSAGES = {
     'help.cmd_today_menu.desc': '오늘의 메뉴 확인 및 주문',
     'help.cmd_today_menu.btn': '메뉴보기',
     'help.cmd_today_menu.cmd': '메뉴',
-    'help.cmd_children.title': '👶 자녀 설정',
+    'help.cmd_children.title': '👶 자녀 메뉴',
     'help.cmd_children.desc': '자녀 명단 및 배분 설정',
-    'help.cmd_children.btn': '자녀설정',
-    'help.cmd_children.cmd': '자녀설정',
+    'help.cmd_children.btn': '자녀메뉴',
+    'help.cmd_children.cmd': '자녀메뉴',
     'help.cmd_my_today.title': '📝 내 주문',
     'help.cmd_my_today.desc': '개인 오늘 주문 내역 조회',
     'help.cmd_my_today.btn': '오늘주문',
@@ -1017,10 +1032,10 @@ var I18N_MESSAGES = {
     'children_menu.item_list_desc': '등록된 자녀 명단 및 학급 확인',
     'children_menu.btn_list': '목록보기',
     'children_menu.cmd_list': '자녀목록',
-    'children_menu.item_batch_title': '👶 자녀 일괄설정',
-    'children_menu.item_batch_desc': '여러 자녀를 한 번에 등록 (기존 명단 대체)',
+    'children_menu.item_batch_title': '👶 자녀 설정',
+    'children_menu.item_batch_desc': '여러 자녀 일괄 등록 (쉼표「,」로 구분)',
     'children_menu.btn_batch': '일괄등록',
-    'children_menu.cmd_batch': '자녀설정 민우, 지호',
+    'children_menu.cmd_batch': '자녀설정',
     'children_menu.item_add_title': '➕ 자녀 추가',
     'children_menu.item_add_desc': '자녀 이름 및 학급 메모 추가',
     'children_menu.btn_add': '자녀추가',
@@ -1029,8 +1044,13 @@ var I18N_MESSAGES = {
     'children_menu.item_del_desc': '지정된 자녀 등록 기록 삭제',
     'children_menu.btn_delete': '자녀삭제',
     'children_menu.cmd_delete': '자녀삭제',
-    'children_menu.footer': '💡 「일괄등록 / 신규추가」로 예시 전송, 「자녀삭제」로 명부에서 선택 가능하며 채팅창에 직접 입력할 수도 있습니다!',
+    'children_menu.footer': '💡 「자녀추가」로 예시 전송, 「자녀설정 / 자녀삭제」로 신속히 조작하며 채팅창에 직접 입력할 수도 있습니다!',
     'children_menu.alt_text': '👶 자녀 관리 메뉴',
+
+    // Submenu: Batch Set Children Prompt
+    'children_batch.prompt': '💡 등록할 자녀 이름을 쉼표(,)로 구분하여 입력해주세요.\n예: 「자녀설정 민우, 지호」\n(아래 바로가기 버튼을 눌러 바로 입력할 수도 있습니다)',
+    'children_batch.btn_input': '✏️ 자녀 이름 직접 입력',
+    'children_batch.btn_menu': '👶 자녀 메뉴',
 
     // Submenu: Children Delete Shortcuts
     'children_delete.prompt': '🗑️ 삭제할 자녀를 선택하세요:\n(아래 바로가기 버튼을 누르거나 "삭제취소"를 누르세요)',
@@ -1207,10 +1227,10 @@ var I18N_MESSAGES = {
     'help.cmd_today_menu.desc': 'ดูเมนูและสั่งอาหารวันนี้',
     'help.cmd_today_menu.btn': 'ดูเมนู',
     'help.cmd_today_menu.cmd': 'เมนู',
-    'help.cmd_children.title': '👶 ตั้งค่าลูก',
+    'help.cmd_children.title': '👶 เมนูเด็ก',
     'help.cmd_children.desc': 'รายชื่อเด็กและการจัดสรรอาหาร',
-    'help.cmd_children.btn': 'ตั้งค่าลูก',
-    'help.cmd_children.cmd': 'ตั้งค่าลูก',
+    'help.cmd_children.btn': 'เมนูเด็ก',
+    'help.cmd_children.cmd': 'เมนูเด็ก',
     'help.cmd_my_today.title': '📝 ออเดอร์วันนี้',
     'help.cmd_my_today.desc': 'ตรวจสอบรายการสั่งวันนี้ของคุณ',
     'help.cmd_my_today.btn': 'เช็ควันนี้',
@@ -1256,10 +1276,10 @@ var I18N_MESSAGES = {
     'children_menu.item_list_desc': 'ดูรายชื่อเด็กและข้อมูลชั้นเรียนที่ลงทะเบียน',
     'children_menu.btn_list': 'ดูรายชื่อ',
     'children_menu.cmd_list': 'รายชื่อเด็ก',
-    'children_menu.item_batch_title': '👶 ตั้งค่าลูกแบบกลุ่ม',
-    'children_menu.item_batch_desc': 'ลงทะเบียนเด็กพร้อมกันหลายคน (แทนที่รายชื่อเดิม)',
+    'children_menu.item_batch_title': '👶 ตั้งค่าลูก',
+    'children_menu.item_batch_desc': 'ลงทะเบียนเด็กหลายคน (คั่นด้วยเครื่องหมายจุลภาค ,)',
     'children_menu.btn_batch': 'ลงทะเบียนกลุ่ม',
-    'children_menu.cmd_batch': 'ตั้งค่าลูก น้องเอ, น้องบี',
+    'children_menu.cmd_batch': 'ตั้งค่าลูก',
     'children_menu.item_add_title': '➕ เพิ่มลูก',
     'children_menu.item_add_desc': 'เพิ่มชื่อเด็กและหมายเหตุชั้นเรียน',
     'children_menu.btn_add': 'เพิ่มลูก',
@@ -1268,8 +1288,13 @@ var I18N_MESSAGES = {
     'children_menu.item_del_desc': 'ลบข้อมูลเด็กที่ระบุออกจากระบบ',
     'children_menu.btn_delete': 'ลบลูก',
     'children_menu.cmd_delete': 'ลบลูก',
-    'children_menu.footer': '💡 แตะ "ตั้งค่ารวม / เพิ่มลูก" เพื่อดูตัวอย่าง หรือแตะ "ลบลูก" เพื่อเลือกจากรายชื่อ สามารถพิมพ์คำสั่งในแชทได้โดยตรง!',
+    'children_menu.footer': '💡 แตะ "เพิ่มลูก" เพื่อดูตัวอย่าง หรือแตะ "ตั้งค่าลูก / ลบลูก" เพื่อสั่งการด่วน สามารถพิมพ์คำสั่งในแชทได้โดยตรง!',
     'children_menu.alt_text': '👶 เมนูจัดการเด็ก',
+
+    // Submenu: Batch Set Children Prompt
+    'children_batch.prompt': '💡 กรุณาระบุชื่อเด็ก โดยคั่นด้วยเครื่องหมายจุลภาค (,)\nตัวอย่าง: "ตั้งค่าลูก น้องเอ, น้องบี"\n(สามารถแตะปุ่มลัดด้านล่างเพื่อกรอกข้อมูลได้)',
+    'children_batch.btn_input': '✏️ กรอกชื่อเด็ก',
+    'children_batch.btn_menu': '👶 เมนูเด็ก',
 
     // Submenu: Children Delete Shortcuts
     'children_delete.prompt': '🗑️ กรุณาเลือกลูกที่ต้องการลบ:\n(แตะปุ่มลัดด้านล่าง หรือแตะ "ยกเลิกลบ")',
@@ -1446,10 +1471,10 @@ var I18N_MESSAGES = {
     'help.cmd_today_menu.desc': 'Lihat menu & pesan hari ini',
     'help.cmd_today_menu.btn': 'Lihat Menu',
     'help.cmd_today_menu.cmd': 'menu',
-    'help.cmd_children.title': '👶 Atur Anak',
+    'help.cmd_children.title': '👶 Menu Anak',
     'help.cmd_children.desc': 'Daftar anak & alokasi makanan',
-    'help.cmd_children.btn': 'Atur Anak',
-    'help.cmd_children.cmd': 'atur anak',
+    'help.cmd_children.btn': 'Menu Anak',
+    'help.cmd_children.cmd': 'menu anak',
     'help.cmd_my_today.title': '📝 Pesanan Hari Ini',
     'help.cmd_my_today.desc': 'Cek riwayat pesanan hari ini',
     'help.cmd_my_today.btn': 'Hari Ini',
@@ -1496,9 +1521,9 @@ var I18N_MESSAGES = {
     'children_menu.btn_list': 'Lihat Daftar',
     'children_menu.cmd_list': 'daftar anak',
     'children_menu.item_batch_title': '👶 Atur Anak (Sekaligus)',
-    'children_menu.item_batch_desc': 'Daftarkan anak sekaligus (menimpa data lama)',
+    'children_menu.item_batch_desc': 'Daftarkan banyak anak (pisahkan dengan koma ,)',
     'children_menu.btn_batch': 'Atur Bersama',
-    'children_menu.cmd_batch': 'atur anak Budi, Siti',
+    'children_menu.cmd_batch': 'atur anak',
     'children_menu.item_add_title': '➕ Tambah Anak',
     'children_menu.item_add_desc': 'Tambah anak dengan catatan kelas',
     'children_menu.btn_add': 'Tambah Anak',
@@ -1507,8 +1532,13 @@ var I18N_MESSAGES = {
     'children_menu.item_del_desc': 'Hapus data profil anak terdaftar',
     'children_menu.btn_delete': 'Hapus Anak',
     'children_menu.cmd_delete': 'hapus anak',
-    'children_menu.footer': '💡 Ketuk "Daftar Sekaligus / Tambah Anak" untuk contoh, ketuk "Hapus Anak" untuk memilih dari daftar, atau ketik langsung di obrolan!',
+    'children_menu.footer': '💡 Ketuk "Tambah Anak" untuk contoh, ketuk "Atur Bersama / Hapus Anak" untuk aksi cepat, atau ketik langsung di obrolan!',
     'children_menu.alt_text': '👶 Menu Kelola Anak',
+
+    // Submenu: Batch Set Children Prompt
+    'children_batch.prompt': '💡 Silakan masukkan nama anak, pisahkan dengan koma (,).\nContoh: "atur anak Budi, Siti"\n(Bisa juga ketuk tombol pintas di bawah untuk mengisi cepat)',
+    'children_batch.btn_input': '✏️ Masukkan Nama Anak',
+    'children_batch.btn_menu': '👶 Menu Anak',
 
     // Submenu: Children Delete Shortcuts
     'children_delete.prompt': '🗑️ Silakan pilih anak yang ingin dihapus:\n(Ketuk tombol pintas di bawah atau ketuk "Batal Hapus")',
@@ -1684,10 +1714,10 @@ var I18N_MESSAGES = {
     'help.cmd_today_menu.desc': 'Xem thực đơn hôm nay & đặt món',
     'help.cmd_today_menu.btn': 'Xem thực đơn',
     'help.cmd_today_menu.cmd': 'thực đơn',
-    'help.cmd_children.title': '👶 Quản lý Bé',
+    'help.cmd_children.title': '👶 Menu Quản lý Bé',
     'help.cmd_children.desc': 'Danh sách bé & chia suất ăn',
-    'help.cmd_children.btn': 'Cài đặt bé',
-    'help.cmd_children.cmd': 'cài đặt bé',
+    'help.cmd_children.btn': 'Menu Bé',
+    'help.cmd_children.cmd': 'menu bé',
     'help.cmd_my_today.title': '📝 Đơn của tôi hôm nay',
     'help.cmd_my_today.desc': 'Xem các món đã đặt hôm nay',
     'help.cmd_my_today.btn': 'Hôm nay',
@@ -1734,9 +1764,9 @@ var I18N_MESSAGES = {
     'children_menu.btn_list': 'Xem danh sách',
     'children_menu.cmd_list': 'bé của tôi',
     'children_menu.item_batch_title': '👶 Cài đặt bé (Hàng loạt)',
-    'children_menu.item_batch_desc': 'Đăng ký danh sách bé (ghi đè danh sách cũ)',
+    'children_menu.item_batch_desc': 'Đăng ký danh sách bé (phân cách bằng dấu phẩy ,)',
     'children_menu.btn_batch': 'Cài đặt loạt',
-    'children_menu.cmd_batch': 'cài đặt bé BéBi, BéBo',
+    'children_menu.cmd_batch': 'cài đặt bé',
     'children_menu.item_add_title': '➕ Thêm Bé',
     'children_menu.item_add_desc': 'Thêm thông tin bé và ghi chú lớp học',
     'children_menu.btn_add': 'Thêm Bé',
@@ -1745,8 +1775,13 @@ var I18N_MESSAGES = {
     'children_menu.item_del_desc': 'Xóa thông tin bé đã đăng ký',
     'children_menu.btn_delete': 'Xóa Bé',
     'children_menu.cmd_delete': 'xóa bé',
-    'children_menu.footer': '💡 Nhấn "Cài đặt loạt / Thêm Bé" để xem mẫu, nhấn "Xóa Bé" để chọn từ danh sách, hoặc gõ lệnh trực tiếp trong chat!',
+    'children_menu.footer': '💡 Nhấn "Thêm Bé" để xem mẫu, nhấn "Cài đặt loạt / Xóa Bé" để thao tác nhanh, hoặc gõ lệnh trực tiếp trong chat!',
     'children_menu.alt_text': '👶 Menu Quản lý Bé',
+
+    // Submenu: Batch Set Children Prompt
+    'children_batch.prompt': '💡 Vui lòng nhập tên các bé, phân cách bằng dấu phẩy (,).\nVí dụ: "cài đặt bé BéBi, BéBo"\n(Có thể nhấn phím tắt bên dưới để nhập nhanh)',
+    'children_batch.btn_input': '✏️ Nhập tên bé',
+    'children_batch.btn_menu': '👶 Menu Bé',
 
     // Submenu: Children Delete Shortcuts
     'children_delete.prompt': '🗑️ Vui lòng chọn bé cần xóa:\n(Nhấn nút phím tắt bên dưới hoặc nhấn "Hủy xóa")',
@@ -1892,7 +1927,8 @@ var I18N_COMMANDS = {
     'cmd.cancel':   ['取消餐點', '取消'],
     'cmd.close':    ['結單', '截止', '截止訂餐', '本週結單', '今日結單'],
     'cmd.open':     ['開單', '開始訂餐'],
-    'cmd.children': ['設定小孩', '小孩設定', '登記小孩', '小孩選單', '小孩管理', '小孩幫助'],
+    'cmd.children': ['設定小孩', '小孩設定', '登記小孩', '批次登記', '批次設定小孩'],
+    'cmd.children_menu': ['小孩選單', '小孩管理', '小孩幫助', '孩子選單'],
     'cmd.my_kids':  ['我的小孩', '小孩名單', '小孩名冊', '我的孩子'],
     'cmd.add_kid':  ['新增小孩', '加小孩'],
     'cmd.del_kid':  ['刪除小孩', '移除小孩'],
@@ -1914,7 +1950,8 @@ var I18N_COMMANDS = {
     'cmd.cancel':   ['cancel', 'cancel order'],
     'cmd.close':    ['close orders', 'close order', 'close'],
     'cmd.open':     ['open order', 'start ordering'],
-    'cmd.children': ['children', 'kids', 'manage kids'],
+    'cmd.children': ['children', 'set kids', 'batch kids', 'register kids'],
+    'cmd.children_menu': ['kids menu', 'children menu', 'manage kids', 'kids help'],
     'cmd.my_kids':  ['my kids', 'kids list', 'my children'],
     'cmd.add_kid':  ['add kid', 'add child'],
     'cmd.del_kid':  ['delete kid', 'remove kid'],
@@ -1936,7 +1973,8 @@ var I18N_COMMANDS = {
     'cmd.cancel':   ['キャンセル', '取消'],
     'cmd.close':    ['締め切り', '締め切る', '注文締切'],
     'cmd.open':     ['注文開始', '受付開始'],
-    'cmd.children': ['子供設定', '子供管理', 'お子様設定'],
+    'cmd.children': ['子供設定', 'お子様設定', '子供一括設定', '一括登録'],
+    'cmd.children_menu': ['子供メニュー', '子供管理', 'お子様メニュー', 'お子様管理'],
     'cmd.my_kids':  ['子供リスト', 'お子様一覧', '私の子供'],
     'cmd.add_kid':  ['子供追加', 'お子様追加'],
     'cmd.del_kid':  ['子供削除', 'お子様削除'],
@@ -1958,7 +1996,8 @@ var I18N_COMMANDS = {
     'cmd.cancel':   ['주문취소', '취소'],
     'cmd.close':    ['마감', '주문마감'],
     'cmd.open':     ['주문시작', '주문열기'],
-    'cmd.children': ['자녀설정', '자녀관리', '아이설정'],
+    'cmd.children': ['자녀설정', '아이설정', '자녀일괄설정', '일괄등록'],
+    'cmd.children_menu': ['자녀메뉴', '자녀관리', '아이메뉴', '아이관리'],
     'cmd.my_kids':  ['자녀목록', '아이목록', '내 아이'],
     'cmd.add_kid':  ['자녀추가', '아이추가'],
     'cmd.del_kid':  ['자녀삭제', '아이삭제'],
@@ -1980,7 +2019,8 @@ var I18N_COMMANDS = {
     'cmd.cancel':   ['ยกเลิก', 'ยกเลิกออเดอร์'],
     'cmd.close':    ['ปิดรับ', 'ปิดรับออเดอร์'],
     'cmd.open':     ['เปิดรับ', 'เริ่มสั่ง'],
-    'cmd.children': ['ตั้งค่าลูก', 'จัดการลูก'],
+    'cmd.children': ['ตั้งค่าลูก', 'ลงทะเบียนลูก', 'ตั้งค่าลูกแบบกลุ่ม'],
+    'cmd.children_menu': ['เมนูเด็ก', 'เมนูจัดการเด็ก', 'จัดการลูก'],
     'cmd.my_kids':  ['รายชื่อเด็ก', 'ลูกของฉัน'],
     'cmd.add_kid':  ['เพิ่มลูก'],
     'cmd.del_kid':  ['ลบลูก'],
@@ -2002,7 +2042,8 @@ var I18N_COMMANDS = {
     'cmd.cancel':   ['batal', 'batalkan pesanan'],
     'cmd.close':    ['tutup pesanan', 'tutup'],
     'cmd.open':     ['buka pesanan', 'mulai pesan'],
-    'cmd.children': ['atur anak', 'kelola anak'],
+    'cmd.children': ['atur anak', 'daftar anak', 'atur anak sekaligus'],
+    'cmd.children_menu': ['menu anak', 'kelola anak', 'bantuan anak'],
     'cmd.my_kids':  ['daftar anak', 'anak saya'],
     'cmd.add_kid':  ['tambah anak'],
     'cmd.del_kid':  ['hapus anak'],
@@ -2024,7 +2065,8 @@ var I18N_COMMANDS = {
     'cmd.cancel':   ['hủy món', 'hủy đơn', 'hủy', 'huy'],
     'cmd.close':    ['chốt đơn', 'đóng đơn', 'kết thúc'],
     'cmd.open':     ['mở đơn', 'bắt đầu đặt món'],
-    'cmd.children': ['cài đặt bé', 'quản lý bé', 'danh sách bé'],
+    'cmd.children': ['cài đặt bé', 'đăng ký bé', 'cài đặt loạt'],
+    'cmd.children_menu': ['menu bé', 'menu quản lý bé', 'quản lý bé'],
     'cmd.my_kids':  ['bé của tôi', 'danh sách bé của tôi', 'các bé'],
     'cmd.add_kid':  ['thêm bé', 'thêm con'],
     'cmd.del_kid':  ['xóa bé', 'xóa con'],
@@ -9139,15 +9181,53 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, kidsAltText, kidsFlex);
   }
 
-  // 8.5.1 CHILDREN SUBMENU: 設定小孩 / 小孩設定 / 登記小孩 / 小孩選單 / 小孩管理 (無帶參數時回覆按鈕子選單)
-  var childrenSubmenuRegex = _getCmdRegex('cmd.children', /^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i);
+  // 8.5.1 CHILDREN SUBMENU: 小孩選單 / 小孩管理 / 孩子選單 (無帶參數時回覆按鈕子選單)
+  var childrenSubmenuRegex = _getCmdRegex('cmd.children_menu', /^(?:\/)?(?:小孩選單|小孩管理|小孩幫助|孩子選單)$/i);
   if (childrenSubmenuRegex.test(text.trim())) {
     var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex(userLocale);
     var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 小孩與用餐對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 小孩與用餐對象管理選單');
     return LineModule.replyFlex(replyToken, childrenSubmenuAlt, childrenSubmenuFlex);
   }
 
-  var setKidsPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.children') : '(?:\\/)?(?:設定小孩|小孩設定|登記小孩)';
+  // 8.5.1b STANDALONE SET KIDS: 設定小孩 / 小孩設定 / 登記小孩 / 批次登記 / 批次設定小孩 (無參數時提示引導與快捷按鈕)
+  var setKidsPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.children') : '(?:\\/)?(?:設定小孩|小孩設定|登記小孩|批次登記|批次設定小孩)';
+  if (new RegExp('^' + setKidsPrefix + '$', 'i').test(text.trim())) {
+    var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_batch.prompt') : null) || '💡 請輸入欲設定的小孩姓名，多位小孩請使用逗號「,」分隔。\n例如：「設定小孩 大寶, 二寶」\n（可直接點選下方快捷按鈕快速輸入）';
+    var setCmd = (typeof _translateMsg === 'function' ? _translateMsg('children_menu.cmd_batch') : null) || '設定小孩';
+    var inputBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_batch.btn_input') : null) || '✏️ 手動輸入小孩姓名';
+    var menuBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_batch.btn_menu') : null) || '👶 小孩選單';
+    var menuCmd = (typeof _translateMsg === 'function' ? _translateMsg('help.cmd_children.cmd') : null) || '小孩選單';
+    var qrItems = [
+      {
+        type: 'action',
+        action: {
+          type: 'postback',
+          label: inputBtnLabel.slice(0, 20),
+          data: 'action=prompt_set_kids',
+          inputOption: 'openKeyboard',
+          fillInText: setCmd + ' '
+        }
+      },
+      {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: menuBtnLabel.slice(0, 20),
+          text: menuCmd
+        }
+      }
+    ];
+    if (LineModule.replyQuickReply) {
+      return LineModule.replyQuickReply(replyToken, promptMsg, qrItems);
+    } else {
+      return LineModule.replyMessages(replyToken, [{
+        type: 'text',
+        text: promptMsg,
+        quickReply: { items: qrItems }
+      }]);
+    }
+  }
+
   var setKidsMatch = text.match(new RegExp('^' + setKidsPrefix + '\\s+(.+)$', 'i'));
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
@@ -9919,7 +9999,7 @@ function handlePostbackEvent(event) {
     return handleTextMessage(pseudoMenuEvent);
   }
 
-  if (action === 'prompt_note') {
+  if (action === 'prompt_note' || action === 'prompt_set_kids') {
     return null;
   }
 
