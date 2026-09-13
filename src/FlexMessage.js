@@ -1892,7 +1892,8 @@ function createChildrenListFlex(userName, children, locale) {
     });
 
     bodyContents.push(_flexSeparator({ margin: 'md' }));
-    bodyContents.push(_flexText(loc === 'zh-TW' ? '💡 點餐方式：\n1. 點擊菜單上的「+1 點餐」按鈕，系統會自動彈出小孩捷徑按鈕供您挑選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！' : '💡 ' + _translateHelper('children_menu.footer', {}, loc), {
+    var footerGuide = _translateHelper('children_list.footer', {}, loc) || '💡 點餐方式：\n1. 若僅登記 1 位小孩，點擊菜單「+1 點餐」將自動預設分配；若有多位小孩則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！';
+    bodyContents.push(_flexText(footerGuide, {
       size: 'xs',
       color: FLEX_COLORS.primaryDark,
       wrap: true,
