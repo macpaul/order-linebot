@@ -1286,15 +1286,16 @@ OrderModule.handleTextMessage({
 });
 assert.strictEqual(lastReply.type, 'quick_reply', 'Ordering without child designation for parent must trigger Quick Reply');
 assert.ok(lastReply.text.includes('分配給哪位小孩或自己'), 'Prompt text guides user to pick recipient');
+assert.ok(lastReply.text.includes('手動輸入小孩名字'), 'Prompt text specifies manual child input button');
 const qrItems = lastReply.quickReply.items;
-assert.strictEqual(qrItems.length, 4, 'Must have 4 items: 大寶, 二寶, 本人, 其他備註');
+assert.strictEqual(qrItems.length, 4, 'Must have 4 items: 大寶, 二寶, 本人, 手動輸入小孩名字');
 assert.strictEqual(qrItems[0].action.label, '👦 大寶');
 assert.strictEqual(qrItems[0].action.text, '+1 招牌三寶飯 (大寶)');
 assert.strictEqual(qrItems[1].action.label, '👦 二寶');
 assert.strictEqual(qrItems[1].action.text, '+1 招牌三寶飯 (二寶)');
 assert.strictEqual(qrItems[2].action.label, '👤 本人');
 assert.strictEqual(qrItems[2].action.text, '+1 招牌三寶飯 (本人)');
-assert.strictEqual(qrItems[3].action.label, '✏️ 其他備註');
+assert.strictEqual(qrItems[3].action.label, '✏️ 手動輸入小孩名字');
 assert.strictEqual(qrItems[3].action.inputOption, 'openKeyboard');
 assert.strictEqual(qrItems[3].action.fillInText, '+1 招牌三寶飯 ()');
 
@@ -2271,6 +2272,11 @@ allLocales.forEach(function (loc) {
   });
   assert.ok(lastReply && lastReply.type === 'text', 'My weekly order command must reply text for ' + loc);
   assert.ok(lastReply.text.includes(I18nModule.t('my_orders.no_weekly_orders', null, loc)), 'Empty weekly orders must match localized text for ' + loc);
+
+  // F. Quick Reply Child Assignment Prompt & Button
+  var qrPromptLocalized = I18nModule.t('order.qr_prompt', { item: 'Item A', btn: I18nModule.t('order.qr_note_btn', null, loc) }, loc);
+  assert.ok(qrPromptLocalized && qrPromptLocalized.includes('Item A'), 'Localized QR prompt must contain item name for ' + loc);
+  assert.ok(I18nModule.t('order.qr_note_btn', null, loc).length > 0, 'Localized QR note button must exist for ' + loc);
 });
 
 // Reset Config & clean up test preference
