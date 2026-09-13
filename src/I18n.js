@@ -162,6 +162,7 @@ var I18N_MESSAGES = {
     'children_list.btn_setup': '設定小孩',
     'children_list.cmd_setup': '設定小孩',
     'children_list.alt_text': '👶 我的小孩與用餐對象名冊',
+    'children_list.footer': '💡 點餐方式：\n1. 若僅登記 1 位小孩，點擊菜單「+1 點餐」將自動預設分配；若有多位小孩則彈出捷徑直選。\n2. 或直接輸入「+1 招牌便當 (大寶)」即可指定！',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 本週訂餐排程表',
@@ -256,6 +257,7 @@ var I18N_MESSAGES = {
 
     // Quick Reply Recipient Assignment
     'order.qr_prompt': '🍱 請選擇【{item}】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「{btn}」）',
+    'order.qr_prompt_no_kids': '🍱 請選擇【{item}】要分配給小孩或自己？\n（點「{btn}」輸入小孩姓名，或選擇「{self}」直接下單）',
     'order.qr_note_btn': '✏️ 手動輸入小孩名字',
 
     // Order Receipt Card
@@ -406,6 +408,7 @@ var I18N_MESSAGES = {
     'children_list.btn_setup': 'Manage Kids',
     'children_list.cmd_setup': 'children',
     'children_list.alt_text': '👶 Children Roster',
+    'children_list.footer': '💡 How to order:\n1. If 1 child is registered, tapping "+1 Order" automatically defaults to that child. If multiple children, shortcuts pop up.\n2. Or enter "+1 Bento (ChildName)" directly!',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 Weekly Ordering Schedule',
@@ -500,6 +503,7 @@ var I18N_MESSAGES = {
 
     // Quick Reply Recipient Assignment
     'order.qr_prompt': '🍱 Who would you like to assign [{item}] to?\n(Tap a shortcut below or tap "{btn}")',
+    'order.qr_prompt_no_kids': '🍱 Who would you like to assign [{item}] to?\n(Tap "{btn}" to enter child\'s name, or choose "{self}")',
     'order.qr_note_btn': '✏️ Enter Child Name',
 
     // Order Receipt Card
@@ -650,6 +654,7 @@ var I18N_MESSAGES = {
     'children_list.btn_setup': 'お子様設定',
     'children_list.cmd_setup': '子供設定',
     'children_list.alt_text': '👶 お子様名簿',
+    'children_list.footer': '💡 注文方法：\n1. お子様が1名のみ登録の場合、「+1 注文」タップで自動的にそのお子様に割り当てられます。複数名の場合はショートカットが表示されます。\n2. 「+1 弁当 (子供名)」を直接入力することも可能です！',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 今週の注文スケジュール',
@@ -744,6 +749,7 @@ var I18N_MESSAGES = {
 
     // Quick Reply Recipient Assignment
     'order.qr_prompt': '🍱【{item}】はどのお子様またはご自身用ですか？\n（下のショートカットボタンまたは「{btn}」をタップしてください）',
+    'order.qr_prompt_no_kids': '🍱【{item}】はお子様用またはご自身用ですか？\n（「{btn}」でお子様の名前を入力、または「{self}」を選択してください）',
     'order.qr_note_btn': '✏️ お子様名を手動入力',
 
     // Order Receipt Card
@@ -894,6 +900,7 @@ var I18N_MESSAGES = {
     'children_list.btn_setup': '자녀설정',
     'children_list.cmd_setup': '자녀설정',
     'children_list.alt_text': '👶 자녀 명단',
+    'children_list.footer': '💡 주문 방법:\n1. 자녀가 1명 등록된 경우 "+1 주문"을 누르면 자동으로 해당 자녀에게 배정됩니다. 여러 명이면 바로가기가 팝업됩니다.\n2. 또는 "+1 도시락 (자녀이름)"을 직접 입력할 수도 있습니다!',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 이번주 주문 일정표',
@@ -988,6 +995,7 @@ var I18N_MESSAGES = {
 
     // Quick Reply Recipient Assignment
     'order.qr_prompt': '🍱 [{item}]을(를) 어느 자녀 또는 본인에게 배정하시겠습니까?\n(아래 단축 버튼 또는 "{btn}"을(를) 눌러주세요)',
+    'order.qr_prompt_no_kids': '🍱 [{item}]을(를) 자녀 또는 본인 중 누구에게 배정하시겠습니까?\n("{btn}"을(를) 눌러 자녀 이름을 입력하거나, "{self}"을(를) 선택하세요)',
     'order.qr_note_btn': '✏️ 자녀 이름 직접 입력',
 
     // Order Receipt Card
@@ -1138,6 +1146,7 @@ var I18N_MESSAGES = {
     'children_list.btn_setup': 'ตั้งค่าลูก',
     'children_list.cmd_setup': 'ตั้งค่าลูก',
     'children_list.alt_text': '👶 รายชื่อเด็ก',
+    'children_list.footer': '💡 วิธีสั่งอาหาร:\n1. หากลงทะเบียนเด็ก 1 คน การแตะ "+1 สั่งอาหาร" จะจัดสรรให้เด็กคนนั้นโดยอัตโนมัติ หากมีหลายคนจะมีปุ่มลัดให้เลือก\n2. หรือพิมพ์ "+1 ข้าวกล่อง (ชื่อเด็ก)" ได้โดยตรง!',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 ตารางสั่งอาหารสัปดาห์นี้',
@@ -1232,6 +1241,7 @@ var I18N_MESSAGES = {
 
     // Quick Reply Recipient Assignment
     'order.qr_prompt': '🍱 โปรดเลือกว่าจะจัดสรร [{item}] ให้เด็กคนไหนหรือตัวเอง?\n(แตะปุ่มลัดด้านล่าง หรือแตะ "{btn}")',
+    'order.qr_prompt_no_kids': '🍱 โปรดเลือกว่าจะจัดสรร [{item}] ให้เด็กหรือตัวเอง?\n(แตะ "{btn}" เพื่อระบุชื่อเด็ก หรือเลือก "{self}")',
     'order.qr_note_btn': '✏️ ป้อนชื่อลูก',
 
     // Order Receipt Card
@@ -1382,6 +1392,7 @@ var I18N_MESSAGES = {
     'children_list.btn_setup': 'Atur Anak',
     'children_list.cmd_setup': 'atur anak',
     'children_list.alt_text': '👶 Daftar Anak',
+    'children_list.footer': '💡 Cara Memesan:\n1. Jika hanya 1 anak terdaftar, ketuk "+1 Pesan" akan otomatis dialokasikan ke anak tersebut. Jika lebih dari 1 anak, tombol pintas akan muncul.\n2. Atau ketik "+1 Bento (NamaAnak)" secara langsung!',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 Jadwal Pesanan Mingguan',
@@ -1476,6 +1487,7 @@ var I18N_MESSAGES = {
 
     // Quick Reply Recipient Assignment
     'order.qr_prompt': '🍱 Pilih siapa yang akan menerima [{item}] (anak atau diri sendiri)?\n(Ketuk tombol pintas di bawah atau ketuk "{btn}")',
+    'order.qr_prompt_no_kids': '🍱 Pilih penerima [{item}] (anak atau diri sendiri)?\n(Ketuk "{btn}" untuk nama anak, atau pilih "{self}")',
     'order.qr_note_btn': '✏️ Input Nama Anak',
 
     // Order Receipt Card
@@ -1625,6 +1637,7 @@ var I18N_MESSAGES = {
     'children_list.btn_setup': 'Cài đặt Bé',
     'children_list.cmd_setup': 'cài đặt bé',
     'children_list.alt_text': '👶 Danh sách Bé',
+    'children_list.footer': '💡 Cách đặt món:\n1. Nếu chỉ đăng ký 1 bé, nhấn "+1 Đặt món" sẽ tự động phân bổ cho bé đó. Nếu có nhiều bé, các nút phím tắt sẽ hiện ra.\n2. Hoặc nhập trực tiếp "+1 Cơm hộp (Tên bé)"!',
 
     // Submenu: Weekly Schedule Card
     'schedule.title': '📅 Lịch Đặt món Tuần này',
@@ -1719,6 +1732,7 @@ var I18N_MESSAGES = {
 
     // Quick Reply Recipient Assignment
     'order.qr_prompt': '🍱 Vui lòng chọn phân bổ [{item}] cho bé nào hoặc bản thân?\n(Nhấn nút phím tắt bên dưới hoặc nhấn "{btn}")',
+    'order.qr_prompt_no_kids': '🍱 Vui lòng chọn phân bổ [{item}] cho bé hay bản thân?\n(Nhấn "{btn}" để nhập tên bé, hoặc chọn "{self}")',
     'order.qr_note_btn': '✏️ Nhập tên bé',
 
     // Order Receipt Card
