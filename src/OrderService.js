@@ -1181,15 +1181,53 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, kidsAltText, kidsFlex);
   }
 
-  // 8.5.1 CHILDREN SUBMENU: 設定小孩 / 小孩設定 / 登記小孩 / 小孩選單 / 小孩管理 (無帶參數時回覆按鈕子選單)
-  var childrenSubmenuRegex = _getCmdRegex('cmd.children', /^(?:\/)?(?:設定小孩|小孩設定|登記小孩|小孩選單|小孩管理|小孩幫助)$/i);
+  // 8.5.1 CHILDREN SUBMENU: 小孩選單 / 小孩管理 / 孩子選單 (無帶參數時回覆按鈕子選單)
+  var childrenSubmenuRegex = _getCmdRegex('cmd.children_menu', /^(?:\/)?(?:小孩選單|小孩管理|小孩幫助|孩子選單)$/i);
   if (childrenSubmenuRegex.test(text.trim())) {
     var childrenSubmenuFlex = FlexModule.createChildrenHelpFlex(userLocale);
     var childrenSubmenuAlt = (userLocale === 'zh-TW') ? '👶 小孩與用餐對象管理選單' : (_translateMsg('children_menu.alt_text') || '👶 小孩與用餐對象管理選單');
     return LineModule.replyFlex(replyToken, childrenSubmenuAlt, childrenSubmenuFlex);
   }
 
-  var setKidsPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.children') : '(?:\\/)?(?:設定小孩|小孩設定|登記小孩)';
+  // 8.5.1b STANDALONE SET KIDS: 設定小孩 / 小孩設定 / 登記小孩 / 批次登記 / 批次設定小孩 (無參數時提示引導與快捷按鈕)
+  var setKidsPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.children') : '(?:\\/)?(?:設定小孩|小孩設定|登記小孩|批次登記|批次設定小孩)';
+  if (new RegExp('^' + setKidsPrefix + '$', 'i').test(text.trim())) {
+    var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_batch.prompt') : null) || '💡 請輸入欲設定的小孩姓名，多位小孩請使用逗號「,」分隔。\n例如：「設定小孩 大寶, 二寶」\n（可直接點選下方快捷按鈕快速輸入）';
+    var setCmd = (typeof _translateMsg === 'function' ? _translateMsg('children_menu.cmd_batch') : null) || '設定小孩';
+    var inputBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_batch.btn_input') : null) || '✏️ 手動輸入小孩姓名';
+    var menuBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_batch.btn_menu') : null) || '👶 小孩選單';
+    var menuCmd = (typeof _translateMsg === 'function' ? _translateMsg('help.cmd_children.cmd') : null) || '小孩選單';
+    var qrItems = [
+      {
+        type: 'action',
+        action: {
+          type: 'postback',
+          label: inputBtnLabel.slice(0, 20),
+          data: 'action=prompt_set_kids',
+          inputOption: 'openKeyboard',
+          fillInText: setCmd + ' '
+        }
+      },
+      {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: menuBtnLabel.slice(0, 20),
+          text: menuCmd
+        }
+      }
+    ];
+    if (LineModule.replyQuickReply) {
+      return LineModule.replyQuickReply(replyToken, promptMsg, qrItems);
+    } else {
+      return LineModule.replyMessages(replyToken, [{
+        type: 'text',
+        text: promptMsg,
+        quickReply: { items: qrItems }
+      }]);
+    }
+  }
+
   var setKidsMatch = text.match(new RegExp('^' + setKidsPrefix + '\\s+(.+)$', 'i'));
   if (setKidsMatch) {
     var rawList = setKidsMatch[1].trim();
@@ -1961,7 +1999,7 @@ function handlePostbackEvent(event) {
     return handleTextMessage(pseudoMenuEvent);
   }
 
-  if (action === 'prompt_note') {
+  if (action === 'prompt_note' || action === 'prompt_set_kids') {
     return null;
   }
 
