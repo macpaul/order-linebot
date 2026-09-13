@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-13T16:20:34.985Z
+ * Automatically generated on: 2026-09-13T16:26:53.102Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -9795,43 +9795,100 @@ function handleTextMessage(event) {
     var allNoChild = orderItems.every(function (oi) { return !oi.childName; });
     var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
 
-    if (allNoChild && userKids && userKids.length > 0 && orderItems.length === 1) {
+    // 當 User 只有一個小孩的時候，預設餐點分配給該小孩，免去重複確認
+    if (userKids && userKids.length === 1) {
+      orderItems.forEach(function (oi) {
+        if (!oi.childName) {
+          oi.childName = userKids[0];
+        }
+      });
+      allNoChild = false;
+    }
+
+    // 除非有不只一個小孩，才彈出快捷按鈕分配餐點；如果 User 沒有登記小孩，也彈出快捷按鈕讓 User 輸入小孩名字
+    var canPromptQuickReply = allNoChild && orderItems.length === 1;
+    if (canPromptQuickReply) {
+      var checkDay = orderItems[0].dayOfWeek || todayDay;
+      var isOpenCheck = SheetModule.getConfigValue('IS_ORDERING_OPEN', 'false') === 'true';
+      if (!orderItems[0].dayOfWeek && !isOpenCheck) {
+        canPromptQuickReply = false;
+      } else if (isDayPast(checkDay)) {
+        canPromptQuickReply = false;
+      } else if (checkDay === todayDay && isTodayCutoffPassed(checkDay)) {
+        canPromptQuickReply = false;
+      }
+    }
+
+    if (canPromptQuickReply) {
       var oiPrompt = orderItems[0];
       var pDay = oiPrompt.dayOfWeek || '';
       var dayPrefix = pDay ? pDay + ' ' : '';
       var pQty = oiPrompt.quantity || 1;
-      var quickReplyItems = userKids.map(function (k) {
-        return {
+      var selfLabel = (typeof _translateMsg === 'function' ? _translateMsg('common.self') : null) || '本人';
+      var noteBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_note_btn') : null) || '✏️ 手動輸入小孩名字';
+      var quickReplyItems = [];
+
+      if (userKids && userKids.length > 1) {
+        // 多位小孩：列出各小孩 + 本人 + 手動輸入
+        quickReplyItems = userKids.map(function (k) {
+          return {
+            type: 'action',
+            action: {
+              type: 'message',
+              label: '👦 ' + k,
+              text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + k + ')'
+            }
+          };
+        });
+        quickReplyItems.push({
           type: 'action',
           action: {
             type: 'message',
-            label: '👦 ' + k,
-            text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + k + ')'
+            label: '👤 ' + selfLabel,
+            text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + selfLabel + ')'
           }
-        };
-      });
-      // Add 本人
-      var selfLabel = (typeof _translateMsg === 'function' ? _translateMsg('common.self') : null) || '本人';
-      quickReplyItems.push({
-        type: 'action',
-        action: {
-          type: 'message',
-          label: '👤 ' + selfLabel,
-          text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + selfLabel + ')'
-        }
-      });
-      // Add openKeyboard note button (Option 1 + Option 2 hybrid)
-      var noteBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_note_btn') : null) || '✏️ 手動輸入小孩名字';
-      quickReplyItems.push({
-        type: 'action',
-        action: {
-          type: 'postback',
-          label: noteBtnLabel,
-          data: 'action=prompt_note&item=' + encodeURIComponent(oiPrompt.itemName) + (pDay ? '&day=' + encodeURIComponent(pDay) : '') + '&qty=' + pQty,
-          inputOption: 'openKeyboard',
-          fillInText: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' ()'
-        }
-      });
+        });
+        quickReplyItems.push({
+          type: 'action',
+          action: {
+            type: 'postback',
+            label: noteBtnLabel,
+            data: 'action=prompt_note&item=' + encodeURIComponent(oiPrompt.itemName) + (pDay ? '&day=' + encodeURIComponent(pDay) : '') + '&qty=' + pQty,
+            inputOption: 'openKeyboard',
+            fillInText: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' ()'
+          }
+        });
+      } else {
+        // 未登記小孩：提示手動輸入小孩名字、或選擇本人、或開啟小孩選單
+        quickReplyItems.push({
+          type: 'action',
+          action: {
+            type: 'postback',
+            label: noteBtnLabel,
+            data: 'action=prompt_note&item=' + encodeURIComponent(oiPrompt.itemName) + (pDay ? '&day=' + encodeURIComponent(pDay) : '') + '&qty=' + pQty,
+            inputOption: 'openKeyboard',
+            fillInText: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' ()'
+          }
+        });
+        quickReplyItems.push({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '👤 ' + selfLabel,
+            text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + selfLabel + ')'
+          }
+        });
+        var menuBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_batch.btn_menu') : null) || '👶 小孩選單';
+        var menuCmd = (typeof _translateMsg === 'function' ? _translateMsg('help.cmd_children.cmd') : null) || '小孩選單';
+        quickReplyItems.push({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: menuBtnLabel.slice(0, 20),
+            text: menuCmd
+          }
+        });
+      }
 
       var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_prompt', {
         item: dayPrefix + oiPrompt.itemName,
