@@ -225,7 +225,7 @@ assert.strictEqual(kidsSubmenuButtons[1].action.text, '設定小孩 大寶, 二�
 assert.strictEqual(kidsSubmenuButtons[1].action.label, '批次登記');
 assert.strictEqual(kidsSubmenuButtons[2].action.text, '新增小孩 小寶 附小一年一班');
 assert.strictEqual(kidsSubmenuButtons[2].action.label, '新增小孩');
-assert.strictEqual(kidsSubmenuButtons[3].action.text, '刪除小孩 小寶');
+assert.strictEqual(kidsSubmenuButtons[3].action.text, '刪除小孩');
 assert.strictEqual(kidsSubmenuButtons[3].action.label, '刪除小孩');
 console.log('  ✔ Children submenu flex card triggered from 設定小孩 button with 4 interactive actions verified.');
 
@@ -1264,15 +1264,56 @@ OrderModule.handleTextMessage({
 assert.strictEqual(lastReply.type, 'text');
 assert.ok(lastReply.text.includes('請輸入小孩姓名與班級備註'));
 
+// Alice triggers '刪除小孩' and receives Quick Reply shortcut buttons for her registered kids plus '取消刪除'
 OrderModule.handleTextMessage({
-  replyToken: 'token_del_kid_empty',
+  replyToken: 'token_del_kid_qr',
   source: { groupId: groupId, userId: 'user_alice' },
   message: { type: 'text', text: '刪除小孩' }
 });
-assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('請輸入欲刪除的小孩姓名'));
+assert.strictEqual(lastReply.type, 'quick_reply');
+assert.ok(lastReply.text.includes('請選擇欲刪除的小孩'));
+const delQrItems = lastReply.quickReply.items;
+assert.strictEqual(delQrItems.length, 3, 'Must have 3 shortcut buttons: 大寶, 二寶, 取消刪除');
+assert.strictEqual(delQrItems[0].action.label, '🗑️ 大寶');
+assert.strictEqual(delQrItems[0].action.text, '刪除小孩 大寶');
+assert.strictEqual(delQrItems[1].action.label, '🗑️ 二寶');
+assert.strictEqual(delQrItems[1].action.text, '刪除小孩 二寶');
+assert.strictEqual(delQrItems[2].action.label, '❌ 取消刪除');
+assert.strictEqual(delQrItems[2].action.text, '取消刪除');
 
-console.log('  ✔ Children tab CRUD API, flex card, and management commands verified.');
+// Alice cancels delete
+OrderModule.handleTextMessage({
+  replyToken: 'token_del_kid_cancel',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '取消刪除' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已取消刪除操作'));
+assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['大寶', '二寶']);
+
+// Bob (no children registered) triggers '刪除小孩' -> returns empty roster notice
+OrderModule.handleTextMessage({
+  replyToken: 'token_del_kid_bob_empty',
+  source: { groupId: groupId, userId: 'user_bob' },
+  message: { type: 'text', text: '刪除小孩' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('尚未登記任何小孩'));
+
+// Alice deletes 大寶 via shortcut button action
+OrderModule.handleTextMessage({
+  replyToken: 'token_del_kid_exec',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: delQrItems[0].action.text }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('已成功移除小孩「大寶」'));
+assert.deepStrictEqual(SheetModule.getChildren('user_alice'), ['二寶']);
+
+// Restore Alice's children back to ['大寶', '二寶'] for downstream tests
+SheetModule.setChildren('user_alice', 'Alice', '愛麗絲', ['大寶', '二寶']);
+
+console.log('  ✔ Children tab CRUD API, flex card, delete shortcuts, and management commands verified.');
 
 // 10-3: Quick Reply UX Trigger Test (Option 2 + Option 1)
 globalThis._mockCurrentDate = new Date('2026-09-07T02:00:00.000Z'); // Monday 10:00 AM Taipei
@@ -2137,7 +2178,7 @@ allLocales.forEach(function (loc) {
   });
   assert.ok(lastReply && lastReply.type === 'text', 'Add single kid command (' + addCmd + ') must return text response for ' + loc);
 
-  // Test Card 3: Delete kid command
+  // Test Card 3: Delete kid command (shortcut menu with quick replies)
   var delCmd = kidsCmdRows[3].contents[1].action.text;
   lastReply = null;
   OrderModule.handleTextMessage({
@@ -2145,7 +2186,18 @@ allLocales.forEach(function (loc) {
     source: { userId: 'usr_kid_test', displayName: 'KidTester' },
     message: { type: 'text', text: delCmd }
   });
-  assert.ok(lastReply && lastReply.type === 'text', 'Delete kid command (' + delCmd + ') must return text response for ' + loc);
+  assert.ok(lastReply && lastReply.type === 'quick_reply', 'Delete kid command (' + delCmd + ') must return quick reply response for ' + loc);
+  assert.ok(lastReply.quickReply && lastReply.quickReply.items && lastReply.quickReply.items.length > 1, 'Quick reply must list children plus cancel button for ' + loc);
+
+  // Test cancel delete shortcut button for this locale
+  var cancelItem = lastReply.quickReply.items[lastReply.quickReply.items.length - 1];
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_kid_del_cancel_' + loc,
+    source: { userId: 'usr_kid_test', displayName: 'KidTester' },
+    message: { type: 'text', text: cancelItem.action.text }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'Cancel delete command must return text response for ' + loc);
 
   // B. Weekly Schedule Flex
   var dummySched = [
