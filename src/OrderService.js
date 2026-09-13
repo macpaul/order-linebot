@@ -1241,9 +1241,43 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已為您成功設定小孩名冊：' + kidList.join('、') + '！\n💡 下次點餐點擊菜單上的「+1 點餐」按鈕，系統將會自動浮出小孩捷徑讓您一秒直選！');
   }
 
+  // 8.5.1c STANDALONE ADD KID: 新增小孩 / 加小孩 (無參數時提示引導與快捷按鈕)
   var addKidPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.add_kid') : '(?:\\/)?(?:新增小孩|加小孩)';
   if (new RegExp('^' + addKidPrefix + '$', 'i').test(text.trim())) {
-    return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名與班級備註，例如：「新增小孩 小寶 附小一年一班」');
+    var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_add.prompt') : null) || '💡 請輸入小孩姓名與備註，例如：「新增小孩 小寶 備註」\n（可直接點選下方快捷按鈕快速輸入）';
+    var addCmd = (typeof _translateMsg === 'function' ? _translateMsg('children_menu.cmd_add') : null) || '新增小孩';
+    var inputBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_add.btn_input') : null) || '✏️ 手動輸入小孩姓名';
+    var menuBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_add.btn_menu') : null) || '👶 小孩選單';
+    var menuCmd = (typeof _translateMsg === 'function' ? _translateMsg('help.cmd_children.cmd') : null) || '小孩選單';
+    var qrItems = [
+      {
+        type: 'action',
+        action: {
+          type: 'postback',
+          label: inputBtnLabel.slice(0, 20),
+          data: 'action=prompt_add_kid',
+          inputOption: 'openKeyboard',
+          fillInText: addCmd + ' '
+        }
+      },
+      {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: menuBtnLabel.slice(0, 20),
+          text: menuCmd
+        }
+      }
+    ];
+    if (LineModule.replyQuickReply) {
+      return LineModule.replyQuickReply(replyToken, promptMsg, qrItems);
+    } else {
+      return LineModule.replyMessages(replyToken, [{
+        type: 'text',
+        text: promptMsg,
+        quickReply: { items: qrItems }
+      }]);
+    }
   }
 
   var addKidMatch = text.match(new RegExp('^' + addKidPrefix + '\\s+([^\\s]+)(?:\\s+(.+))?$', 'i'));
@@ -1251,12 +1285,15 @@ function handleTextMessage(event) {
     var newKidName = addKidMatch[1].trim();
     var kidNote = (addKidMatch[2] || '').trim();
     if (!newKidName) {
-      return LineModule.replyText(replyToken, '⚠️ 請輸入小孩姓名，例如：「新增小孩 小寶 附小一年一班」');
+      var errNoNameMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_add.error_no_name') : null) || '⚠️ 請輸入小孩姓名與備註，例如：「新增小孩 小寶 備註」';
+      return LineModule.replyText(replyToken, errNoNameMsg);
     }
     if (SheetModule.saveChild) {
       SheetModule.saveChild(userId, userDisplayName, userDisplayName, newKidName, kidNote);
     }
-    return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
+    var noteStr = kidNote ? '（' + kidNote + '）' : '';
+    var successMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_add.success', { name: newKidName, note: noteStr }) : null) || ('✅ 已成功新增小孩「' + newKidName + '」' + noteStr + '！');
+    return LineModule.replyText(replyToken, successMsg);
   }
 
   // 8.5.2 ABORT DELETE CHILD: 取消刪除 / 放棄刪除
@@ -2065,7 +2102,7 @@ function handlePostbackEvent(event) {
     return handleTextMessage(pseudoMenuEvent);
   }
 
-  if (action === 'prompt_note' || action === 'prompt_set_kids') {
+  if (action === 'prompt_note' || action === 'prompt_set_kids' || action === 'prompt_add_kid') {
     return null;
   }
 
