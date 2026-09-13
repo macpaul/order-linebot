@@ -1373,6 +1373,7 @@ OrderModule.handleTextMessage({
   message: { type: 'text', text: '+1 脆皮燒肉飯' }
 });
 assert.strictEqual(lastReply.type, 'quick_reply', 'Member without registered kids triggers quick reply to input child name or choose self');
+assert.strictEqual(lastReply.text, I18nModule.t('order.qr_prompt_no_kids', { item: '脆皮燒肉飯', btn: '✏️ 手動輸入小孩名字', self: '本人' }));
 const bobQrItems = lastReply.quickReply.items;
 assert.strictEqual(bobQrItems.length, 3, 'Must have 3 items: 手動輸入小孩名字, 本人, 小孩選單');
 assert.strictEqual(bobQrItems[0].action.label, '✏️ 手動輸入小孩名字');
@@ -2232,6 +2233,11 @@ allLocales.forEach(function (loc) {
   assert.ok(lastReply && lastReply.type === 'text', 'Batch set kids command with arguments must return text response for ' + loc);
   var storedKids = SheetModule.getChildren('usr_kid_test', 'KidTester');
   assert.ok(storedKids && storedKids.length >= 2, 'Batch command must successfully register kids for ' + loc);
+
+  // Verify list kids card now displays the localized footer guidance
+  var rosterFlex = FlexModule.createChildrenListFlex('KidTester', storedKids, loc);
+  var lastBodyItem = rosterFlex.body.contents[rosterFlex.body.contents.length - 1];
+  assert.strictEqual(lastBodyItem.text, I18nModule.t('children_list.footer', null, loc), 'Kids list flex must contain localized footer guidance for ' + loc);
 
   // Test Card 2: Add single kid command
   var addCmd = kidsCmdRows[2].contents[1].action.text;
