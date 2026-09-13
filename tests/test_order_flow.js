@@ -223,7 +223,7 @@ assert.strictEqual(kidsSubmenuButtons[0].action.text, '我的小孩');
 assert.strictEqual(kidsSubmenuButtons[0].action.label, '看名單');
 assert.strictEqual(kidsSubmenuButtons[1].action.text, '設定小孩');
 assert.strictEqual(kidsSubmenuButtons[1].action.label, '批次登記');
-assert.strictEqual(kidsSubmenuButtons[2].action.text, '新增小孩 小寶 附小一年一班');
+assert.strictEqual(kidsSubmenuButtons[2].action.text, '新增小孩');
 assert.strictEqual(kidsSubmenuButtons[2].action.label, '新增小孩');
 assert.strictEqual(kidsSubmenuButtons[3].action.text, '刪除小孩');
 assert.strictEqual(kidsSubmenuButtons[3].action.label, '刪除小孩');
@@ -244,6 +244,23 @@ assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '設定小�
 assert.strictEqual(lastReply.quickReply.items[1].action.type, 'message');
 assert.strictEqual(lastReply.quickReply.items[1].action.text, '小孩選單');
 console.log('  ✔ Standalone 設定小孩 returns comma prompt and openKeyboard quick reply verified.');
+
+// Verify clicking 新增小孩 triggers prompt and quick replies without 班級
+OrderModule.handleTextMessage({
+  replyToken: 'token_kids_add_prompt',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: kidsSubmenuButtons[2].action.text }
+});
+assert.strictEqual(lastReply.type, 'quick_reply');
+assert.ok(lastReply.text.includes('備註'));
+assert.ok(!lastReply.text.includes('班級'));
+assert.strictEqual(lastReply.quickReply.items.length, 2);
+assert.strictEqual(lastReply.quickReply.items[0].action.type, 'postback');
+assert.strictEqual(lastReply.quickReply.items[0].action.inputOption, 'openKeyboard');
+assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '新增小孩 ');
+assert.strictEqual(lastReply.quickReply.items[1].action.type, 'message');
+assert.strictEqual(lastReply.quickReply.items[1].action.text, '小孩選單');
+console.log('  ✔ Standalone 新增小孩 returns prompt without 班級 and openKeyboard quick reply verified.');
 
 // Step A: View Weekly Schedule
 console.log('  [Step A] Member queries weekly schedule (本週菜單)');
@@ -1287,8 +1304,11 @@ OrderModule.handleTextMessage({
   source: { groupId: groupId, userId: 'user_alice' },
   message: { type: 'text', text: '新增小孩' }
 });
-assert.strictEqual(lastReply.type, 'text');
-assert.ok(lastReply.text.includes('請輸入小孩姓名與班級備註'));
+assert.strictEqual(lastReply.type, 'quick_reply');
+assert.ok(lastReply.text.includes('備註'));
+assert.ok(!lastReply.text.includes('班級'));
+assert.strictEqual(lastReply.quickReply.items.length, 2);
+assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, '新增小孩 ');
 
 // Alice triggers '刪除小孩' and receives Quick Reply shortcut buttons for her registered kids plus '取消刪除'
 OrderModule.handleTextMessage({
@@ -2239,7 +2259,7 @@ allLocales.forEach(function (loc) {
   var lastBodyItem = rosterFlex.body.contents[rosterFlex.body.contents.length - 1];
   assert.strictEqual(lastBodyItem.text, I18nModule.t('children_list.footer', null, loc), 'Kids list flex must contain localized footer guidance for ' + loc);
 
-  // Test Card 2: Add single kid command
+  // Test Card 2: Add single kid command (prompt & quick replies)
   var addCmd = kidsCmdRows[2].contents[1].action.text;
   lastReply = null;
   OrderModule.handleTextMessage({
@@ -2247,7 +2267,18 @@ allLocales.forEach(function (loc) {
     source: { userId: 'usr_kid_test', displayName: 'KidTester' },
     message: { type: 'text', text: addCmd }
   });
-  assert.ok(lastReply && lastReply.type === 'text', 'Add single kid command (' + addCmd + ') must return text response for ' + loc);
+  assert.ok(lastReply && lastReply.type === 'quick_reply', 'Add single kid command (' + addCmd + ') must return quick reply for ' + loc);
+  assert.strictEqual(lastReply.quickReply.items.length, 2, 'Add kid prompt must provide openKeyboard and menu quick reply for ' + loc);
+  assert.strictEqual(lastReply.quickReply.items[0].action.fillInText, addCmd + ' ', 'Add kid prompt keyboard prefill must match command for ' + loc);
+
+  // Test Card 2b: Add single kid with arguments
+  lastReply = null;
+  OrderModule.handleTextMessage({
+    replyToken: 'tok_kid_add_exec_' + loc,
+    source: { userId: 'usr_kid_test', displayName: 'KidTester' },
+    message: { type: 'text', text: addCmd + ' Child3 Note3' }
+  });
+  assert.ok(lastReply && lastReply.type === 'text', 'Add single kid command with arguments must return text response for ' + loc);
 
   // Test Card 3: Delete kid command (shortcut menu with quick replies)
   var delCmd = kidsCmdRows[3].contents[1].action.text;
