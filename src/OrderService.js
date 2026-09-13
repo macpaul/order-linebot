@@ -1890,10 +1890,19 @@ function handleTextMessage(event) {
         });
       }
 
-      var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_prompt', {
-        item: dayPrefix + oiPrompt.itemName,
-        btn: noteBtnLabel
-      }) : null) || ('🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「' + noteBtnLabel + '」）');
+      var promptMsg;
+      if (userKids && userKids.length > 1) {
+        promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_prompt', {
+          item: dayPrefix + oiPrompt.itemName,
+          btn: noteBtnLabel
+        }) : null) || ('🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「' + noteBtnLabel + '」）');
+      } else {
+        promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_prompt_no_kids', {
+          item: dayPrefix + oiPrompt.itemName,
+          btn: noteBtnLabel,
+          self: selfLabel
+        }) : null) || ('🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給小孩或自己？\n（點「' + noteBtnLabel + '」輸入小孩姓名，或選擇「' + selfLabel + '」直接下單）');
+      }
       if (LineModule.replyQuickReply) {
         return LineModule.replyQuickReply(replyToken, promptMsg, quickReplyItems);
       } else {
