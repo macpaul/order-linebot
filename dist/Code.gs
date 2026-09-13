@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-13T15:57:00.451Z
+ * Automatically generated on: 2026-09-13T16:06:53.402Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -308,12 +308,21 @@ var I18N_MESSAGES = {
     'children_menu.item_add_desc': '新增單一小孩姓名與班級備註',
     'children_menu.btn_add': '新增小孩',
     'children_menu.cmd_add': '新增小孩 小寶 附小一年一班',
-    'children_menu.item_del_title': '🗑️ 刪除小孩 小寶',
+    'children_menu.item_del_title': '🗑️ 刪除小孩',
     'children_menu.item_del_desc': '移除指定小孩名冊紀錄',
     'children_menu.btn_delete': '刪除小孩',
-    'children_menu.cmd_delete': '刪除小孩 小寶',
-    'children_menu.footer': '💡 點擊「批次登記 / 新增 / 刪除」將送出範例指令，您亦可在對話框自行編輯小孩姓名與班級備註！',
+    'children_menu.cmd_delete': '刪除小孩',
+    'children_menu.footer': '💡 點擊「批次登記 / 新增」送出範例指令，點擊「刪除小孩」可快速選取刪除對象，亦可在對話框直接輸入指令！',
     'children_menu.alt_text': '👶 小孩與用餐對象管理選單',
+
+    // Submenu: Children Delete Shortcuts
+    'children_delete.prompt': '🗑️ 請選擇欲刪除的小孩：\n（可點選下方快捷按鈕直接刪除，或點選「取消刪除」）',
+    'children_delete.empty': '⚠️ 您名冊中尚未登記任何小孩，目前無可刪除的項目喔！',
+    'children_delete.btn_cancel': '❌ 取消刪除',
+    'children_delete.cmd_cancel': '取消刪除',
+    'children_delete.abort_success': '👌 已取消刪除操作，小孩名冊均完整保留。',
+    'children_delete.success': '✅ 已成功移除小孩「{name}」的名冊紀錄。',
+    'children_delete.not_found': '⚠️ 未找到名為「{name}」的小孩紀錄喔！',
 
     // Submenu: Children List Card
     'children_list.title': '👶 我的小孩與用餐對象名冊',
@@ -541,9 +550,18 @@ var I18N_MESSAGES = {
     'children_menu.item_del_title': '🗑️ Delete Kid',
     'children_menu.item_del_desc': 'Remove a registered child profile',
     'children_menu.btn_delete': 'Delete Kid',
-    'children_menu.cmd_delete': 'delete kid Tim',
-    'children_menu.footer': '💡 Tap buttons to send sample commands, or edit child name and class note directly in chat!',
+    'children_menu.cmd_delete': 'delete kid',
+    'children_menu.footer': '💡 Tap "Batch Set / Add Kid" for samples, tap "Delete Kid" to select from roster, or type commands directly in chat!',
     'children_menu.alt_text': '👶 Children Management Menu',
+
+    // Submenu: Children Delete Shortcuts
+    'children_delete.prompt': '🗑️ Please select a child to delete:\n(Tap a shortcut button below or tap "Cancel Delete")',
+    'children_delete.empty': '⚠️ No registered children found in your roster. Nothing to delete!',
+    'children_delete.btn_cancel': '❌ Cancel Delete',
+    'children_delete.cmd_cancel': 'cancel delete',
+    'children_delete.abort_success': '👌 Cancelled child deletion. All child profiles remain unchanged.',
+    'children_delete.success': '✅ Successfully removed "{name}" from children roster.',
+    'children_delete.not_found': '⚠️ Child "{name}" not found in your roster!',
 
     // Submenu: Children List Card
     'children_list.title': '👶 My Kids & Dining Profiles',
@@ -771,9 +789,18 @@ var I18N_MESSAGES = {
     'children_menu.item_del_title': '🗑️ 子供削除',
     'children_menu.item_del_desc': '指定したお子様の登録を削除',
     'children_menu.btn_delete': '子供削除',
-    'children_menu.cmd_delete': '子供削除 タロウ',
-    'children_menu.footer': '💡 ボタンをタップするとサンプルコマンドが送信されます。チャット欄で編集も可能です！',
+    'children_menu.cmd_delete': '子供削除',
+    'children_menu.footer': '💡 「一括登録 / 新規追加」でサンプル送信、「子供削除」で名簿から選択、チャット直接入力も可能です！',
     'children_menu.alt_text': '👶 お子様管理メニュー',
+
+    // Submenu: Children Delete Shortcuts
+    'children_delete.prompt': '🗑️ 削除するお子様を選択してください：\n（下のショートカットボタンをタップするか、「削除取消」をタップ）',
+    'children_delete.empty': '⚠️ 登録されているお子様がいません。削除可能な項目がありません！',
+    'children_delete.btn_cancel': '❌ 削除取消',
+    'children_delete.cmd_cancel': '子供削除取消',
+    'children_delete.abort_success': '👌 削除操作をキャンセルしました。お子様名簿はそのまま保持されます。',
+    'children_delete.success': '✅ お子様「{name}」の登録を正常に削除しました。',
+    'children_delete.not_found': '⚠️ お子様「{name}」の登録が見つかりませんでした！',
 
     // Submenu: Children List Card
     'children_list.title': '👶 お子様・同伴者名簿',
@@ -1001,9 +1028,18 @@ var I18N_MESSAGES = {
     'children_menu.item_del_title': '🗑️ 자녀 삭제',
     'children_menu.item_del_desc': '지정된 자녀 등록 기록 삭제',
     'children_menu.btn_delete': '자녀삭제',
-    'children_menu.cmd_delete': '자녀삭제 민우',
-    'children_menu.footer': '💡 버튼을 탭하면 예시 명령어가 전송되며, 채팅창에서 직접 수정할 수도 있습니다!',
+    'children_menu.cmd_delete': '자녀삭제',
+    'children_menu.footer': '💡 「일괄등록 / 신규추가」로 예시 전송, 「자녀삭제」로 명부에서 선택 가능하며 채팅창에 직접 입력할 수도 있습니다!',
     'children_menu.alt_text': '👶 자녀 관리 메뉴',
+
+    // Submenu: Children Delete Shortcuts
+    'children_delete.prompt': '🗑️ 삭제할 자녀를 선택하세요:\n(아래 바로가기 버튼을 누르거나 "삭제취소"를 누르세요)',
+    'children_delete.empty': '⚠️ 등록된 자녀가 없습니다. 삭제할 항목이 없습니다!',
+    'children_delete.btn_cancel': '❌ 삭제취소',
+    'children_delete.cmd_cancel': '자녀삭제취소',
+    'children_delete.abort_success': '👌 삭제 작업을 취소했습니다. 자녀 명부는 그대로 유지됩니다.',
+    'children_delete.success': '✅ 자녀 「{name}」 등록을 정상적으로 삭제했습니다.',
+    'children_delete.not_found': '⚠️ 등록된 자녀 명부에서 「{name}」을(를) 찾을 수 없습니다!',
 
     // Submenu: Children List Card
     'children_list.title': '👶 내 아이 및 식사 명단',
@@ -1231,9 +1267,18 @@ var I18N_MESSAGES = {
     'children_menu.item_del_title': '🗑️ ลบลูก',
     'children_menu.item_del_desc': 'ลบข้อมูลเด็กที่ระบุออกจากระบบ',
     'children_menu.btn_delete': 'ลบลูก',
-    'children_menu.cmd_delete': 'ลบลูก น้องเอ',
-    'children_menu.footer': '💡 แตะปุ่มเพื่อส่งตัวอย่างคำสั่ง หรือแก้ไขชื่อเด็กและชั้นเรียนในแชทได้โดยตรง!',
+    'children_menu.cmd_delete': 'ลบลูก',
+    'children_menu.footer': '💡 แตะ "ตั้งค่ารวม / เพิ่มลูก" เพื่อดูตัวอย่าง หรือแตะ "ลบลูก" เพื่อเลือกจากรายชื่อ สามารถพิมพ์คำสั่งในแชทได้โดยตรง!',
     'children_menu.alt_text': '👶 เมนูจัดการเด็ก',
+
+    // Submenu: Children Delete Shortcuts
+    'children_delete.prompt': '🗑️ กรุณาเลือกลูกที่ต้องการลบ:\n(แตะปุ่มลัดด้านล่าง หรือแตะ "ยกเลิกลบ")',
+    'children_delete.empty': '⚠️ ยังไม่มีรายชื่อเด็กที่ลงทะเบียน ไม่มีรายการที่สามารถลบได้!',
+    'children_delete.btn_cancel': '❌ ยกเลิกลบ',
+    'children_delete.cmd_cancel': 'ยกเลิกลบ',
+    'children_delete.abort_success': '👌 ยกเลิกการลบเรียบร้อยแล้ว รายชื่อเด็กทั้งหมดยังคงอยู่เหมือนเดิม',
+    'children_delete.success': '✅ ลบข้อมูลเด็ก "{name}" ออกจากระบบเรียบร้อยแล้ว',
+    'children_delete.not_found': '⚠️ ไม่พบข้อมูลเด็กชื่อ "{name}" ในระบบ!',
 
     // Submenu: Children List Card
     'children_list.title': '👶 รายชื่อเด็กและผู้ร่วมรับประทาน',
@@ -1461,9 +1506,18 @@ var I18N_MESSAGES = {
     'children_menu.item_del_title': '🗑️ Hapus Anak',
     'children_menu.item_del_desc': 'Hapus data profil anak terdaftar',
     'children_menu.btn_delete': 'Hapus Anak',
-    'children_menu.cmd_delete': 'hapus anak Budi',
-    'children_menu.footer': '💡 Ketuk tombol untuk mengirim perintah contoh, atau edit nama anak dan catatan kelas langsung di obrolan!',
+    'children_menu.cmd_delete': 'hapus anak',
+    'children_menu.footer': '💡 Ketuk "Daftar Sekaligus / Tambah Anak" untuk contoh, ketuk "Hapus Anak" untuk memilih dari daftar, atau ketik langsung di obrolan!',
     'children_menu.alt_text': '👶 Menu Kelola Anak',
+
+    // Submenu: Children Delete Shortcuts
+    'children_delete.prompt': '🗑️ Silakan pilih anak yang ingin dihapus:\n(Ketuk tombol pintas di bawah atau ketuk "Batal Hapus")',
+    'children_delete.empty': '⚠️ Belum ada anak yang terdaftar di daftar Anda. Tidak ada yang dapat dihapus!',
+    'children_delete.btn_cancel': '❌ Batal Hapus',
+    'children_delete.cmd_cancel': 'batal hapus',
+    'children_delete.abort_success': '👌 Penghapusan dibatalkan, daftar anak tetap tersimpan utuh.',
+    'children_delete.success': '✅ Berhasil menghapus data anak "{name}" dari daftar.',
+    'children_delete.not_found': '⚠️ Data anak "{name}" tidak ditemukan di daftar Anda!',
 
     // Submenu: Children List Card
     'children_list.title': '👶 Daftar Anak & Profil Makan',
@@ -1690,9 +1744,18 @@ var I18N_MESSAGES = {
     'children_menu.item_del_title': '🗑️ Xóa Bé',
     'children_menu.item_del_desc': 'Xóa thông tin bé đã đăng ký',
     'children_menu.btn_delete': 'Xóa Bé',
-    'children_menu.cmd_delete': 'xóa bé BéBi',
-    'children_menu.footer': '💡 Nhấn nút để gửi lệnh mẫu, hoặc tự chỉnh sửa tên bé và ghi chú lớp học trong khung chat!',
+    'children_menu.cmd_delete': 'xóa bé',
+    'children_menu.footer': '💡 Nhấn "Cài đặt loạt / Thêm Bé" để xem mẫu, nhấn "Xóa Bé" để chọn từ danh sách, hoặc gõ lệnh trực tiếp trong chat!',
     'children_menu.alt_text': '👶 Menu Quản lý Bé',
+
+    // Submenu: Children Delete Shortcuts
+    'children_delete.prompt': '🗑️ Vui lòng chọn bé cần xóa:\n(Nhấn nút phím tắt bên dưới hoặc nhấn "Hủy xóa")',
+    'children_delete.empty': '⚠️ Chưa có bé nào được đăng ký trong danh sách của bạn, không có mục để xóa!',
+    'children_delete.btn_cancel': '❌ Hủy xóa',
+    'children_delete.cmd_cancel': 'hủy xóa bé',
+    'children_delete.abort_success': '👌 Đã hủy thao tác xóa, danh sách bé được giữ nguyên vẹn.',
+    'children_delete.success': '✅ Đã xóa thông tin bé "{name}" khỏi danh sách thành công.',
+    'children_delete.not_found': '⚠️ Không tìm thấy hồ sơ của bé "{name}" trong danh sách!',
 
     // Submenu: Children List Card
     'children_list.title': '👶 Danh sách Bé & Suất ăn',
@@ -1833,6 +1896,7 @@ var I18N_COMMANDS = {
     'cmd.my_kids':  ['我的小孩', '小孩名單', '小孩名冊', '我的孩子'],
     'cmd.add_kid':  ['新增小孩', '加小孩'],
     'cmd.del_kid':  ['刪除小孩', '移除小孩'],
+    'cmd.abort_del_kid': ['取消刪除', '放棄刪除'],
     'cmd.abort_cancel': ['放棄取消', '取消操作'],
     'cmd.stats_today':  ['今日統計', '本日統計', '統計', '即時統計', '今日訂單', '今日訂餐', '今日訂餐統計', '今日訂單統計', '本日訂單', '本日訂餐', '本日訂單統計'],
     'cmd.stats_weekly': ['本週統計', '梯次統計'],
@@ -1854,6 +1918,7 @@ var I18N_COMMANDS = {
     'cmd.my_kids':  ['my kids', 'kids list', 'my children'],
     'cmd.add_kid':  ['add kid', 'add child'],
     'cmd.del_kid':  ['delete kid', 'remove kid'],
+    'cmd.abort_del_kid': ['cancel delete', 'abort delete', 'cancel del kid'],
     'cmd.abort_cancel': ['abort cancel', 'keep orders'],
     'cmd.stats_today':  ['today stats', 'today summary', 'stats'],
     'cmd.stats_weekly': ['weekly stats', 'weekly summary'],
@@ -1875,6 +1940,7 @@ var I18N_COMMANDS = {
     'cmd.my_kids':  ['子供リスト', 'お子様一覧', '私の子供'],
     'cmd.add_kid':  ['子供追加', 'お子様追加'],
     'cmd.del_kid':  ['子供削除', 'お子様削除'],
+    'cmd.abort_del_kid': ['子供削除取消', '削除取消', '削除中止'],
     'cmd.abort_cancel': ['キャンセル中止', '取り消し中止'],
     'cmd.stats_today':  ['今日の集計', '本日集計', '統計'],
     'cmd.stats_weekly': ['今週の集計', '週間統計'],
@@ -1896,6 +1962,7 @@ var I18N_COMMANDS = {
     'cmd.my_kids':  ['자녀목록', '아이목록', '내 아이'],
     'cmd.add_kid':  ['자녀추가', '아이추가'],
     'cmd.del_kid':  ['자녀삭제', '아이삭제'],
+    'cmd.abort_del_kid': ['자녀삭제취소', '삭제취소'],
     'cmd.abort_cancel': ['취소중단', '취소취소'],
     'cmd.stats_today':  ['오늘 통계', '오늘 집계', '통계'],
     'cmd.stats_weekly': ['이번주 통계', '주간통계'],
@@ -1917,6 +1984,7 @@ var I18N_COMMANDS = {
     'cmd.my_kids':  ['รายชื่อเด็ก', 'ลูกของฉัน'],
     'cmd.add_kid':  ['เพิ่มลูก'],
     'cmd.del_kid':  ['ลบลูก'],
+    'cmd.abort_del_kid': ['ยกเลิกลบ', 'ยกเลิกการลบ'],
     'cmd.abort_cancel': ['ยกเลิกการยกเลิก'],
     'cmd.stats_today':  ['สรุปวันนี้', 'ยอดวันนี้'],
     'cmd.stats_weekly': ['สรุปสัปดาห์นี้', 'ยอดสัปดาห์นี้'],
@@ -1938,6 +2006,7 @@ var I18N_COMMANDS = {
     'cmd.my_kids':  ['daftar anak', 'anak saya'],
     'cmd.add_kid':  ['tambah anak'],
     'cmd.del_kid':  ['hapus anak'],
+    'cmd.abort_del_kid': ['batal hapus', 'batalkan hapus'],
     'cmd.abort_cancel': ['batalkan pembatalan'],
     'cmd.stats_today':  ['rekap hari ini', 'total hari ini'],
     'cmd.stats_weekly': ['rekap minggu ini', 'total mingguan'],
@@ -1959,6 +2028,7 @@ var I18N_COMMANDS = {
     'cmd.my_kids':  ['bé của tôi', 'danh sách bé của tôi', 'các bé'],
     'cmd.add_kid':  ['thêm bé', 'thêm con'],
     'cmd.del_kid':  ['xóa bé', 'xóa con'],
+    'cmd.abort_del_kid': ['hủy xóa', 'hủy xóa bé'],
     'cmd.abort_cancel': ['không hủy', 'hủy thao tác'],
     'cmd.stats_today':  ['thống kê hôm nay', 'thống kê ngày', 'thống kê'],
     'cmd.stats_weekly': ['thống kê tuần', 'thống kê tuần này'],
@@ -9109,9 +9179,54 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
   }
 
+  // 8.5.2 ABORT DELETE CHILD: 取消刪除 / 放棄刪除
+  var abortDelKidRegex = _getCmdRegex('cmd.abort_del_kid', /^(?:\/)?(?:取消刪除|放棄刪除)$/i);
+  if (abortDelKidRegex.test(text.trim())) {
+    var abortDelMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.abort_success') : null) || '👌 已取消刪除操作，小孩名冊均完整保留。';
+    return LineModule.replyText(replyToken, abortDelMsg);
+  }
+
   var delKidPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.del_kid') : '(?:\\/)?(?:刪除小孩|移除小孩)';
   if (new RegExp('^' + delKidPrefix + '$', 'i').test(text.trim())) {
-    return LineModule.replyText(replyToken, '⚠️ 請輸入欲刪除的小孩姓名，例如：「刪除小孩 小寶」');
+    var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
+    if (!userKids || userKids.length === 0) {
+      var emptyMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.empty') : null) || '⚠️ 您名冊中尚未登記任何小孩，目前無可刪除的項目喔！';
+      return LineModule.replyText(replyToken, emptyMsg);
+    }
+    var delCmd = (typeof _translateMsg === 'function' ? _translateMsg('children_menu.cmd_delete') : null) || '刪除小孩';
+    var quickReplyItems = userKids.slice(0, 12).map(function (k) {
+      var kName = typeof k === 'string' ? k : (k.childName || '');
+      return {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: ('🗑️ ' + kName).slice(0, 20),
+          text: delCmd + ' ' + kName
+        }
+      };
+    });
+    var cancelLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.btn_cancel') : null) || '❌ 取消刪除';
+    var cancelCmd = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.cmd_cancel') : null) || '取消刪除';
+    quickReplyItems.push({
+      type: 'action',
+      action: {
+        type: 'message',
+        label: cancelLabel.slice(0, 20),
+        text: cancelCmd
+      }
+    });
+    var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.prompt') : null) || '🗑️ 請選擇欲刪除的小孩：\n（可點選下方快捷按鈕直接刪除，或點選「取消刪除」）';
+    if (LineModule.replyQuickReply) {
+      return LineModule.replyQuickReply(replyToken, promptMsg, quickReplyItems);
+    } else {
+      return LineModule.replyMessages(replyToken, [{
+        type: 'text',
+        text: promptMsg,
+        quickReply: {
+          items: quickReplyItems
+        }
+      }]);
+    }
   }
 
   var delKidMatch = text.match(new RegExp('^' + delKidPrefix + '\\s+([^\\s]+)$', 'i'));
@@ -9119,9 +9234,11 @@ function handleTextMessage(event) {
     var delKidName = delKidMatch[1].trim();
     var deleted = SheetModule.deleteChild ? SheetModule.deleteChild(userId, delKidName, userDisplayName, userDisplayName) : false;
     if (deleted) {
-      return LineModule.replyText(replyToken, '✅ 已成功移除小孩「' + delKidName + '」的名冊紀錄。');
+      var delSuccessMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.success', { name: delKidName }) : null) || ('✅ 已成功移除小孩「' + delKidName + '」的名冊紀錄。');
+      return LineModule.replyText(replyToken, delSuccessMsg);
     } else {
-      return LineModule.replyText(replyToken, '⚠️ 未找到名為「' + delKidName + '」的小孩紀錄喔！');
+      var delNotFoundMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.not_found', { name: delKidName }) : null) || ('⚠️ 未找到名為「' + delKidName + '」的小孩紀錄喔！');
+      return LineModule.replyText(replyToken, delNotFoundMsg);
     }
   }
 
