@@ -84,7 +84,7 @@
    - `Menu`：菜單清單（星期、店家名稱、分類、品項名稱、價格、供應狀態、描述）。
    - `Orders`：點餐流水帳（OrderId、Timestamp、Date、DayOfWeek、GroupId、UserId、UserName、UserNickname 當時暱稱、ChildName 分餐小孩對象、ItemName、Quantity、Price、Subtotal、Status、Paid）。
    - `Summary`：即時與全週梯次統計匯總（各日小計、總金額、成員應付清單）。
-   - `Children`：**小孩名冊名冊**（UserId 家長 ID、UserName 家長名稱、UserNickname 家長暱稱、ChildName 小孩姓名/代號、Note 班級或飲食備註、CreatedAt 建立時間、UpdatedAt 更新時間）。
+   - `Children`：**小孩名冊名冊**（UserId 家長 ID、UserName 家長名稱、UserNickname 家長暱稱、ChildName 小孩姓名/代號、Note 飲食或個人備註、CreatedAt 建立時間、UpdatedAt 更新時間）。
 
 #### 💡 `Config` 系統設定參數說明
 管理員可隨時於 `Config` 工作表直接調整參數值：
@@ -405,7 +405,7 @@ Google Apps Script 執行於 Google 雲端無伺服器環境中，為避免時�
   - `我的小孩` / `小孩名單`：圖文卡片瀏覽名下小孩清單。
   - `設定小孩`：顯示引導提示語與 Quick Reply 快捷按鈕（引導使用逗號 `,` 分隔多位小孩並支援一鍵預填鍵盤）。
   - `設定小孩 [小孩1], [小孩2]`：批次綁定小孩（例如：`設定小孩 大寶, 二寶`）。
-  - `新增小孩 小寶 附小一年一班`：新增單一小孩與備註。
+  - `新增小孩` / `新增小孩 [姓名] [備註]`：發送「新增小孩」自動彈出引導提示語與 Quick Reply 快捷按鈕（引導依範例輸入單一小孩姓名與備註並支援一鍵預填鍵盤）；亦可直接輸入例如：`新增小孩 小寶 備註`。
   - `刪除小孩` / `刪除小孩 [姓名]`：發送「刪除小孩」自動彈出名下小孩快捷按鈕（Quick Reply）供一鍵選取，並提供「取消刪除」快捷按鈕；亦可直接輸入「刪除小孩 大寶」指定移除。
 
 #### 4. 統計與退訂精準對帳
