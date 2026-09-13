@@ -1221,9 +1221,54 @@ function handleTextMessage(event) {
     return LineModule.replyText(replyToken, '✅ 已成功新增小孩「' + newKidName + '」' + (kidNote ? '（' + kidNote + '）' : '') + '！');
   }
 
+  // 8.5.2 ABORT DELETE CHILD: 取消刪除 / 放棄刪除
+  var abortDelKidRegex = _getCmdRegex('cmd.abort_del_kid', /^(?:\/)?(?:取消刪除|放棄刪除)$/i);
+  if (abortDelKidRegex.test(text.trim())) {
+    var abortDelMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.abort_success') : null) || '👌 已取消刪除操作，小孩名冊均完整保留。';
+    return LineModule.replyText(replyToken, abortDelMsg);
+  }
+
   var delKidPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern) ? I18nModule.buildCommandPrefixPattern('cmd.del_kid') : '(?:\\/)?(?:刪除小孩|移除小孩)';
   if (new RegExp('^' + delKidPrefix + '$', 'i').test(text.trim())) {
-    return LineModule.replyText(replyToken, '⚠️ 請輸入欲刪除的小孩姓名，例如：「刪除小孩 小寶」');
+    var userKids = SheetModule.getChildren ? SheetModule.getChildren(userId, userDisplayName, userDisplayName) : [];
+    if (!userKids || userKids.length === 0) {
+      var emptyMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.empty') : null) || '⚠️ 您名冊中尚未登記任何小孩，目前無可刪除的項目喔！';
+      return LineModule.replyText(replyToken, emptyMsg);
+    }
+    var delCmd = (typeof _translateMsg === 'function' ? _translateMsg('children_menu.cmd_delete') : null) || '刪除小孩';
+    var quickReplyItems = userKids.slice(0, 12).map(function (k) {
+      var kName = typeof k === 'string' ? k : (k.childName || '');
+      return {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: ('🗑️ ' + kName).slice(0, 20),
+          text: delCmd + ' ' + kName
+        }
+      };
+    });
+    var cancelLabel = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.btn_cancel') : null) || '❌ 取消刪除';
+    var cancelCmd = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.cmd_cancel') : null) || '取消刪除';
+    quickReplyItems.push({
+      type: 'action',
+      action: {
+        type: 'message',
+        label: cancelLabel.slice(0, 20),
+        text: cancelCmd
+      }
+    });
+    var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.prompt') : null) || '🗑️ 請選擇欲刪除的小孩：\n（可點選下方快捷按鈕直接刪除，或點選「取消刪除」）';
+    if (LineModule.replyQuickReply) {
+      return LineModule.replyQuickReply(replyToken, promptMsg, quickReplyItems);
+    } else {
+      return LineModule.replyMessages(replyToken, [{
+        type: 'text',
+        text: promptMsg,
+        quickReply: {
+          items: quickReplyItems
+        }
+      }]);
+    }
   }
 
   var delKidMatch = text.match(new RegExp('^' + delKidPrefix + '\\s+([^\\s]+)$', 'i'));
@@ -1231,9 +1276,11 @@ function handleTextMessage(event) {
     var delKidName = delKidMatch[1].trim();
     var deleted = SheetModule.deleteChild ? SheetModule.deleteChild(userId, delKidName, userDisplayName, userDisplayName) : false;
     if (deleted) {
-      return LineModule.replyText(replyToken, '✅ 已成功移除小孩「' + delKidName + '」的名冊紀錄。');
+      var delSuccessMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.success', { name: delKidName }) : null) || ('✅ 已成功移除小孩「' + delKidName + '」的名冊紀錄。');
+      return LineModule.replyText(replyToken, delSuccessMsg);
     } else {
-      return LineModule.replyText(replyToken, '⚠️ 未找到名為「' + delKidName + '」的小孩紀錄喔！');
+      var delNotFoundMsg = (typeof _translateMsg === 'function' ? _translateMsg('children_delete.not_found', { name: delKidName }) : null) || ('⚠️ 未找到名為「' + delKidName + '」的小孩紀錄喔！');
+      return LineModule.replyText(replyToken, delNotFoundMsg);
     }
   }
 
