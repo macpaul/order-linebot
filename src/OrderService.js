@@ -1726,27 +1726,32 @@ function handleTextMessage(event) {
         };
       });
       // Add 本人
+      var selfLabel = (typeof _translateMsg === 'function' ? _translateMsg('common.self') : null) || '本人';
       quickReplyItems.push({
         type: 'action',
         action: {
           type: 'message',
-          label: '👤 本人',
-          text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (本人)'
+          label: '👤 ' + selfLabel,
+          text: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' (' + selfLabel + ')'
         }
       });
       // Add openKeyboard note button (Option 1 + Option 2 hybrid)
+      var noteBtnLabel = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_note_btn') : null) || '✏️ 手動輸入小孩名字';
       quickReplyItems.push({
         type: 'action',
         action: {
           type: 'postback',
-          label: '✏️ 其他備註',
+          label: noteBtnLabel,
           data: 'action=prompt_note&item=' + encodeURIComponent(oiPrompt.itemName) + (pDay ? '&day=' + encodeURIComponent(pDay) : '') + '&qty=' + pQty,
           inputOption: 'openKeyboard',
           fillInText: dayPrefix + '+' + pQty + ' ' + oiPrompt.itemName + ' ()'
         }
       });
 
-      var promptMsg = '🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「✏️ 其他備註」手動輸入）';
+      var promptMsg = (typeof _translateMsg === 'function' ? _translateMsg('order.qr_prompt', {
+        item: dayPrefix + oiPrompt.itemName,
+        btn: noteBtnLabel
+      }) : null) || ('🍱 請選擇【' + dayPrefix + oiPrompt.itemName + '】要分配給哪位小孩或自己？\n（可點選下方快捷按鈕，或點「' + noteBtnLabel + '」）');
       if (LineModule.replyQuickReply) {
         return LineModule.replyQuickReply(replyToken, promptMsg, quickReplyItems);
       } else {
