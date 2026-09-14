@@ -631,8 +631,12 @@ function parseOrderText(text) {
     if (!str) return true;
     var s = str.trim();
     if (isMenuPageCommand(s)) return true;
-    // Math operators +, -, *, /, = (e.g. 43+48, 341-313, 20=7)
-    if (/[+\-*\/=]/.test(s)) return true;
+    // Equations with equals sign (e.g. 20=7, (341-313)/4= 7)
+    if (/[=]/.test(s)) return true;
+    // Arithmetic operations between numbers (e.g. 43+48, 341-313, 100/2, 5*20)
+    if (/\d\s*[+\-*\/]\s*\d/.test(s)) return true;
+    // Pure arithmetic formula composed only of digits, math symbols, spaces and parens
+    if (/^[\d\s+\-*\/=.()（）]+$/.test(s)) return true;
     // Standalone numbers or trailing price, e.g. "45", "90", "便當 45", "餡餅 90"
     if (/(?:^|[\s$])\$?\d+$/.test(s)) return true;
     // Contains price/fee keywords
@@ -758,7 +762,8 @@ function matchMenuItem(rawItemName, menuList) {
         return { itemName: itemN, price: itemP || 0 };
       }
       // User query contains menu item, only if query is reasonably short and lacks arithmetic/punctuation
-      if (rawItemName.indexOf(itemN) !== -1 && rawItemName.length <= itemN.length + 4 && !/[+\-*\/=0-9]/.test(rawItemName)) {
+      var extraPart = rawItemName.replace(itemN, '').trim();
+      if (rawItemName.indexOf(itemN) !== -1 && extraPart.length <= 6 && !/[+=]|\d\s*[-*\/]\s*\d|\d+/.test(extraPart)) {
         return { itemName: itemN, price: itemP || 0 };
       }
     }
