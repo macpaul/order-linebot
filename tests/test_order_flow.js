@@ -100,6 +100,28 @@ assert.strictEqual(OrderModule.parseOrderText('Colin：高麗菜盒+豬肉餡餅
 assert.strictEqual(OrderModule.parseOrderText('便當 50 + 10').length, 0);
 assert.strictEqual(OrderModule.parseOrderText('+7 運費').length, 0);
 
+// Test hyphenated words and slash dish names (e.g. Pan-Fried, Deep-Fried, Sugar-Free, 排骨/雞腿)
+const panFriedOrder = OrderModule.parseOrderText('週四 豬排煎蛋香腸飯 Pork Chop Rice with Pan-Fried Egg and Sausage+1');
+assert.strictEqual(panFriedOrder.length, 1, 'Pan-Fried order must parse successfully');
+assert.strictEqual(panFriedOrder[0].dayOfWeek, '週四');
+assert.strictEqual(panFriedOrder[0].itemName, '豬排煎蛋香腸飯 Pork Chop Rice with Pan-Fried Egg and Sausage');
+assert.strictEqual(panFriedOrder[0].quantity, 1);
+
+const deepFriedOrder = OrderModule.parseOrderText('+1 Deep-Fried Chicken Cutlet Bento');
+assert.strictEqual(deepFriedOrder.length, 1, 'Deep-Fried order must parse successfully');
+assert.strictEqual(deepFriedOrder[0].itemName, 'Deep-Fried Chicken Cutlet Bento');
+assert.strictEqual(deepFriedOrder[0].quantity, 1);
+
+const hyphenSpecOrder = OrderModule.parseOrderText('排骨便當-大份+1');
+assert.strictEqual(hyphenSpecOrder.length, 1, 'Hyphenated spec order must parse successfully');
+assert.strictEqual(hyphenSpecOrder[0].itemName, '排骨便當-大份');
+assert.strictEqual(hyphenSpecOrder[0].quantity, 1);
+
+const slashComboOrder = OrderModule.parseOrderText('雞腿/排骨雙拼便當+1');
+assert.strictEqual(slashComboOrder.length, 1, 'Slash combo order must parse successfully');
+assert.strictEqual(slashComboOrder[0].itemName, '雞腿/排骨雙拼便當');
+assert.strictEqual(slashComboOrder[0].quantity, 1);
+
 // Verify announcement text sent via handleTextMessage is completely ignored (no order created, returns null)
 const annResult = OrderModule.handleTextMessage({
   replyToken: 'token_announcement_test',
@@ -2743,8 +2765,8 @@ assert.deepStrictEqual(OrderModule.parseOrderText('page 2'), []);
 // 4. End-to-end Chat Command & Immunity
 SheetModule._mockStore.Config['IS_ORDERING_OPEN'] = 'true';
 SheetModule._mockStore.Config['RESTAURANT_NAME'] = '大豪吃餐廳';
-SheetModule._mockStore.Config['CUTOFF_TIME'] = '11:00';
-SheetModule.setWeeklyScheduleDay('週一', '大豪吃餐廳', '10:30');
+SheetModule._mockStore.Config['CUTOFF_TIME'] = '23:59';
+SheetModule.setWeeklyScheduleDay('週一', '大豪吃餐廳', '23:59');
 SheetModule._mockStore.Orders = [];
 SheetModule._mockStore.Menu = [];
 
