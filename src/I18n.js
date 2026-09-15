@@ -215,6 +215,7 @@ var I18N_MESSAGES = {
     'cancel.btn_abort': '放棄取消',
     'cancel.confirm_footer': '⚠️ 警告：此操作將影響全體成員且無法復原！',
     'cancel.alt_text': '🗑️ 請選擇欲取消的餐點',
+    'close.only_organizer': '⚠️ 權限不足：只有開單人可以執行結單！',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': '🍱 今日訂餐即時統計',
@@ -468,6 +469,7 @@ var I18N_MESSAGES = {
     'cancel.btn_abort': 'Keep Orders',
     'cancel.confirm_footer': '⚠️ Once confirmed, orders will be cancelled immediately. This cannot be undone.',
     'cancel.alt_text': '🗑️ Select items to cancel',
+    'close.only_organizer': '⚠️ Permission denied: Only the order organizer can close orders!',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': "🍱 Today's Orders Summary",
@@ -721,6 +723,7 @@ var I18N_MESSAGES = {
     'cancel.btn_abort': '取消中止',
     'cancel.confirm_footer': '⚠️ 確認後すぐに注文が取り消され、元に戻すことはできません。',
     'cancel.alt_text': '🗑️ 取消する項目を選択',
+    'close.only_organizer': '⚠️ 権限がありません：主催者のみが注文を締め切ることができます！',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': '🍱 本日の注文集計',
@@ -974,6 +977,7 @@ var I18N_MESSAGES = {
     'cancel.btn_abort': '취소 중단',
     'cancel.confirm_footer': '⚠️ 확인 시 즉시 취소 처리되며 되돌릴 수 없습니다.',
     'cancel.alt_text': '🗑️ 취소할 항목 선택',
+    'close.only_organizer': '⚠️ 권한 부족: 주최자만 주문을 마감할 수 있습니다!',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': '🍱 오늘의 주문 현황',
@@ -1227,6 +1231,7 @@ var I18N_MESSAGES = {
     'cancel.btn_abort': 'ไม่ยกเลิก',
     'cancel.confirm_footer': '⚠️ เมื่อยืนยันแล้วจะยกเลิกทันทีและไม่สามารถย้อนกลับได้',
     'cancel.alt_text': '🗑️ กรุณาเลือกรายการที่ต้องการยกเลิก',
+    'close.only_organizer': '⚠️ สิทธิ์ไม่เพียงพอ: เฉพาะผู้จัดเท่านั้นที่สามารถปิดรับออเดอร์ได้!',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': '🍱 สรุปยอดสั่งอาหารวันนี้',
@@ -1480,6 +1485,7 @@ var I18N_MESSAGES = {
     'cancel.btn_abort': 'Jangan Batalkan',
     'cancel.confirm_footer': '⚠️ Setelah dikonfirmasi, pesanan akan langsung dibatalkan dan tidak dapat dikembalikan.',
     'cancel.alt_text': '🗑️ Pilih item yang ingin dibatalkan',
+    'close.only_organizer': '⚠️ Izin ditolak: Hanya penyelenggara yang dapat menutup pesanan!',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': '🍱 Rekap Pesanan Hari Ini',
@@ -1732,6 +1738,7 @@ var I18N_MESSAGES = {
     'cancel.btn_abort': 'Không hủy',
     'cancel.confirm_footer': '⚠️ Sau khi xác nhận, các đơn sẽ bị hủy ngay lập tức và không thể khôi phục.',
     'cancel.alt_text': '🗑️ Vui lòng chọn món cần hủy',
+    'close.only_organizer': '⚠️ Không đủ quyền hạn: Chỉ người mở đơn mới có thể chốt đơn!',
 
     // Submenu: Summaries (Today & Weekly)
     'stats.today_title': '🍱 Thống kê Đặt món Hôm nay',
@@ -1814,7 +1821,7 @@ var I18N_COMMANDS = {
     'cmd.my_order': ['我的訂單', '查詢訂單', '查單'],
     'cmd.my_weekly':['我的本週訂單', '本週訂單'],
     'cmd.cancel':   ['取消餐點', '取消'],
-    'cmd.close':    ['結單', '截止', '截止訂餐', '本週結單', '今日結單'],
+    'cmd.close':    ['結單', '截止訂餐', '本週結單', '今日結單'],
     'cmd.open':     ['開單', '開始訂餐'],
     'cmd.children': ['設定小孩', '小孩設定', '登記小孩', '批次登記', '批次設定小孩'],
     'cmd.children_menu': ['小孩選單', '小孩管理', '小孩幫助', '孩子選單'],
