@@ -486,6 +486,7 @@ console.log('  ✔ Weekly batch summary verified with member nicknames (Grand To
 console.log('  [Step H] Organizer closes order (結單) with LINE Pay & Bank Transfer info');
 
 // H-1: Configure payment information in Config
+SheetModule.setConfigValue('ORGANIZER_ID', 'user_boss');
 SheetModule.setConfigValue('PAYMENT_LINEPAY_URL', 'https://line.me/ti/p/linepay_mock');
 SheetModule.setConfigValue('PAYMENT_LINEPAY_QR_URL', 'https://example.com/linepay_qr.png');
 SheetModule.setConfigValue('PAYMENT_BANK_CODE', '822');
@@ -502,7 +503,26 @@ assert.strictEqual(payConfig.linePayUrl, 'https://line.me/ti/p/linepay_mock');
 assert.strictEqual(payConfig.linePayQrUrl, 'https://example.com/linepay_qr.png');
 assert.strictEqual(payConfig.bankQrUrl, 'https://lh3.googleusercontent.com/d/1XyZ_mockDriveFileId123');
 
-// H-2: Trigger 結單 (defaults to WEEKLY scope)
+// H-1.5: Non-organizer tries to trigger 結單 -> Permission Denied
+OrderModule.handleTextMessage({
+  replyToken: 'token_close_unauthorized',
+  source: { groupId: groupId, userId: 'user_alice' },
+  message: { type: 'text', text: '結單' }
+});
+assert.strictEqual(lastReply.type, 'text');
+assert.ok(lastReply.text.includes('權限不足：只有開單人可以執行結單'));
+
+// H-1.6: Verify '截止' alone is removed from close commands and does not close order
+SheetModule.setConfigValue('IS_ORDERING_OPEN', 'true');
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'token_cutoff_word',
+  source: { groupId: groupId, userId: 'user_boss' },
+  message: { type: 'text', text: '截止' }
+});
+assert.strictEqual(SheetModule.getConfigValue('IS_ORDERING_OPEN'), 'true', "'截止' alone must not trigger close order");
+
+// H-2: Trigger 結單 by Organizer (defaults to WEEKLY scope)
 OrderModule.handleTextMessage({
   replyToken: 'token_close_weekly',
   source: { groupId: groupId, userId: 'user_boss' },
@@ -2763,16 +2783,18 @@ assert.deepStrictEqual(OrderModule.parseOrderText('點餐 第2頁'), []);
 assert.deepStrictEqual(OrderModule.parseOrderText('page 2'), []);
 
 // 4. End-to-end Chat Command & Immunity
+const testTodayDay = OrderModule.getTodayDayOfWeek();
 SheetModule._mockStore.Config['IS_ORDERING_OPEN'] = 'true';
 SheetModule._mockStore.Config['RESTAURANT_NAME'] = '大豪吃餐廳';
 SheetModule._mockStore.Config['CUTOFF_TIME'] = '23:59';
 SheetModule.setWeeklyScheduleDay('週一', '大豪吃餐廳', '23:59');
+SheetModule.setWeeklyScheduleDay(testTodayDay, '大豪吃餐廳', '23:59');
 SheetModule._mockStore.Orders = [];
 SheetModule._mockStore.Menu = [];
 
 bigMenu45.forEach(function (item) {
   SheetModule._mockStore.Menu.push({
-    dayOfWeek: '週一',
+    dayOfWeek: testTodayDay,
     restaurantName: '大豪吃餐廳',
     category: item.category,
     itemName: item.itemName,
@@ -2780,6 +2802,17 @@ bigMenu45.forEach(function (item) {
     isAvailable: 'TRUE',
     description: item.description
   });
+  if (testTodayDay !== '週一') {
+    SheetModule._mockStore.Menu.push({
+      dayOfWeek: '週一',
+      restaurantName: '大豪吃餐廳',
+      category: item.category,
+      itemName: item.itemName,
+      price: item.price,
+      isAvailable: 'TRUE',
+      description: item.description
+    });
+  }
 });
 
 // A. Send "菜單 第2頁"
@@ -2835,7 +2868,7 @@ lastReply = null;
 OrderModule.handleTextMessage({
   replyToken: 'tok_real_order',
   source: { userId: 'usr_page_test', displayName: '分頁測試者' },
-  message: { type: 'text', text: '週一+1 特餐1' }
+  message: { type: 'text', text: testTodayDay + '+1 特餐1' }
 });
 assert.strictEqual(lastReply.type, 'flex', 'Real food order should succeed');
 assert.strictEqual(SheetModule._mockStore.Orders.length, 1, 'Exactly 1 order record should be saved');
