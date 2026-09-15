@@ -1805,9 +1805,16 @@ function handleTextMessage(event) {
     return replyRes;
   }
 
-  // 12. CLOSE ORDER: 結單 / 截止 / 截止訂餐 / 本週結單 / 今日結單
-  var closeRegex = _getCmdRegex('cmd.close', /^(?:\/)?(?:結單|截止|截止訂餐|本週結單|今日結單)$/i);
+  // 12. CLOSE ORDER: 結單 / 截止訂餐 / 本週結單 / 今日結單 (僅限開單人)
+  var closeRegex = _getCmdRegex('cmd.close', /^(?:\/)?(?:結單|截止訂餐|本週結單|今日結單)$/i);
   if (closeRegex.test(text)) {
+    if (!isUserOrganizer(userId, userDisplayName)) {
+      var closeDeniedMsg = (userLocale === 'zh-TW')
+        ? '⚠️ 權限不足：只有開單人可以執行結單！'
+        : (_translateMsg('close.only_organizer') || '⚠️ 權限不足：只有開單人可以執行結單！');
+      return LineModule.replyText(replyToken, closeDeniedMsg);
+    }
+
     SheetModule.setConfigValue('IS_ORDERING_OPEN', 'false');
     var closeScope = (SheetModule.getConfigValue('CLOSE_ORDER_SCOPE', 'WEEKLY') || 'WEEKLY').trim().toUpperCase();
     var isWeeklyClose = text.indexOf('本週') !== -1 || (text.indexOf('今日') === -1 && (closeScope !== 'DAILY' && closeScope !== 'TODAY' && closeScope !== '今日'));
