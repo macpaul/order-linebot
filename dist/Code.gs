@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-18T09:07:49.415Z
+ * Automatically generated on: 2026-09-18T13:09:16.414Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -2009,6 +2009,7 @@ var I18N_COMMANDS = {
     'cmd.stats_text':   ['今日文字統計', '今日統計文字', '文字統計', '統計文字', '今日文字'],
     'cmd.import_uber':  ['匯入菜單', '匯入外送', 'ubereats匯入'],
     'cmd.import_foodpanda': ['foodpanda匯入', '熊貓匯入'],
+    'cmd.import_nidin': ['你訂匯入', 'nidin匯入'],
     'cmd.import_custom':['匯入自訂餐廳', '匯入餐廳', '自訂餐廳匯入'],
     'cmd.lang':     ['設定語言', '切換語言', '語言設定', '語言', 'lang', 'language', '/lang']
   },
@@ -2033,6 +2034,7 @@ var I18N_COMMANDS = {
     'cmd.stats_text':   ['text stats', 'today text stats'],
     'cmd.import_uber':  ['import uber', 'ubereats import'],
     'cmd.import_foodpanda': ['import foodpanda', 'foodpanda import'],
+    'cmd.import_nidin': ['import nidin', 'nidin import'],
     'cmd.import_custom':['import custom', 'custom restaurant import'],
     'cmd.lang':     ['set language', 'switch language', 'language', 'lang', '/lang']
   },
@@ -2057,6 +2059,7 @@ var I18N_COMMANDS = {
     'cmd.stats_text':   ['テキスト集計'],
     'cmd.import_uber':  ['ウーバー導入', 'ubereats導入'],
     'cmd.import_foodpanda': ['フードパンダ導入', 'foodpanda導入'],
+    'cmd.import_nidin': ['ニディン導入', 'nidin導入'],
     'cmd.import_custom':['カスタム導入'],
     'cmd.lang':     ['言語設定', '言語切替', '言語', 'lang']
   },
@@ -2081,6 +2084,7 @@ var I18N_COMMANDS = {
     'cmd.stats_text':   ['텍스트 통계'],
     'cmd.import_uber':  ['우버이츠 가져오기'],
     'cmd.import_foodpanda': ['푸드판다 가져오기', 'foodpanda 가져오기'],
+    'cmd.import_nidin': ['니딘 가져오기', 'nidin 가져오기'],
     'cmd.import_custom':['식당 가져오기'],
     'cmd.lang':     ['언어설정', '언어변경', '언어', 'lang']
   },
@@ -2105,6 +2109,7 @@ var I18N_COMMANDS = {
     'cmd.stats_text':   ['สรุปข้อความ'],
     'cmd.import_uber':  ['นำเข้า uber'],
     'cmd.import_foodpanda': ['นำเข้า foodpanda', 'foodpanda นำเข้า'],
+    'cmd.import_nidin': ['นำเข้า nidin', 'nidin นำเข้า'],
     'cmd.import_custom':['นำเข้าร้านค้า'],
     'cmd.lang':     ['ตั้งค่าภาษา', 'เปลี่ยนภาษา', 'ภาษา', 'lang']
   },
@@ -2129,6 +2134,7 @@ var I18N_COMMANDS = {
     'cmd.stats_text':   ['rekap teks'],
     'cmd.import_uber':  ['impor uber'],
     'cmd.import_foodpanda': ['impor foodpanda', 'foodpanda impor'],
+    'cmd.import_nidin': ['impor nidin', 'nidin impor'],
     'cmd.import_custom':['impor restoran'],
     'cmd.lang':     ['atur bahasa', 'ganti bahasa', 'bahasa', 'lang']
   },
@@ -2153,6 +2159,7 @@ var I18N_COMMANDS = {
     'cmd.stats_text':   ['thống kê văn bản', 'thống kê chữ'],
     'cmd.import_uber':  ['nhập uber', 'nhập ubereats'],
     'cmd.import_foodpanda': ['nhập foodpanda', 'foodpanda nhập'],
+    'cmd.import_nidin': ['nhập nidin', 'nidin nhập'],
     'cmd.import_custom':['nhập nhà hàng', 'nhập quán'],
     'cmd.lang':     ['cài đặt ngôn ngữ', 'đổi ngôn ngữ', 'ngôn ngữ', 'lang', '/lang']
   }
@@ -4770,10 +4777,12 @@ function onOpenSpreadsheet() {
       .addSeparator()
       .addItem('🍔 從 Uber Eats 網址匯入菜單', 'showUberEatsImportDialog')
       .addItem('🐼 從 foodpanda 網址匯入菜單', 'showFoodpandaImportDialog')
+      .addItem('🥤 從你訂 (Nidin) 網址匯入菜單', 'showNidinImportDialog')
       .addItem('📑 從自訂餐廳匯入菜單', 'showCustomRestaurantImportDialog')
       .addSeparator()
       .addItem('🔍 診斷測試：Uber Eats 菜單抓取', 'testUberEatsImport')
       .addItem('🔍 診斷測試：foodpanda 菜單抓取', 'testFoodpandaImport')
+      .addItem('🔍 診斷測試：你訂 (Nidin) 菜單抓取', 'testNidinImport')
       .addItem('🔍 診斷測試：LINE 連線狀態', 'testLineConnection')
       .addItem('🔍 診斷測試：幫助卡片訊息', 'testHelpMessage')
       .addToUi();
@@ -6350,6 +6359,443 @@ function importFoodpandaToMenu(url, dayOfWeek, restaurantNameOverride) {
       _cleanString: _cleanString,
       _convertPrice: _convertPrice,
       _decodeSlug: _decodeSlug,
+      _mockStoreData: _mockStoreData
+    };
+  }
+})();
+
+
+/* =========================================================
+ * File: NidinService.js
+ * ========================================================= */
+
+/**
+ * NidinService.js - 你訂 (nidin.shop) store/menu scraping and parsing service
+ * Supports both Google Apps Script (GAS) and Node.js runtime for testing.
+ *
+ * Public API:
+ *   - parseNidinUrl(url)
+ *   - fetchStoreMenu(storeId, options)
+ *   - extractMenuItems(storeData)
+ *   - parseRawMenuJson(jsonStr)
+ *   - importNidinToMenu(url, dayOfWeek, restaurantNameOverride)
+ */
+
+/* ------------------------------------------------------------------ *
+ * Bootstrap — resolve CONFIG across runtimes
+ * ------------------------------------------------------------------ */
+if (typeof CONFIG === 'undefined') {
+  var CONFIG = null;
+}
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+       : (typeof global   !== 'undefined') ? global
+       : (typeof self     !== 'undefined') ? self
+       : null;
+
+  if (g && g.CONFIG) {
+    CONFIG = g.CONFIG;
+  }
+  if (!CONFIG) {
+    try {
+      var cfgModule = require('./Config.js');
+      CONFIG = cfgModule.CONFIG;
+    } catch (e) {}
+  }
+})();
+
+/**
+ * Detect whether we're running in Google Apps Script.
+ */
+function _isGasRuntime() {
+  try {
+    return typeof UrlFetchApp !== 'undefined';
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * HTTP GET helper with dual-environment support.
+ * Synchronous in Google Apps Script (UrlFetchApp), Promise-based in Node.js.
+ */
+function _httpGetJson(url, headers) {
+  if (_isGasRuntime()) {
+    var response = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: headers,
+      muteHttpExceptions: true
+    });
+    var statusCode = parseInt(response.getResponseCode(), 10);
+    var contentText = response.getContentText();
+    var data = null;
+    try { data = JSON.parse(contentText); } catch (e) { data = null; }
+    return { statusCode: statusCode, data: data, rawText: contentText };
+  }
+
+  // Node.js
+  return fetch(url, {
+    method: 'GET',
+    headers: headers
+  }).then(function (nodeResponse) {
+    return nodeResponse.text().then(function (nodeText) {
+      var nodeData = null;
+      try { nodeData = JSON.parse(nodeText); } catch (e) { nodeData = null; }
+      return { statusCode: nodeResponse.status, data: nodeData, rawText: nodeText };
+    });
+  });
+}
+
+/**
+ * Clean strings
+ */
+function _cleanString(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Parse raw price to integer
+ */
+function _convertPrice(rawPrice) {
+  var num = parseFloat(rawPrice);
+  if (isNaN(num)) return 0;
+  return Math.round(num);
+}
+
+/**
+ * Mock data for offline testing
+ */
+function _mockStoreData() {
+  return {
+    storeInfo: {
+      status: 200,
+      id: 29638,
+      name: '台北松菸店',
+      brand_name: '青山',
+      address: '台北市信義區忠孝東路四段559巷12號'
+    },
+    menuData: {
+      status: 200,
+      menu: {
+        category_list_json: {
+          schema: { product_id: 0, sort: 1, name: 2, description: 3, is_enable: 4, is_visible: 5, category_list: 6, product_list: 7 },
+          data: {
+            '101': [101, 1, '青', null, true, true, [], [201, 202]],
+            '102': [102, 2, '奶', null, true, true, [], [203]],
+            '103': [103, 3, '果', null, true, true, [], [204]]
+          }
+        },
+        product_list_json: {
+          schema: { product_id: 0, sort: 1, name: 2, description: 3, price: 4, is_enable: 15, is_visible: 16, combine_list: 23 },
+          data: {
+            '201': [201, 1, '春青', '招牌原茶', 30, null, null, null, null, null, null, null, null, null, null, true, true, [], [], [], [], [], [], [301]],
+            '202': [202, 2, '冬青', '冬片青茶', 55, null, null, null, null, null, null, null, null, null, null, true, true, [], [], [], [], [], [], [302]],
+            '203': [203, 1, '天蟬那堤', '經典鮮奶茶', 55, null, null, null, null, null, null, null, null, null, null, true, true, [], [], [], [], [], [], [303]],
+            '204': [204, 1, '橘子春青', '現壓橘汁', 0, null, null, null, null, null, null, null, null, null, null, true, true, [], [], [], [], [], [], [304]]
+          }
+        },
+        combine_list_json: {
+          schema: { combine_id: 0, name: 1, price: 2, edge_list: 5, common_list: 6 },
+          data: {
+            '301': [301, '街邊店_冰', null, null, null, {}, [[['春青', 0, 30, 3]], [['冰', 42, 0, 3]]]],
+            '302': [302, '街邊店_冰', null, null, null, {}, [[['冬青', 0, 55, 3]], [['冰', 42, 0, 3]]]],
+            '303': [303, '街邊店_冰', null, null, null, {}, [[['天蟬那堤', 0, 55, 3]], [['冰', 42, 0, 3]]]],
+            '304': [304, '街邊店_冰', null, null, null, {}, [[['橘子春青', 0, 65, 3]], [['冰', 42, 0, 3]]]]
+          }
+        }
+      }
+    }
+  };
+}
+
+/**
+ * parseNidinUrl — Extract storeId from 你訂 (nidin.shop) URL
+ * Supports:
+ *   https://order.nidin.shop/menu/29638
+ *   https://nidin.shop/menu/29638
+ *   order.nidin.shop/menu/29638
+ *   nidin.shop/menu/29638?utm_source=...
+ *   https://order.nidin.shop/gb/menu/29638/...
+ *   bare store id: 29638
+ */
+function parseNidinUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+
+  var trimmed = url.trim();
+  var match = trimmed.match(/(?:(?:https?:\/\/)?(?:[a-zA-Z0-9_-]+\.)?nidin\.shop\/(?:(?:gb|order|v1|voucher)\/)?menu\/([0-9]+)|(?:store_id=|^)([0-9]+)$)/i);
+  if (match) {
+    var storeId = match[1] || match[2];
+    if (!storeId) return null;
+
+    var apiBase = 'https://loctw-service-api.nidin.shop/shopper/v2/store/' + encodeURIComponent(storeId);
+    return {
+      storeId: storeId,
+      apiUrl: apiBase + '/onShelfMenu',
+      infoUrl: apiBase + '/info'
+    };
+  }
+
+  return null;
+}
+
+/**
+ * fetchStoreMenu — Fetch store info and on-shelf menu from Nidin API.
+ * Synchronous in Google Apps Script; returns Promise in Node.js.
+ */
+function fetchStoreMenu(storeId, options) {
+  if (!storeId) {
+    return _mockStoreData();
+  }
+
+  var opts = options || {};
+  var apiBase = 'https://loctw-service-api.nidin.shop/shopper/v2/store/' + encodeURIComponent(storeId);
+  var menuUrl = opts.apiUrl || (apiBase + '/onShelfMenu');
+  var infoUrl = opts.infoUrl || (apiBase + '/info');
+
+  var headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Language': 'zh-TW,zh;q=0.9'
+  };
+
+  function parseResponses(menuRes, infoRes) {
+    if (menuRes && menuRes.statusCode >= 200 && menuRes.statusCode < 300 && menuRes.data) {
+      if (typeof Logger !== 'undefined' && Logger.log) {
+        Logger.log('✔ [Nidin] 菜單 API 請求成功 (HTTP ' + menuRes.statusCode + ')');
+      }
+      return {
+        menuData: menuRes.data,
+        storeInfo: (infoRes && infoRes.data) ? infoRes.data : null
+      };
+    }
+
+    if (typeof Logger !== 'undefined' && Logger.log) {
+      Logger.log('⚠️ [Nidin] API 請求失敗，狀態碼: ' + (menuRes ? menuRes.statusCode : '未知'));
+      if (menuRes && menuRes.rawText) {
+        Logger.log('⚠️ [Nidin] 回應內文前 200 字: ' + menuRes.rawText.slice(0, 200));
+      }
+    }
+    return null;
+  }
+
+  if (_isGasRuntime()) {
+    try {
+      var menuRes = _httpGetJson(menuUrl, headers);
+      var infoRes = null;
+      try {
+        infoRes = _httpGetJson(infoUrl, headers);
+      } catch (ie) {
+        // Store info optional fallback
+      }
+      return parseResponses(menuRes, infoRes);
+    } catch (err) {
+      if (typeof Logger !== 'undefined' && Logger.log) {
+        Logger.log('❌ [Nidin] GAS 網路請求異常: ' + (err ? err.message : err));
+      }
+      return null;
+    }
+  }
+
+  // Node.js async flow
+  var menuPromise = _httpGetJson(menuUrl, headers);
+  var infoPromise = _httpGetJson(infoUrl, headers).catch(function () { return null; });
+
+  return Promise.all([menuPromise, infoPromise])
+    .then(function (results) {
+      return parseResponses(results[0], results[1]);
+    })
+    .catch(function (err) {
+      if (typeof Logger !== 'undefined' && Logger.log) {
+        Logger.log('❌ [Nidin] 網路請求異常: ' + (err ? err.message : err));
+      }
+      return null;
+    });
+}
+
+/**
+ * extractMenuItems — Extract deduplicated menu items from Nidin storeData payload
+ */
+function extractMenuItems(storeData) {
+  if (!storeData) return [];
+
+  var menuRoot = null;
+  if (storeData.menuData && storeData.menuData.menu) {
+    menuRoot = storeData.menuData.menu;
+  } else if (storeData.menu) {
+    menuRoot = storeData.menu;
+  } else if (storeData.category_list_json && storeData.product_list_json) {
+    menuRoot = storeData;
+  }
+
+  if (!menuRoot || !menuRoot.category_list_json || !menuRoot.product_list_json) {
+    return [];
+  }
+
+  var catDataObj = menuRoot.category_list_json.data || {};
+  var prodDataObj = menuRoot.product_list_json.data || {};
+  var combineDataObj = (menuRoot.combine_list_json && menuRoot.combine_list_json.data) ? menuRoot.combine_list_json.data : {};
+
+  // Sort categories by sort field (index 1)
+  var categories = Object.values(catDataObj);
+  categories.sort(function (a, b) {
+    var sortA = (a && a[1] != null) ? a[1] : 9999;
+    var sortB = (b && b[1] != null) ? b[1] : 9999;
+    return sortA - sortB;
+  });
+
+  var seen = {};
+  var items = [];
+
+  for (var c = 0; c < categories.length; c++) {
+    var cat = categories[c];
+    if (!cat) continue;
+    var isCatEnable = cat[4] !== false;
+    var isCatVisible = cat[5] !== false;
+    if (!isCatEnable || !isCatVisible) continue;
+
+    var categoryTitle = _cleanString(cat[2] || '一般品項');
+    // Filter out disclaimer / non-food categories
+    if (/^(?:※?注意事項|公告|店家公告|訂購須知|外送須知)$/i.test(categoryTitle)) {
+      continue;
+    }
+
+    var prodIds = cat[7] || [];
+    for (var p = 0; p < prodIds.length; p++) {
+      var pid = prodIds[p];
+      var prod = prodDataObj[pid];
+      if (!prod) continue;
+
+      var isProdEnable = prod[15] !== false;
+      var isProdVisible = prod[16] !== false;
+      if (!isProdEnable || !isProdVisible) continue;
+
+      var itemName = _cleanString(prod[2] || '');
+      if (!itemName) continue;
+
+      var price = _convertPrice(prod[4]);
+
+      // If base price is 0 or null, check combine_list for pricing
+      if ((price === 0 || !price) && prod[23] && Array.isArray(prod[23])) {
+        for (var k = 0; k < prod[23].length; k++) {
+          var cid = prod[23][k];
+          var comb = combineDataObj[cid];
+          if (comb && comb[6] && Array.isArray(comb[6])) {
+            for (var gIdx = 0; gIdx < comb[6].length; gIdx++) {
+              var grp = comb[6][gIdx];
+              if (Array.isArray(grp)) {
+                for (var eIdx = 0; eIdx < grp.length; eIdx++) {
+                  var entry = grp[eIdx];
+                  if (entry && entry[0] === itemName && entry[2]) {
+                    price = _convertPrice(entry[2]);
+                    break;
+                  }
+                }
+              }
+              if (price > 0) break;
+            }
+          }
+          if (price > 0) break;
+        }
+      }
+
+      var key = categoryTitle + ':' + itemName;
+      if (!seen[key]) {
+        seen[key] = true;
+        items.push({
+          category: categoryTitle,
+          itemName: itemName,
+          price: price,
+          description: _cleanString(prod[3] || ''),
+          isAvailable: 'TRUE',
+          notes: ''
+        });
+      }
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Parse raw JSON string pasted by user/admin
+ */
+function parseRawMenuJson(jsonStr) {
+  if (!jsonStr) return [];
+  try {
+    var parsed = JSON.parse(jsonStr);
+    return extractMenuItems(parsed);
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * High-level orchestration function to import from 你訂 (Nidin)
+ */
+function importNidinToMenu(url, dayOfWeek, restaurantNameOverride) {
+  var parsed = parseNidinUrl(url);
+  var storeId = parsed ? parsed.storeId : '';
+
+  function finishImport(storeData) {
+    var storeName = restaurantNameOverride;
+    if (!storeName && storeData && storeData.storeInfo) {
+      var info = storeData.storeInfo;
+      var brand = _cleanString(info.brand_name || info.brand_name_short || '');
+      var branch = _cleanString(info.name || info.name_short || '');
+      if (brand && branch && brand !== branch) {
+        storeName = brand + ' (' + branch + ')';
+      } else {
+        storeName = brand || branch;
+      }
+    }
+    if (!storeName) {
+      storeName = '你訂外送';
+    }
+
+    var items = extractMenuItems(storeData);
+    return {
+      restaurantName: storeName,
+      dayOfWeek: dayOfWeek || '週一',
+      url: url,
+      itemsCount: items.length,
+      items: items
+    };
+  }
+
+  var storeDataOrPromise = fetchStoreMenu(storeId, parsed || {});
+  if (storeDataOrPromise && typeof storeDataOrPromise.then === 'function') {
+    return storeDataOrPromise.then(finishImport);
+  }
+
+  return finishImport(storeDataOrPromise);
+}
+
+// Dual export
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+       : (typeof global   !== 'undefined') ? global
+       : (typeof self     !== 'undefined') ? self
+       : this;
+
+  g.parseNidinUrl = parseNidinUrl;
+  g.fetchStoreMenu = fetchStoreMenu;
+  g.extractMenuItems = extractMenuItems;
+  g.parseRawMenuJson = parseRawMenuJson;
+  g.importNidinToMenu = importNidinToMenu;
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      parseNidinUrl: parseNidinUrl,
+      fetchStoreMenu: fetchStoreMenu,
+      extractMenuItems: extractMenuItems,
+      parseRawMenuJson: parseRawMenuJson,
+      importNidinToMenu: importNidinToMenu,
+      _cleanString: _cleanString,
+      _convertPrice: _convertPrice,
       _mockStoreData: _mockStoreData
     };
   }
@@ -8567,6 +9013,7 @@ var FlexModule = null;
 var LineModule = null;
 var UberEatsModule = null;
 var FoodpandaModule = null;
+var NidinModule = null;
 var I18nModule = null;
 
 (function () {
@@ -8582,6 +9029,7 @@ var I18nModule = null;
     LineModule = g;
     UberEatsModule = g;
     FoodpandaModule = g;
+    NidinModule = g;
     I18nModule = g;
   } else {
     try {
@@ -8591,6 +9039,7 @@ var I18nModule = null;
       LineModule = require('./LineService.js');
       UberEatsModule = require('./UberEatsService.js');
       FoodpandaModule = require('./FoodpandaService.js');
+      NidinModule = require('./NidinService.js');
       I18nModule = require('./I18n.js');
     } catch (e) {
       // Fallback
@@ -9496,11 +9945,11 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, dayAltText, dayMenuFlex);
   }
 
-  // 4. UBER EATS / FOODPANDA IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址] / ubereats匯入 / foodpanda匯入 / 熊貓匯入
+  // 4. UBER EATS / FOODPANDA / NIDIN IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址] / ubereats匯入 / foodpanda匯入 / 熊貓匯入 / nidin匯入 / 你訂匯入
   var importPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern)
-    ? (I18nModule.buildCommandPrefixPattern('cmd.import_uber') + '|' + I18nModule.buildCommandPrefixPattern('cmd.import_foodpanda'))
-    : '(?:匯入菜單|匯入外送|ubereats匯入|foodpanda匯入|熊貓匯入)';
-  var importRegex = new RegExp('^(?:' + importPrefix + ')\\s+(週[一二三四五六日天]|ALL)\\s+(https?:\\/\\/\\S+)(?:\\s+(.+))?$', 'i');
+    ? (I18nModule.buildCommandPrefixPattern('cmd.import_uber') + '|' + I18nModule.buildCommandPrefixPattern('cmd.import_foodpanda') + '|' + I18nModule.buildCommandPrefixPattern('cmd.import_nidin'))
+    : '(?:匯入菜單|匯入外送|ubereats匯入|foodpanda匯入|熊貓匯入|nidin匯入|你訂匯入)';
+  var importRegex = new RegExp('^(?:' + importPrefix + ')\\s+(週[一二三四五六日天]|ALL)\\s+(https?:\\/\\/\\S+|[0-9]+)(?:\\s+(.+))?$', 'i');
   var importMatch = text.match(importRegex);
   if (importMatch) {
     var rawImpDay = importMatch[1];
@@ -9508,10 +9957,27 @@ function handleTextMessage(event) {
     var importUrl = importMatch[2];
     var customName = importMatch[3] ? importMatch[3].trim() : '';
 
+    var parsedNidin = NidinModule ? NidinModule.parseNidinUrl(importUrl) : null;
     var parsedFp = FoodpandaModule ? FoodpandaModule.parseFoodpandaUrl(importUrl) : null;
     var parsedUber = UberEatsModule ? UberEatsModule.parseUberEatsUrl(importUrl) : null;
 
-    if (parsedFp) {
+    if (parsedNidin) {
+      var nidinResult = NidinModule.importNidinToMenu(importUrl, importDay, customName);
+
+      var handleNidinSuccess = function (result) {
+        SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 你訂 匯入');
+        var msg = '✅ 已成功從你訂 (Nidin) 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
+        return LineModule.replyText(replyToken, msg);
+      };
+
+      if (nidinResult && typeof nidinResult.then === 'function') {
+        nidinResult.then(handleNidinSuccess);
+        return { status: 'importing' };
+      } else if (nidinResult && nidinResult.items) {
+        return handleNidinSuccess(nidinResult);
+      }
+    } else if (parsedFp) {
       var storeName = customName || parsedFp.storeName || parsedFp.vendorCode;
       var fpResult = FoodpandaModule.importFoodpandaToMenu(importUrl, importDay, storeName);
 
@@ -9546,7 +10012,7 @@ function handleTextMessage(event) {
         return handleUberSuccess(importPromise);
       }
     } else {
-      return LineModule.replyText(replyToken, '❌ 網址解析失敗，請提供正確的 Uber Eats 或 foodpanda 店家網址格式，例如：\nhttps://www.ubereats.com/tw/store/store-name/uuid\nhttps://www.foodpanda.com.tw/restaurant/m6hr/hong-ji-dou-jiang-da-wang-tai-bei-chang-chun-dian');
+      return LineModule.replyText(replyToken, '❌ 網址解析失敗，請提供正確的 Uber Eats、foodpanda 或 你訂 (Nidin) 店家網址格式，例如：\nhttps://www.ubereats.com/tw/store/store-name/uuid\nhttps://www.foodpanda.com.tw/restaurant/m6hr/hong-ji-dou-jiang-da-wang-tai-bei-chang-chun-dian\nhttps://order.nidin.shop/menu/29638');
     }
   }
 
@@ -10958,6 +11424,72 @@ function showFoodpandaImportDialog() {
 }
 
 /**
+ * Admin Action: Interactive Dialog to Import Menu from 你訂 (nidin.shop)
+ */
+function showNidinImportDialog() {
+  if (typeof SpreadsheetApp === 'undefined') return;
+  var ui = SpreadsheetApp.getUi();
+
+  var dayPrompt = ui.prompt('匯入你訂 (Nidin) 菜單 (步驟 1/2)', '請輸入要排程的星期（例如：週一至週五、週六、週日 或 ALL）：', ui.ButtonSet.OK_CANCEL);
+  if (dayPrompt.getSelectedButton() !== ui.Button.OK) return;
+  var dayOfWeek = dayPrompt.getResponseText().trim();
+  if (!dayOfWeek) dayOfWeek = '週一';
+
+  var urlPrompt = ui.prompt('匯入你訂 (Nidin) 菜單 (步驟 2/2)', '請貼上你訂店家網址：\n(例如：https://order.nidin.shop/menu/29638 )', ui.ButtonSet.OK_CANCEL);
+  if (urlPrompt.getSelectedButton() !== ui.Button.OK) return;
+  var url = urlPrompt.getResponseText().trim();
+  if (!url) {
+    ui.alert('網址不得為空！');
+    return;
+  }
+
+  try {
+    ui.alert('⏳ 正在抓取你訂菜單，請稍候約 3~5 秒...');
+    var parseFn = (typeof NidinModule !== 'undefined' && NidinModule.parseNidinUrl) ? NidinModule.parseNidinUrl : parseNidinUrl;
+    var fetchFn = (typeof NidinModule !== 'undefined' && NidinModule.fetchStoreMenu) ? NidinModule.fetchStoreMenu : fetchStoreMenu;
+    var extractFn = (typeof NidinModule !== 'undefined' && NidinModule.extractMenuItems) ? NidinModule.extractMenuItems : extractMenuItems;
+
+    var parsed = parseFn(url);
+    if (!parsed) {
+      ui.alert('❌ 網址解析失敗！請確認網址格式正確。\n例如：https://order.nidin.shop/menu/29638');
+      return;
+    }
+    var storeId = parsed.storeId;
+
+    var storeData = fetchFn(storeId, parsed);
+    function handleResult(data) {
+      var storeName = '你訂外送';
+      if (data && data.storeInfo) {
+        var info = data.storeInfo;
+        var brand = (info.brand_name || info.brand_name_short || '').trim();
+        var branch = (info.name || info.name_short || '').trim();
+        if (brand && branch && brand !== branch) {
+          storeName = brand + ' (' + branch + ')';
+        } else {
+          storeName = brand || branch || '你訂外送';
+        }
+      }
+      var items = extractFn(data);
+      if (!items || items.length === 0) {
+        ui.alert('⚠️ 未能從你訂取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
+        return;
+      }
+      saveMenuItems(dayOfWeek, storeName, items);
+      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 你訂 匯入');
+      ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
+    }
+
+    if (storeData && typeof storeData.then === 'function') {
+      storeData.then(handleResult);
+    } else {
+      handleResult(storeData);
+    }
+  } catch (err) {
+    ui.alert('❌ 匯入發生錯誤：' + err.message);
+  }
+}
+
+/**
  * Admin Action: Interactive Dialog to Import Menu from Custom Restaurant Sheet
  */
 function showCustomRestaurantImportDialog() {
@@ -11019,7 +11551,7 @@ function doGet(e) {
   var status = {
     status: 'online',
     service: 'LINE Meal Ordering Bot',
-    features: ['daily-ordering', 'weekly-batch-schedule', 'ubereats-menu-importer', 'foodpanda-menu-importer'],
+    features: ['daily-ordering', 'weekly-batch-schedule', 'ubereats-menu-importer', 'foodpanda-menu-importer', 'nidin-menu-importer'],
     timestamp: new Date().toISOString(),
     isGas: typeof SpreadsheetApp !== 'undefined'
   };
@@ -11388,6 +11920,87 @@ function testFoodpandaImport(customUrl) {
 }
 
 /**
+ * Diagnostic tool: Test Nidin menu scraping directly from GAS Editor or Node.js test
+ */
+function testNidinImport(customUrl) {
+  var results = [];
+  try {
+    if (typeof Logger !== 'undefined' && Logger.log) {
+      Logger.log('🔍 開始執行你訂菜單抓取診斷測試 (testNidinImport)...');
+    }
+    var parseFn = (typeof NidinModule !== 'undefined' && NidinModule.parseNidinUrl) ? NidinModule.parseNidinUrl : parseNidinUrl;
+    var fetchFn = (typeof NidinModule !== 'undefined' && NidinModule.fetchStoreMenu) ? NidinModule.fetchStoreMenu : fetchStoreMenu;
+    var extractFn = (typeof NidinModule !== 'undefined' && NidinModule.extractMenuItems) ? NidinModule.extractMenuItems : extractMenuItems;
+
+    var testCases = customUrl ? [{ name: '自訂店家', url: customUrl }] : [
+      {
+        name: '青山 (台北松菸店)',
+        url: 'https://order.nidin.shop/menu/29638'
+      },
+      {
+        name: '你訂店家 (純ID)',
+        url: '29638'
+      }
+    ];
+
+    for (var i = 0; i < testCases.length; i++) {
+      var t = testCases[i];
+      var parsed = parseFn(t.url);
+      var res = {
+        name: t.name,
+        url: t.url,
+        parsed: parsed,
+        success: false,
+        itemsCount: 0,
+        sampleItems: []
+      };
+
+      if (!parsed) {
+        res.error = '網址解析失敗';
+        results.push(res);
+        continue;
+      }
+
+      var storeData = fetchFn(parsed.storeId, parsed);
+      if (storeData && typeof storeData.then === 'function') {
+        if (typeof Logger !== 'undefined' && Logger.log) Logger.log('ℹ 非同步 Promise 物件已回傳');
+        res.success = true;
+        res.isPromise = true;
+        results.push(res);
+        continue;
+      }
+
+      if (!storeData) {
+        res.error = 'fetchStoreMenu returned null';
+        results.push(res);
+        continue;
+      }
+
+      var items = extractFn(storeData);
+      var storeName = t.name;
+      if (storeData.storeInfo) {
+        var info = storeData.storeInfo;
+        var brand = (info.brand_name || info.brand_name_short || '').trim();
+        var branch = (info.name || info.name_short || '').trim();
+        if (brand && branch && brand !== branch) {
+          storeName = brand + ' (' + branch + ')';
+        } else {
+          storeName = brand || branch || storeName;
+        }
+      }
+      res.success = true;
+      res.restaurantName = storeName;
+      res.itemsCount = items.length;
+      res.sampleItems = items.slice(0, 3);
+      results.push(res);
+    }
+  } catch (e) {
+    results.push({ error: e.message });
+  }
+  return results;
+}
+
+/**
  * Manual setup helper - can be run from the Apps Script editor toolbar
  */
 function setup() {
@@ -11410,6 +12023,7 @@ function setup() {
   g.refreshWeeklySummary = refreshWeeklySummary;
   g.showUberEatsImportDialog = showUberEatsImportDialog;
   g.showFoodpandaImportDialog = showFoodpandaImportDialog;
+  g.showNidinImportDialog = showNidinImportDialog;
   g.showCustomRestaurantImportDialog = showCustomRestaurantImportDialog;
   g.doGet = doGet;
   g.doPost = doPost;
@@ -11418,6 +12032,7 @@ function setup() {
   g.testHelpMessage = testHelpMessage;
   g.testUberEatsImport = testUberEatsImport;
   g.testFoodpandaImport = testFoodpandaImport;
+  g.testNidinImport = testNidinImport;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -11426,6 +12041,7 @@ function setup() {
       refreshWeeklySummary: refreshWeeklySummary,
       showUberEatsImportDialog: showUberEatsImportDialog,
       showFoodpandaImportDialog: showFoodpandaImportDialog,
+      showNidinImportDialog: showNidinImportDialog,
       showCustomRestaurantImportDialog: showCustomRestaurantImportDialog,
       doGet: doGet,
       doPost: doPost,
@@ -11433,7 +12049,8 @@ function setup() {
       testLineConnection: testLineConnection,
       testHelpMessage: testHelpMessage,
       testUberEatsImport: testUberEatsImport,
-      testFoodpandaImport: testFoodpandaImport
+      testFoodpandaImport: testFoodpandaImport,
+      testNidinImport: testNidinImport
     };
   }
 })();
