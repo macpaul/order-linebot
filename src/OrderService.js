@@ -11,6 +11,7 @@ var SheetModule = null;
 var FlexModule = null;
 var LineModule = null;
 var UberEatsModule = null;
+var FoodpandaModule = null;
 var I18nModule = null;
 
 (function () {
@@ -25,6 +26,7 @@ var I18nModule = null;
     FlexModule = g;
     LineModule = g;
     UberEatsModule = g;
+    FoodpandaModule = g;
     I18nModule = g;
   } else {
     try {
@@ -33,6 +35,7 @@ var I18nModule = null;
       FlexModule = require('./FlexMessage.js');
       LineModule = require('./LineService.js');
       UberEatsModule = require('./UberEatsService.js');
+      FoodpandaModule = require('./FoodpandaService.js');
       I18nModule = require('./I18n.js');
     } catch (e) {
       // Fallback
@@ -777,7 +780,7 @@ function matchMenuItem(rawItemName, menuList) {
  */
 function handleTextMessage(event) {
   var replyToken = event.replyToken;
-  var text = (event.message && event.message.text ? event.message.text : '').trim();
+  var text = (event.message && event.message.text ? event.message.text : (event.text || '')).trim();
   var source = event.source || {};
   var userId = source.userId || 'anonymous';
   var groupId = source.groupId || source.roomId || '';
@@ -938,30 +941,57 @@ function handleTextMessage(event) {
     return LineModule.replyFlex(replyToken, dayAltText, dayMenuFlex);
   }
 
-  // 4. UBER EATS IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址]
-  var importMatch = text.match(/^(?:匯入菜單|匯入外送|ubereats匯入)\s+(週[一二三四五六日天]|ALL)\s+(https?:\/\/\S+)(?:\s+(.+))?$/i);
+  // 4. UBER EATS / FOODPANDA IMPORT VIA CHAT: 匯入菜單 [週幾] [網址] / 匯入外送 [週幾] [網址] / ubereats匯入 / foodpanda匯入 / 熊貓匯入
+  var importPrefix = (typeof I18nModule !== 'undefined' && I18nModule.buildCommandPrefixPattern)
+    ? (I18nModule.buildCommandPrefixPattern('cmd.import_uber') + '|' + I18nModule.buildCommandPrefixPattern('cmd.import_foodpanda'))
+    : '(?:匯入菜單|匯入外送|ubereats匯入|foodpanda匯入|熊貓匯入)';
+  var importRegex = new RegExp('^(?:' + importPrefix + ')\\s+(週[一二三四五六日天]|ALL)\\s+(https?:\\/\\/\\S+)(?:\\s+(.+))?$', 'i');
+  var importMatch = text.match(importRegex);
   if (importMatch) {
     var rawImpDay = importMatch[1];
     var importDay = (rawImpDay === '週天') ? '週日' : rawImpDay;
     var importUrl = importMatch[2];
     var customName = importMatch[3] ? importMatch[3].trim() : '';
 
-    var parsedUrl = UberEatsModule.parseUberEatsUrl(importUrl);
-    if (!parsedUrl) {
-      return LineModule.replyText(replyToken, '❌ 網址解析失敗，請提供正確的 Uber Eats 店家網址格式，例如：\nhttps://www.ubereats.com/tw/store/store-name/uuid');
-    }
+    var parsedFp = FoodpandaModule ? FoodpandaModule.parseFoodpandaUrl(importUrl) : null;
+    var parsedUber = UberEatsModule ? UberEatsModule.parseUberEatsUrl(importUrl) : null;
 
-    var storeName = customName || parsedUrl.storeName;
-    var importPromise = UberEatsModule.importUberEatsToMenu(importUrl, importDay, storeName);
+    if (parsedFp) {
+      var storeName = customName || parsedFp.storeName || parsedFp.vendorCode;
+      var fpResult = FoodpandaModule.importFoodpandaToMenu(importUrl, importDay, storeName);
 
-    if (importPromise && typeof importPromise.then === 'function') {
-      importPromise.then(function (result) {
+      var handleFpSuccess = function (result) {
+        SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
+        SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 foodpanda 匯入');
+        var msg = '✅ 已成功從 foodpanda 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
+        return LineModule.replyText(replyToken, msg);
+      };
+
+      if (fpResult && typeof fpResult.then === 'function') {
+        fpResult.then(handleFpSuccess);
+        return { status: 'importing' };
+      } else if (fpResult && fpResult.items) {
+        return handleFpSuccess(fpResult);
+      }
+    } else if (parsedUber) {
+      var storeName = customName || parsedUber.storeName;
+      var importPromise = UberEatsModule.importUberEatsToMenu(importUrl, importDay, storeName);
+
+      var handleUberSuccess = function (result) {
         SheetModule.saveMenuItems(importDay, result.restaurantName, result.items);
         SheetModule.setWeeklyScheduleDay(importDay, result.restaurantName, '10:30', importUrl, '從 Uber Eats 匯入');
         var msg = '✅ 已成功從 Uber Eats 匯入【' + result.restaurantName + '】至 ' + importDay + ' 菜單！\n共匯入 ' + result.itemsCount + ' 道餐點。\n可直接傳送「' + importDay + '菜單」查看。';
-        LineModule.replyText(replyToken, msg);
-      });
-      return { status: 'importing' };
+        return LineModule.replyText(replyToken, msg);
+      };
+
+      if (importPromise && typeof importPromise.then === 'function') {
+        importPromise.then(handleUberSuccess);
+        return { status: 'importing' };
+      } else if (importPromise && importPromise.items) {
+        return handleUberSuccess(importPromise);
+      }
+    } else {
+      return LineModule.replyText(replyToken, '❌ 網址解析失敗，請提供正確的 Uber Eats 或 foodpanda 店家網址格式，例如：\nhttps://www.ubereats.com/tw/store/store-name/uuid\nhttps://www.foodpanda.com.tw/restaurant/m6hr/hong-ji-dou-jiang-da-wang-tai-bei-chang-chun-dian');
     }
   }
 
