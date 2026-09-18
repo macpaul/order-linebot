@@ -1903,10 +1903,12 @@ function onOpenSpreadsheet() {
       .addSeparator()
       .addItem('🍔 從 Uber Eats 網址匯入菜單', 'showUberEatsImportDialog')
       .addItem('🐼 從 foodpanda 網址匯入菜單', 'showFoodpandaImportDialog')
+      .addItem('🥤 從你訂 (Nidin) 網址匯入菜單', 'showNidinImportDialog')
       .addItem('📑 從自訂餐廳匯入菜單', 'showCustomRestaurantImportDialog')
       .addSeparator()
       .addItem('🔍 診斷測試：Uber Eats 菜單抓取', 'testUberEatsImport')
       .addItem('🔍 診斷測試：foodpanda 菜單抓取', 'testFoodpandaImport')
+      .addItem('🔍 診斷測試：你訂 (Nidin) 菜單抓取', 'testNidinImport')
       .addItem('🔍 診斷測試：LINE 連線狀態', 'testLineConnection')
       .addItem('🔍 診斷測試：幫助卡片訊息', 'testHelpMessage')
       .addToUi();
