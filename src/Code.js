@@ -136,6 +136,63 @@ function showUberEatsImportDialog() {
 }
 
 /**
+ * Admin Action: Interactive Dialog to Import Menu from foodpanda
+ */
+function showFoodpandaImportDialog() {
+  if (typeof SpreadsheetApp === 'undefined') return;
+  var ui = SpreadsheetApp.getUi();
+
+  var dayPrompt = ui.prompt('匯入 foodpanda 菜單 (步驟 1/2)', '請輸入要排程的星期（例如：週一至週五、週六、週日 或 ALL）：', ui.ButtonSet.OK_CANCEL);
+  if (dayPrompt.getSelectedButton() !== ui.Button.OK) return;
+  var dayOfWeek = dayPrompt.getResponseText().trim();
+  if (!dayOfWeek) dayOfWeek = '週一';
+
+  var urlPrompt = ui.prompt('匯入 foodpanda 菜單 (步驟 2/2)', '請貼上 foodpanda 店家網址：\n(例如：https://www.foodpanda.com.tw/restaurant/m6hr/... )', ui.ButtonSet.OK_CANCEL);
+  if (urlPrompt.getSelectedButton() !== ui.Button.OK) return;
+  var url = urlPrompt.getResponseText().trim();
+  if (!url) {
+    ui.alert('網址不得為空！');
+    return;
+  }
+
+  try {
+    ui.alert('⏳ 正在抓取 foodpanda 菜單，請稍候約 3~5 秒...');
+    var parseFn = (typeof FoodpandaModule !== 'undefined' && FoodpandaModule.parseFoodpandaUrl) ? FoodpandaModule.parseFoodpandaUrl : parseFoodpandaUrl;
+    var fetchFn = (typeof FoodpandaModule !== 'undefined' && FoodpandaModule.fetchStoreMenu) ? FoodpandaModule.fetchStoreMenu : fetchStoreMenu;
+    var extractFn = (typeof FoodpandaModule !== 'undefined' && FoodpandaModule.extractMenuItems) ? FoodpandaModule.extractMenuItems : extractMenuItems;
+
+    var parsed = parseFn(url);
+    if (!parsed) {
+      ui.alert('❌ 網址解析失敗！請確認網址格式正確。\n例如：https://www.foodpanda.com.tw/restaurant/m6hr/...');
+      return;
+    }
+    var vendorCode = parsed.vendorCode;
+    var fallbackStoreName = parsed.storeName || 'foodpanda外送';
+
+    var storeData = fetchFn(vendorCode, { apiHost: parsed.apiHost });
+    function handleResult(data) {
+      var storeName = (data && data.data && data.data.name) ? data.data.name : ((data && data.name) ? data.name : fallbackStoreName);
+      var items = extractFn(data);
+      if (!items || items.length === 0) {
+        ui.alert('⚠️ 未能從 foodpanda 取得任何餐點品項！\n可能原因：店家目前未營業、網址有誤或受到雲端連線限制。\n建議：您可在試算表的「菜單」分頁中手動貼上品項。');
+        return;
+      }
+      saveMenuItems(dayOfWeek, storeName, items);
+      setWeeklyScheduleDay(dayOfWeek, storeName, '10:30', url, '從 foodpanda 匯入');
+      ui.alert('✅ 匯入成功！\n店家：' + storeName + '\n已排入：' + dayOfWeek + '\n共抓取 ' + items.length + ' 道餐點！');
+    }
+
+    if (storeData && typeof storeData.then === 'function') {
+      storeData.then(handleResult);
+    } else {
+      handleResult(storeData);
+    }
+  } catch (err) {
+    ui.alert('❌ 匯入發生錯誤：' + err.message);
+  }
+}
+
+/**
  * Admin Action: Interactive Dialog to Import Menu from Custom Restaurant Sheet
  */
 function showCustomRestaurantImportDialog() {
@@ -197,7 +254,7 @@ function doGet(e) {
   var status = {
     status: 'online',
     service: 'LINE Meal Ordering Bot',
-    features: ['daily-ordering', 'weekly-batch-schedule', 'ubereats-menu-importer'],
+    features: ['daily-ordering', 'weekly-batch-schedule', 'ubereats-menu-importer', 'foodpanda-menu-importer'],
     timestamp: new Date().toISOString(),
     isGas: typeof SpreadsheetApp !== 'undefined'
   };
@@ -495,6 +552,77 @@ function testUberEatsImport(customUrl) {
 }
 
 /**
+ * Diagnostic tool: Test foodpanda menu scraping directly from GAS Editor or Node.js test
+ */
+function testFoodpandaImport(customUrl) {
+  var results = [];
+  try {
+    if (typeof Logger !== 'undefined' && Logger.log) {
+      Logger.log('🔍 開始執行 foodpanda 菜單抓取診斷測試 (testFoodpandaImport)...');
+    }
+    var parseFn = (typeof FoodpandaModule !== 'undefined' && FoodpandaModule.parseFoodpandaUrl) ? FoodpandaModule.parseFoodpandaUrl : parseFoodpandaUrl;
+    var fetchFn = (typeof FoodpandaModule !== 'undefined' && FoodpandaModule.fetchStoreMenu) ? FoodpandaModule.fetchStoreMenu : fetchStoreMenu;
+    var extractFn = (typeof FoodpandaModule !== 'undefined' && FoodpandaModule.extractMenuItems) ? FoodpandaModule.extractMenuItems : extractMenuItems;
+
+    var testCases = customUrl ? [{ name: '自訂店家', url: customUrl }] : [
+      {
+        name: '洪記豆漿大王',
+        url: 'https://www.foodpanda.com.tw/restaurant/m6hr/hong-ji-dou-jiang-da-wang-tai-bei-chang-chun-dian'
+      },
+      {
+        name: 'foodpanda店家 (短網址)',
+        url: 'https://foodpanda.com.tw/restaurant/m6hr'
+      }
+    ];
+
+    for (var i = 0; i < testCases.length; i++) {
+      var t = testCases[i];
+      var parsed = parseFn(t.url);
+      var res = {
+        name: t.name,
+        url: t.url,
+        parsed: parsed,
+        success: false,
+        itemsCount: 0,
+        sampleItems: []
+      };
+
+      if (!parsed) {
+        res.error = '網址解析失敗';
+        results.push(res);
+        continue;
+      }
+
+      var storeData = fetchFn(parsed.vendorCode, { apiHost: parsed.apiHost });
+      if (storeData && typeof storeData.then === 'function') {
+        if (typeof Logger !== 'undefined' && Logger.log) Logger.log('ℹ 非同步 Promise 物件已回傳');
+        res.success = true;
+        res.isPromise = true;
+        results.push(res);
+        continue;
+      }
+
+      if (!storeData) {
+        res.error = 'fetchStoreMenu returned null';
+        results.push(res);
+        continue;
+      }
+
+      var items = extractFn(storeData);
+      var storeName = (storeData.data && storeData.data.name) ? storeData.data.name : (storeData.name || parsed.storeName);
+      res.success = true;
+      res.restaurantName = storeName;
+      res.itemsCount = items.length;
+      res.sampleItems = items.slice(0, 3);
+      results.push(res);
+    }
+  } catch (e) {
+    results.push({ error: e.message });
+  }
+  return results;
+}
+
+/**
  * Manual setup helper - can be run from the Apps Script editor toolbar
  */
 function setup() {
@@ -516,6 +644,7 @@ function setup() {
   g.refreshDailySummary = refreshDailySummary;
   g.refreshWeeklySummary = refreshWeeklySummary;
   g.showUberEatsImportDialog = showUberEatsImportDialog;
+  g.showFoodpandaImportDialog = showFoodpandaImportDialog;
   g.showCustomRestaurantImportDialog = showCustomRestaurantImportDialog;
   g.doGet = doGet;
   g.doPost = doPost;
@@ -523,6 +652,7 @@ function setup() {
   g.testLineConnection = testLineConnection;
   g.testHelpMessage = testHelpMessage;
   g.testUberEatsImport = testUberEatsImport;
+  g.testFoodpandaImport = testFoodpandaImport;
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -530,13 +660,15 @@ function setup() {
       refreshDailySummary: refreshDailySummary,
       refreshWeeklySummary: refreshWeeklySummary,
       showUberEatsImportDialog: showUberEatsImportDialog,
+      showFoodpandaImportDialog: showFoodpandaImportDialog,
       showCustomRestaurantImportDialog: showCustomRestaurantImportDialog,
       doGet: doGet,
       doPost: doPost,
       setup: setup,
       testLineConnection: testLineConnection,
       testHelpMessage: testHelpMessage,
-      testUberEatsImport: testUberEatsImport
+      testUberEatsImport: testUberEatsImport,
+      testFoodpandaImport: testFoodpandaImport
     };
   }
 })();
