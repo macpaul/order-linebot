@@ -1834,6 +1834,7 @@ var I18N_COMMANDS = {
     'cmd.stats_weekly': ['本週統計', '梯次統計'],
     'cmd.stats_text':   ['今日文字統計', '今日統計文字', '文字統計', '統計文字', '今日文字'],
     'cmd.import_uber':  ['匯入菜單', '匯入外送', 'ubereats匯入'],
+    'cmd.import_foodpanda': ['foodpanda匯入', '熊貓匯入'],
     'cmd.import_custom':['匯入自訂餐廳', '匯入餐廳', '自訂餐廳匯入'],
     'cmd.lang':     ['設定語言', '切換語言', '語言設定', '語言', 'lang', 'language', '/lang']
   },
@@ -1857,6 +1858,7 @@ var I18N_COMMANDS = {
     'cmd.stats_weekly': ['weekly stats', 'weekly summary'],
     'cmd.stats_text':   ['text stats', 'today text stats'],
     'cmd.import_uber':  ['import uber', 'ubereats import'],
+    'cmd.import_foodpanda': ['import foodpanda', 'foodpanda import'],
     'cmd.import_custom':['import custom', 'custom restaurant import'],
     'cmd.lang':     ['set language', 'switch language', 'language', 'lang', '/lang']
   },
@@ -1880,6 +1882,7 @@ var I18N_COMMANDS = {
     'cmd.stats_weekly': ['今週の集計', '週間統計'],
     'cmd.stats_text':   ['テキスト集計'],
     'cmd.import_uber':  ['ウーバー導入', 'ubereats導入'],
+    'cmd.import_foodpanda': ['フードパンダ導入', 'foodpanda導入'],
     'cmd.import_custom':['カスタム導入'],
     'cmd.lang':     ['言語設定', '言語切替', '言語', 'lang']
   },
@@ -1903,6 +1906,7 @@ var I18N_COMMANDS = {
     'cmd.stats_weekly': ['이번주 통계', '주간통계'],
     'cmd.stats_text':   ['텍스트 통계'],
     'cmd.import_uber':  ['우버이츠 가져오기'],
+    'cmd.import_foodpanda': ['푸드판다 가져오기', 'foodpanda 가져오기'],
     'cmd.import_custom':['식당 가져오기'],
     'cmd.lang':     ['언어설정', '언어변경', '언어', 'lang']
   },
@@ -1926,6 +1930,7 @@ var I18N_COMMANDS = {
     'cmd.stats_weekly': ['สรุปสัปดาห์นี้', 'ยอดสัปดาห์นี้'],
     'cmd.stats_text':   ['สรุปข้อความ'],
     'cmd.import_uber':  ['นำเข้า uber'],
+    'cmd.import_foodpanda': ['นำเข้า foodpanda', 'foodpanda นำเข้า'],
     'cmd.import_custom':['นำเข้าร้านค้า'],
     'cmd.lang':     ['ตั้งค่าภาษา', 'เปลี่ยนภาษา', 'ภาษา', 'lang']
   },
@@ -1949,6 +1954,7 @@ var I18N_COMMANDS = {
     'cmd.stats_weekly': ['rekap minggu ini', 'total mingguan'],
     'cmd.stats_text':   ['rekap teks'],
     'cmd.import_uber':  ['impor uber'],
+    'cmd.import_foodpanda': ['impor foodpanda', 'foodpanda impor'],
     'cmd.import_custom':['impor restoran'],
     'cmd.lang':     ['atur bahasa', 'ganti bahasa', 'bahasa', 'lang']
   },
@@ -1972,6 +1978,7 @@ var I18N_COMMANDS = {
     'cmd.stats_weekly': ['thống kê tuần', 'thống kê tuần này'],
     'cmd.stats_text':   ['thống kê văn bản', 'thống kê chữ'],
     'cmd.import_uber':  ['nhập uber', 'nhập ubereats'],
+    'cmd.import_foodpanda': ['nhập foodpanda', 'foodpanda nhập'],
     'cmd.import_custom':['nhập nhà hàng', 'nhập quán'],
     'cmd.lang':     ['cài đặt ngôn ngữ', 'đổi ngôn ngữ', 'ngôn ngữ', 'lang', '/lang']
   }
