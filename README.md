@@ -14,9 +14,9 @@
   - 支援週一到週五每天指定不同配合店家與菜單。
   - 全組同仁可一次預約整週餐點（例如：`週一 排骨飯+1, 週二 炸雞腿+1, 週四 燒肉飯+1`）。
   - 自動產出「本週梯次統計表」，各日小計、店家叫餐總量、全週個人應付金額一目了然。
-- 🍔 **Uber Eats 店家菜單自動抓取與匯入**：
-  - 輸入 Uber Eats 店家網址，自動爬取分類、菜名、價格與描述，一鍵匯入至指定星期菜單！
-  - 支援 Google 試算表選單操作與 LINE 群組聊天室指令兩種匯入方式。
+- 🍔 **Uber Eats & foodpanda 店家菜單自動抓取與匯入**：
+  - 輸入 Uber Eats 或 foodpanda 店家網址，自動爬取分類、菜名、價格與描述，一鍵匯入至指定星期菜單！
+  - 支援 Google 試算表選單操作（「🍔 從 Uber Eats 網址匯入菜單」、「🐼 從 foodpanda 網址匯入菜單」）與 LINE 群組聊天室指令（`匯入菜單 [週X] [網址]`、`foodpanda匯入`、`熊貓匯入`）兩種匯入方式。
 - 📑 **從自訂餐廳工作表一鍵匯入菜單**：
   - 在試算表中建立店家名稱的專屬工作表（例如：`老王便當`），點選試算表選單「📑 從自訂餐廳匯入菜單」，一鍵同步填入 `WeeklySchedule` 與 `Menu`！
   - 支援嚴格排除系統專用工作表（`Config`、`Logs`、`WeeklySchedule`、`Menu`、`Orders`、`Children`、`Summary`）與防呆錯誤提示（目前僅由試算表管理者操作，避免群組成員誤觸）。
@@ -95,7 +95,7 @@
 | `今日文字統計` / `文字統計` | 快速取得今日點餐純文字統計（含品項、同仁明細與金額） | `今日文字統計`、`文字統計` |
 | `結單` / `本週結單` / `今日結單` | （**僅限開單人**）截止訂餐，產出叫餐總表與付款資訊（LINE Pay / 銀行匯款） | `結單`、`本週結單` |
 | `開單 [店家名] [時間]` | 發起今日單日自選開單 | `開單 老王便當 11:30` |
-| `匯入菜單 [週X] [網址]` | 透過 Uber Eats 店家網址自動匯入菜單 | `匯入菜單 週一 https://www.ubereats.com/...` |
+| `匯入菜單 [週X] [網址]` / `foodpanda匯入` / `ubereats匯入` | 透過 Uber Eats 或 foodpanda 店家網址自動匯入菜單 | `匯入菜單 週一 https://www.ubereats.com/...`、`foodpanda匯入 週四 https://www.foodpanda.com.tw/...` |
 | `設定語言` / `lang` | 切換個人操作與顯示語言（需開啟 `ENABLE_USER_LOCALE`） | `設定語言`、`設定語言 en`、`lang ja` |
 | `幫助` | 顯示所有指令與使用教學卡片 | `幫助` |
 
@@ -150,15 +150,16 @@ order-linebot/
 │   ├── LineService.js             # LINE Messaging API 通訊封裝與簽名驗證
 │   ├── SheetService.js            # Google Sheets 讀寫、週排程、公式注入防護與統計匯總
 │   ├── UberEatsService.js         # Uber Eats 店家菜單抓取、價格轉換與正規化模組
+│   ├── FoodpandaService.js        # foodpanda 店家菜單抓取、價格轉換與正規化模組
 │   ├── FlexMessage.js             # LINE Flex Message 互動卡片（排程、菜單、梯次統計）
 │   ├── OrderService.js            # 自然語言點餐解析器、週梯次狀態機與指令派發
 │   └── Code.js                    # GAS Webhook (doPost/doGet) 與 Google 試算表選單擴充
 ├── dist/
 │   └── Code.gs                    # 自動打包的單檔發行版，可直接貼入 GAS 編輯器
 ├── scripts/
-│   └── bundle.js                  # 自動將 8 個 src/ 模組打包至 dist/Code.gs 的腳本
+│   └── bundle.js                  # 自動將 9 個 src/ 模組打包至 dist/Code.gs 的腳本
 └── tests/
-    └── test_order_flow.js         # 包含多語系、週梯次點餐與 Uber Eats 匯入的端到端完整測試套件
+    └── test_order_flow.js         # 包含多語系、週梯次點餐、Uber Eats 與 foodpanda 匯入的端到端完整測試套件
 ```
 
 ---
@@ -168,7 +169,7 @@ order-linebot/
 本專案支援在完全不聯網或無 GAS 憑證的情況下，在本地進行快速語法檢驗與業務邏輯測試：
 
 ```bash
-# 執行包含週梯次與 Uber Eats 匯入的端到端測試套件
+# 執行包含週梯次、Uber Eats 與 foodpanda 匯入的端到端測試套件
 npm test
 
 # 重新編譯產出 GAS 單一程式碼檔案 (dist/Code.gs)
