@@ -11,6 +11,7 @@ const FlexModule = require('../src/FlexMessage.js');
 const LineModule = require('../src/LineService.js');
 const UberEatsModule = require('../src/UberEatsService.js');
 const FoodpandaModule = require('../src/FoodpandaService.js');
+const NidinModule = require('../src/NidinService.js');
 const I18nModule = require('../src/I18n.js');
 const OrderModule = require('../src/OrderService.js');
 const CodeModule = require('../src/Code.js');
@@ -272,6 +273,85 @@ OrderModule.handleTextMessage({
 });
 assert.ok(lastReply.text.indexOf('網址解析失敗') !== -1);
 console.log('  ✔ foodpanda URL parser, Menu extraction, diagnostics, and chat commands passed.\n');
+
+// 3c. 你訂 (Nidin) Scraper & Importer Tests
+console.log('▶ Test 3c: 你訂 (Nidin) URL Parser, Menu Extraction, Diagnostics & Chat Import');
+// Test URL parser with user sample URL
+const nidinUrl1 = 'https://order.nidin.shop/menu/29638';
+const parsedNidin1 = NidinModule.parseNidinUrl(nidinUrl1);
+assert.ok(parsedNidin1);
+assert.strictEqual(parsedNidin1.storeId, '29638');
+assert.strictEqual(parsedNidin1.apiUrl, 'https://loctw-service-api.nidin.shop/shopper/v2/store/29638/onShelfMenu');
+assert.strictEqual(parsedNidin1.infoUrl, 'https://loctw-service-api.nidin.shop/shopper/v2/store/29638/info');
+
+// Test short URL & bare storeId & gb path
+const parsedNidin2 = NidinModule.parseNidinUrl('nidin.shop/menu/29638?foo=bar');
+assert.ok(parsedNidin2);
+assert.strictEqual(parsedNidin2.storeId, '29638');
+
+const parsedNidin3 = NidinModule.parseNidinUrl('https://order.nidin.shop/gb/menu/29638/category');
+assert.ok(parsedNidin3);
+assert.strictEqual(parsedNidin3.storeId, '29638');
+
+const parsedNidin4 = NidinModule.parseNidinUrl('29638');
+assert.ok(parsedNidin4);
+assert.strictEqual(parsedNidin4.storeId, '29638');
+
+// Test invalid URL returns null
+assert.strictEqual(NidinModule.parseNidinUrl('https://example.com/not-nidin'), null);
+
+// Test menu extraction from mock data (handles price 0 fallback to combine_list)
+const nidinMockData = NidinModule._mockStoreData();
+const nidinExtracted = NidinModule.extractMenuItems(nidinMockData);
+assert.strictEqual(nidinExtracted.length, 4);
+assert.strictEqual(nidinExtracted[0].itemName, '春青');
+assert.strictEqual(nidinExtracted[0].price, 30);
+assert.strictEqual(nidinExtracted[1].itemName, '冬青');
+assert.strictEqual(nidinExtracted[1].price, 55);
+assert.strictEqual(nidinExtracted[2].itemName, '天蟬那堤');
+assert.strictEqual(nidinExtracted[2].price, 55);
+assert.strictEqual(nidinExtracted[3].itemName, '橘子春青');
+assert.strictEqual(nidinExtracted[3].price, 65); // price 0 resolved from combine_list
+
+// Test saving items to Sheet
+SheetModule.saveMenuItems('週五', '青山 (台北松菸店)', nidinExtracted);
+const fridayMenu = SheetModule.getMenuItems('週五', '青山 (台北松菸店)');
+assert.strictEqual(fridayMenu.length, 4);
+assert.strictEqual(fridayMenu[0].itemName, '春青');
+
+// Test CodeModule.testNidinImport diagnostic function
+const nidinDiagResults = CodeModule.testNidinImport();
+assert.ok(Array.isArray(nidinDiagResults));
+assert.strictEqual(nidinDiagResults.length, 2);
+assert.ok(nidinDiagResults[0].success);
+assert.ok(nidinDiagResults[1].success);
+
+// Test Chat import command for nidin (你訂匯入)
+const nidinChatRes = OrderModule.handleTextMessage({
+  replyToken: 'token_nidin_import',
+  source: { userId: 'user_boss', type: 'group', groupId: 'group_test' },
+  message: { type: 'text', text: '你訂匯入 週五 https://order.nidin.shop/menu/29638 青山 (台北松菸店)' }
+});
+assert.ok(nidinChatRes);
+assert.strictEqual(nidinChatRes.status, 'importing');
+
+// Test Chat import command with alias nidin匯入 and bare storeId
+const nidinChatRes2 = OrderModule.handleTextMessage({
+  replyToken: 'token_nidin_import_2',
+  source: { userId: 'user_boss', type: 'group', groupId: 'group_test' },
+  message: { type: 'text', text: 'nidin匯入 週五 29638' }
+});
+assert.ok(nidinChatRes2);
+assert.strictEqual(nidinChatRes2.status, 'importing');
+
+// Test Chat import command failure with invalid URL
+OrderModule.handleTextMessage({
+  replyToken: 'token_nidin_fail',
+  source: { userId: 'user_boss', type: 'group', groupId: 'group_test' },
+  message: { type: 'text', text: 'nidin匯入 週五 https://invalid-domain.com/test' }
+});
+assert.ok(lastReply.text.indexOf('網址解析失敗') !== -1);
+console.log('  ✔ 你訂 (Nidin) URL parser, Menu extraction, diagnostics, and chat commands passed.\n');
 
 
 // Mock user profiles for testing real user nicknames
