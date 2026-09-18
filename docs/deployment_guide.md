@@ -176,11 +176,11 @@
 1. **編輯每天店家與菜單**：
    - 管理員可直接在 `WeeklySchedule` 工作表修改週一到週五的配合店家名稱與截止時間，機器人即時自動讀取生效！
    - 可在 `Menu` 工作表直接編輯、新增或刪除各店家的菜色與金額。
-2. **從 Uber Eats / foodpanda 網址一鍵匯入**：
-   - 點選選單 **「🍔 從 Uber Eats 網址匯入菜單」** 或 **「🐼 從 foodpanda 網址匯入菜單」**。
-   - 彈出視窗依序輸入指定星期（例如：`週一` 或 `週四`）與店家網址（例如：`https://www.ubereats.com/...` 或 `https://www.foodpanda.com.tw/restaurant/m6hr/...`）。
+2. **從 Uber Eats / foodpanda / 你訂 (Nidin) 網址一鍵匯入**：
+   - 點選選單 **「🍔 從 Uber Eats 網址匯入菜單」**、**「🐼 從 foodpanda 網址匯入菜單」** 或 **「🥤 從你訂 (Nidin) 網址匯入菜單」**。
+   - 彈出視窗依序輸入指定星期（例如：`週一`、`週四` 或 `週五`）與店家網址（例如：`https://www.ubereats.com/...`、`https://www.foodpanda.com.tw/restaurant/m6hr/...` 或 `https://order.nidin.shop/menu/29638`）。
    - 系統自動解析並抓取所有菜色分類與價格，自動填入 `Menu` 頁籤，並同步更新排程店家！
-   - 另亦提供 **「🔍 診斷測試：foodpanda 菜單抓取」** 與 **「🔍 診斷測試：Uber Eats 菜單抓取」** 可供快速檢驗連線與解析狀態。
+   - 另亦提供 **「🔍 診斷測試：你訂 (Nidin) 菜單抓取」**、**「🔍 診斷測試：foodpanda 菜單抓取」** 與 **「🔍 診斷測試：Uber Eats 菜單抓取」** 可供快速檢驗連線與解析狀態。
 3. **從自訂餐廳工作表一鍵匯入**：
    - 在試算表中新增一個工作表，名稱取為餐廳名稱（例如：`老王便當`）。
    - 於該工作表填入菜單欄位（格式比照 `Menu`：`RestaurantName, Category, ItemName, Price, IsAvailable, Description`）。
@@ -207,7 +207,7 @@
 | `本週統計` / `梯次統計` | 查看週一至週五全體訂購匯總與每人應付金額清單 | `本週統計` |
 | `統計` | 即時查看群組今日點餐匯總明細 | `統計` |
 | `結單` / `本週結單` / `今日結單` | （**僅限開單人**）截止訂餐，產出總結算表與收款方式（LINE Pay 與銀行匯款） | `結單`、`本週結單`、`今日結單` |
-| `匯入菜單 [週X] [網址]` / `foodpanda匯入` / `ubereats匯入` | 在群組直接透過 Uber Eats 或 foodpanda 網址匯入菜單 | `匯入菜單 週一 https://www.ubereats.com/...`、`foodpanda匯入 週四 https://www.foodpanda.com.tw/...` |
+| `匯入菜單 [週X] [網址]` / `foodpanda匯入` / `ubereats匯入` / `nidin匯入` / `你訂匯入` | 在群組直接透過 Uber Eats、foodpanda 或你訂 (Nidin) 網址匯入菜單 | `匯入菜單 週一 https://www.ubereats.com/...`、`foodpanda匯入 週四 https://www.foodpanda.com.tw/...`、`你訂匯入 週五 https://order.nidin.shop/menu/29638` |
 | `幫助` | 顯示所有可用指令教學卡片 | `幫助` |
 
 ---
