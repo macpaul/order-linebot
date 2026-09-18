@@ -19,6 +19,7 @@ const fileOrder = [
   'LineService.js',
   'SheetService.js',
   'UberEatsService.js',
+  'FoodpandaService.js',
   'FlexMessage.js',
   'OrderService.js',
   'Code.js'
