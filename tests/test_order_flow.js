@@ -10,6 +10,7 @@ const SheetModule = require('../src/SheetService.js');
 const FlexModule = require('../src/FlexMessage.js');
 const LineModule = require('../src/LineService.js');
 const UberEatsModule = require('../src/UberEatsService.js');
+const FoodpandaModule = require('../src/FoodpandaService.js');
 const I18nModule = require('../src/I18n.js');
 const OrderModule = require('../src/OrderService.js');
 const CodeModule = require('../src/Code.js');
@@ -193,6 +194,85 @@ const diagResults = CodeModule.testUberEatsImport();
 assert.ok(Array.isArray(diagResults));
 assert.strictEqual(diagResults.length, 2);
 console.log('  ✔ Uber Eats URL parser, Base64 UUID converter, and diagnostics passed.\n');
+
+// 3b. foodpanda Scraper & Importer Tests
+console.log('▶ Test 3b: foodpanda URL Parser, Menu Extraction, Diagnostics & Chat Import');
+// Test URL parser with user sample URL
+const fpUrl1 = 'https://www.foodpanda.com.tw/restaurant/m6hr/hong-ji-dou-jiang-da-wang-tai-bei-chang-chun-dian';
+const parsedFp1 = FoodpandaModule.parseFoodpandaUrl(fpUrl1);
+assert.ok(parsedFp1);
+assert.strictEqual(parsedFp1.vendorCode, 'm6hr');
+assert.strictEqual(parsedFp1.country, 'tw');
+assert.strictEqual(parsedFp1.apiHost, 'tw.fd-api.com');
+assert.ok(parsedFp1.storeName.indexOf('Hong Ji Dou Jiang') !== -1 || parsedFp1.storeName.indexOf('hong ji dou jiang') !== -1);
+
+// Test short URL & international domains
+const fpUrl2 = 'https://foodpanda.com.tw/restaurant/m6hr';
+const parsedFp2 = FoodpandaModule.parseFoodpandaUrl(fpUrl2);
+assert.ok(parsedFp2);
+assert.strictEqual(parsedFp2.vendorCode, 'm6hr');
+
+const fpUrl3 = 'https://www.foodpanda.sg/restaurant/s7ab/burger-joint';
+const parsedFp3 = FoodpandaModule.parseFoodpandaUrl(fpUrl3);
+assert.ok(parsedFp3);
+assert.strictEqual(parsedFp3.vendorCode, 's7ab');
+assert.strictEqual(parsedFp3.country, 'sg');
+assert.strictEqual(parsedFp3.apiHost, 'sg.fd-api.com');
+
+// Test invalid URL parsing returns null
+assert.strictEqual(FoodpandaModule.parseFoodpandaUrl('https://example.com/not-foodpanda'), null);
+
+// Test menu extraction from mock data
+const fpMockData = FoodpandaModule._mockStoreData();
+const fpExtracted = FoodpandaModule.extractMenuItems(fpMockData);
+assert.strictEqual(fpExtracted.length, 3);
+assert.strictEqual(fpExtracted[0].itemName, '鹹豆漿');
+assert.strictEqual(fpExtracted[0].price, 47);
+assert.strictEqual(fpExtracted[1].itemName, '熱豆漿');
+assert.strictEqual(fpExtracted[1].price, 34);
+assert.strictEqual(fpExtracted[2].itemName, '原味蛋餅');
+assert.strictEqual(fpExtracted[2].price, 37);
+
+// Test saving items to Sheet
+SheetModule.saveMenuItems('週四', '洪記豆漿大王', fpExtracted);
+const thursdayMenu = SheetModule.getMenuItems('週四', '洪記豆漿大王');
+assert.strictEqual(thursdayMenu.length, 3);
+assert.strictEqual(thursdayMenu[0].itemName, '鹹豆漿');
+
+// Test CodeModule.testFoodpandaImport diagnostic function
+const fpDiagResults = CodeModule.testFoodpandaImport();
+assert.ok(Array.isArray(fpDiagResults));
+assert.strictEqual(fpDiagResults.length, 2);
+assert.ok(fpDiagResults[0].success);
+assert.ok(fpDiagResults[1].success);
+
+// Test Chat import command for foodpanda
+const fpChatRes = OrderModule.handleTextMessage({
+  replyToken: 'token_fp_import',
+  source: { userId: 'user_boss', type: 'group', groupId: 'group_test' },
+  message: { type: 'text', text: 'foodpanda匯入 週四 https://www.foodpanda.com.tw/restaurant/m6hr/hong-ji-dou-jiang-da-wang-tai-bei-chang-chun-dian 洪記豆漿大王' }
+});
+assert.ok(fpChatRes);
+assert.strictEqual(fpChatRes.status, 'importing');
+
+// Test Chat import command with alias 熊貓匯入
+const fpChatRes2 = OrderModule.handleTextMessage({
+  replyToken: 'token_fp_import_2',
+  source: { userId: 'user_boss', type: 'group', groupId: 'group_test' },
+  message: { type: 'text', text: '熊貓匯入 週四 https://www.foodpanda.com.tw/restaurant/m6hr/hong-ji-dou-jiang-da-wang-tai-bei-chang-chun-dian' }
+});
+assert.ok(fpChatRes2);
+assert.strictEqual(fpChatRes2.status, 'importing');
+
+// Test Chat import command failure with invalid URL
+OrderModule.handleTextMessage({
+  replyToken: 'token_fp_fail',
+  source: { userId: 'user_boss', type: 'group', groupId: 'group_test' },
+  message: { type: 'text', text: 'foodpanda匯入 週四 https://invalid-domain.com/test' }
+});
+assert.ok(lastReply.text.indexOf('網址解析失敗') !== -1);
+console.log('  ✔ foodpanda URL parser, Menu extraction, diagnostics, and chat commands passed.\n');
+
 
 // Mock user profiles for testing real user nicknames
 globalThis._mockProfiles = {
