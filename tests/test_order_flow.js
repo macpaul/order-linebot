@@ -3252,6 +3252,61 @@ assert.strictEqual(OrderModule.isTodayCutoffPassed('週三', noonRef), false, 'C
 
 console.log('  ✔ Config CUTOFF_TIME fallback, no-cutoff display, and non-blocking rules verified.\n');
 
+// -------------------------------------------------------------
+// Test 19: Fullwidth Comma and Semicolon Preservation in Item Names
+// -------------------------------------------------------------
+console.log('▶ Test 19: Fullwidth Comma and Semicolon in Item Names');
+
+// 19a. Leading +N with fullwidth comma in item name
+const t19_p1 = OrderModule.parseOrderText('+1 排骨飯，滷蛋');
+assert.strictEqual(t19_p1.length, 1, 'Should parse exactly 1 item');
+assert.strictEqual(t19_p1[0].itemName, '排骨飯，滷蛋', 'Item name should preserve fullwidth comma');
+assert.strictEqual(t19_p1[0].quantity, 1);
+
+// 19b. Trailing +N with fullwidth comma in item name
+const t19_p2 = OrderModule.parseOrderText('排骨飯，滷蛋+1');
+assert.strictEqual(t19_p2.length, 1, 'Should parse exactly 1 item');
+assert.strictEqual(t19_p2[0].itemName, '排骨飯，滷蛋', 'Item name should preserve fullwidth comma');
+assert.strictEqual(t19_p2[0].quantity, 1);
+
+// 19c. Fullwidth semicolon in item name
+const t19_p3 = OrderModule.parseOrderText('排骨便當；微辣+2');
+assert.strictEqual(t19_p3.length, 1, 'Should parse exactly 1 item');
+assert.strictEqual(t19_p3[0].itemName, '排骨便當；微辣', 'Item name should preserve fullwidth semicolon');
+assert.strictEqual(t19_p3[0].quantity, 2);
+
+// 19d. Multi-item ordering with halfwidth comma separating items that contain fullwidth punctuation
+const t19_p4 = OrderModule.parseOrderText('週一 排骨飯，滷蛋+1, 週二 雞腿飯；微辣+2');
+assert.strictEqual(t19_p4.length, 2, 'Should parse 2 separate items');
+assert.strictEqual(t19_p4[0].dayOfWeek, '週一');
+assert.strictEqual(t19_p4[0].itemName, '排骨飯，滷蛋');
+assert.strictEqual(t19_p4[0].quantity, 1);
+assert.strictEqual(t19_p4[1].dayOfWeek, '週二');
+assert.strictEqual(t19_p4[1].itemName, '雞腿飯；微辣');
+assert.strictEqual(t19_p4[1].quantity, 2);
+
+// 19e. End-to-end order flow with fullwidth comma item
+SheetModule._mockStore.Orders = [];
+SheetModule.setConfigValue('IS_ORDERING_OPEN', 'true');
+SheetModule.setConfigValue('CUTOFF_TIME', '23:59');
+globalThis._mockCurrentDate = new Date('2026-09-07T10:00:00+08:00'); // Monday 10:00 AM
+SheetModule.setWeeklyScheduleDay('週一', '風味餐廳', '23:59');
+SheetModule.saveMenuItems('週一', '風味餐廳', [
+  { itemName: '排骨飯，滷蛋', price: 110 }
+]);
+lastReply = null;
+OrderModule.handleTextMessage({
+  replyToken: 'tok_fullwidth_comma',
+  source: { groupId: 'g_fw', userId: 'usr_fw_tester' },
+  message: { type: 'text', text: '週一 排骨飯，滷蛋+1 (本人)' }
+});
+assert.ok(lastReply, 'Should produce a reply');
+assert.strictEqual(SheetModule._mockStore.Orders.length, 1);
+assert.strictEqual(SheetModule._mockStore.Orders[0].itemName, '排骨飯，滷蛋');
+assert.strictEqual(SheetModule._mockStore.Orders[0].price, 110);
+
+console.log('  ✔ Fullwidth comma and semicolon preserved in item names verified.\n');
+
 console.log('🎉 ALL EXTENDED TESTS PASSED SUCCESSFULLY! 100% Verified.');
 
 
