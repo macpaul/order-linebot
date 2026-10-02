@@ -1,6 +1,6 @@
 /**
  * LINE Meal Ordering Bot for Google Apps Script (All-In-One Bundle)
- * Automatically generated on: 2026-09-21T15:07:26.738Z
+ * Automatically generated on: 2026-10-02T03:57:35.825Z
  * 
  * Instructions:
  * 1. Open Google Sheets -> Extensions -> Apps Script
@@ -9573,7 +9573,7 @@ function formatOrderSummaryText(restaurantName, summaryData, isClosed) {
  */
 function _protectBrackets(str) {
   return str.replace(/([(（\[【][^)）\]】]*[)）\]】])/g, function (match) {
-    return match.replace(/,/g, '___COMMA___').replace(/，/g, '___COMMA___');
+    return match.replace(/,/g, '___COMMA___');
   });
 }
 function _restoreBrackets(str) {
@@ -9668,8 +9668,7 @@ function isMenuPageCommand(text) {
 function parseOrderText(text) {
   if (!text || isAnnouncementOrReconciliation(text) || isMenuPageCommand(text)) return [];
   var protectedText = _protectBrackets(text);
-  var clean = protectedText.replace(/，|；/g, ',');
-  var lines = clean.split(/[\n,]+/);
+  var lines = protectedText.split(/[\n,]+/);
   var parsedItems = [];
 
   // Helper to test if candidate item string is actually price calculation or math
