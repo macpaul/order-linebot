@@ -647,10 +647,12 @@ function parseOrderText(text) {
     if (/\d\s*[+\-*\/]\s*\d/.test(s)) return true;
     // Pure arithmetic formula composed only of digits, math symbols, spaces and parens
     if (/^[\d\s+\-*\/=.()（）]+$/.test(s)) return true;
-    // Standalone numbers or trailing price, e.g. "45", "90", "便當 45", "餡餅 90"
-    if (/(?:^|[\s$])\$?\d+$/.test(s)) return true;
-    // Contains price/fee keywords
-    if (/(?:元|塊|買一送一|折價|運費|差價|手續費)/.test(s)) return true;
+    // Standalone numbers or trailing price with optional currency, e.g. "45", "90", "便當 45", "餡餅 90", "50元", "90 塊"
+    if (/(?:^|[\s$])\$?\d+\s*(?:元|塊)?$/.test(s)) return true;
+    // Standalone currency unit or pure fee keywords with optional numbers (e.g. "元", "塊", "+7 運費", "運費 7元", "差價 10元")
+    if (/^(?:\+?\d+\s*)?(?:元|塊|折價|運費|差價|手續費)(?:\s*\d+\s*(?:元|塊)?)?$/.test(s)) return true;
+    // Contains fee adjustment keywords (excluding promotional phrases like "買一送一")
+    if (/(?:運費|差價|手續費|折價)/.test(s)) return true;
     return false;
   };
 
@@ -762,13 +764,24 @@ function matchMenuItem(rawItemName, menuList) {
     }
   }
 
-  // 2. Contains match (e.g. "排骨" matches "招牌排骨飯")
+  // 2. Prefix match (e.g. "買一送一 皮蛋瘦肉粥" matches "買一送一 皮蛋瘦肉粥 Century egg...")
+  for (var p = 0; p < menuList.length; p++) {
+    var pName = menuList[p].itemName || menuList[p].ItemName || '';
+    var pPrice = menuList[p].price !== undefined ? menuList[p].price : menuList[p].Price;
+    if (pName && pName.indexOf(rawItemName) === 0) {
+      return { itemName: pName, price: pPrice || 0 };
+    }
+  }
+
+  // 3. Contains match (e.g. "排骨" matches "招牌排骨飯")
   for (var j = 0; j < menuList.length; j++) {
     var itemN = menuList[j].itemName || menuList[j].ItemName || '';
     var itemP = menuList[j].price !== undefined ? menuList[j].price : menuList[j].Price;
     if (itemN) {
       // Menu item contains raw user query (e.g. "招牌排骨飯" contains "排骨飯")
-      if (itemN.indexOf(rawItemName) !== -1) {
+      // If query starts with "買一送一", avoid matching an item prefixed with "非買一送一"
+      var idx = itemN.indexOf(rawItemName);
+      if (idx !== -1 && !(idx > 0 && itemN.charAt(idx - 1) === '非' && rawItemName.indexOf('買一送一') === 0)) {
         return { itemName: itemN, price: itemP || 0 };
       }
       // User query contains menu item, only if query is reasonably short and lacks arithmetic/punctuation
