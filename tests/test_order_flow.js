@@ -124,6 +124,34 @@ assert.strictEqual(slashComboOrder.length, 1, 'Slash combo order must parse succ
 assert.strictEqual(slashComboOrder[0].itemName, '雞腿/排骨雙拼便當');
 assert.strictEqual(slashComboOrder[0].quantity, 1);
 
+// Test promotional items (e.g. 買一送一, 非買一送一) and items containing 元 or 塊
+const bogoOrder1 = OrderModule.parseOrderText('買一送一 皮蛋瘦肉粥 Century egg lean pork congee+1');
+assert.strictEqual(bogoOrder1.length, 1, 'BOGO order item must parse successfully');
+assert.strictEqual(bogoOrder1[0].itemName, '買一送一 皮蛋瘦肉粥 Century egg lean pork congee');
+assert.strictEqual(bogoOrder1[0].quantity, 1);
+
+const bogoOrder2 = OrderModule.parseOrderText('+1 非買一送一 皮蛋瘦肉粥 Century egg lean pork congee');
+assert.strictEqual(bogoOrder2.length, 1, 'Non-BOGO order item must parse successfully');
+assert.strictEqual(bogoOrder2[0].itemName, '非買一送一 皮蛋瘦肉粥 Century egg lean pork congee');
+assert.strictEqual(bogoOrder2[0].quantity, 1);
+
+const chickenNuggets = OrderModule.parseOrderText('麥克雞塊+2');
+assert.strictEqual(chickenNuggets.length, 1, 'Item with 塊 must parse successfully');
+assert.strictEqual(chickenNuggets[0].itemName, '麥克雞塊');
+assert.strictEqual(chickenNuggets[0].quantity, 2);
+
+const yuanqiOrder = OrderModule.parseOrderText('+1 元氣豬排飯');
+assert.strictEqual(yuanqiOrder.length, 1, 'Item with 元 must parse successfully');
+assert.strictEqual(yuanqiOrder[0].itemName, '元氣豬排飯');
+assert.strictEqual(yuanqiOrder[0].quantity, 1);
+
+// Test pure currency and fee math rejection
+assert.strictEqual(OrderModule.parseOrderText('+50 元').length, 0, 'Pure currency 元 must be rejected');
+assert.strictEqual(OrderModule.parseOrderText('+50 塊').length, 0, 'Pure currency 塊 must be rejected');
+assert.strictEqual(OrderModule.parseOrderText('+10 差價').length, 0, 'Fee keyword 差價 must be rejected');
+assert.strictEqual(OrderModule.parseOrderText('+5 手續費').length, 0, 'Fee keyword 手續費 must be rejected');
+assert.strictEqual(OrderModule.parseOrderText('便當 50元 + 10').length, 0, 'Price with 元 must be rejected');
+
 // Verify announcement text sent via handleTextMessage is completely ignored (no order created, returns null)
 const annResult = OrderModule.handleTextMessage({
   replyToken: 'token_announcement_test',
@@ -144,6 +172,20 @@ assert.strictEqual(m1.price, 100);
 const m2 = OrderModule.matchMenuItem('古早味紅茶', menu);
 assert.strictEqual(m2.itemName, '古早味紅茶');
 assert.strictEqual(m2.price, 25);
+
+// Test BOGO and Non-BOGO menu disambiguation
+const bogoTestMenu = [
+  { itemName: '非買一送一 皮蛋瘦肉粥 Century egg lean pork congee', price: 120 },
+  { itemName: '買一送一 皮蛋瘦肉粥 Century egg lean pork congee', price: 150 }
+];
+const matchBogoExact = OrderModule.matchMenuItem('買一送一 皮蛋瘦肉粥 Century egg lean pork congee', bogoTestMenu);
+assert.strictEqual(matchBogoExact.price, 150, 'Exact BOGO match should resolve correct item and price');
+const matchNonBogoExact = OrderModule.matchMenuItem('非買一送一 皮蛋瘦肉粥 Century egg lean pork congee', bogoTestMenu);
+assert.strictEqual(matchNonBogoExact.price, 120, 'Exact Non-BOGO match should resolve correct item and price');
+const matchBogoPrefix = OrderModule.matchMenuItem('買一送一 皮蛋瘦肉粥', bogoTestMenu);
+assert.strictEqual(matchBogoPrefix.price, 150, 'BOGO prefix should not be confused with 非買一送一');
+const matchNonBogoPrefix = OrderModule.matchMenuItem('非買一送一 皮蛋瘦肉粥', bogoTestMenu);
+assert.strictEqual(matchNonBogoPrefix.price, 120, 'Non-BOGO prefix should resolve to 非買一送一');
 console.log('  ✔ Menu matching passed.\n');
 
 // 3. Uber Eats Scraper & Importer Tests
